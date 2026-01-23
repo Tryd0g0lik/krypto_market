@@ -1,0 +1,15 @@
+services:
+    redis:
+        container_name: redis_bc24
+        image: redis:7.2-alpine
+        healthcheck:
+            test: ["CMD", "redis-cli", "ping"]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+
+        command: redis-server --bind 0.0.0.0
+        volumes:
+            - redis_data:/data
+        ports:
+            - "6380:6379"

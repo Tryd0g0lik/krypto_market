@@ -1,0 +1,52 @@
+exclude: ^(venv|__init__.py|__pycache__py|manage.py|project|__tests__)$
+repos:
+  # https://pre-commit.com/#config-exclude
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        files: \.py$
+        ignore: project
+      - id: end-of-file-fixer
+        files: \.py$
+        ignore: ^(project/|__tests__/)
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-ast
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+
+
+  - repo: https://github.com/PyCQA/flake8
+    # https://flake8.pycqa.org/en/latest/user/error-codes.html
+    rev: 7.3.0
+    hooks:
+      - id: flake8
+        exclude: ^(project/|__tests__/)
+
+  - repo: https://github.com/psf/black
+    # https://black.readthedocs.io/en/stable/
+    rev: 25.12.0
+    hooks:
+      - id: black
+        files: \.py$
+        language_version: "3.12"
+        exclude: ^(project/|__tests__/)
+
+
+  # https://bandit.readthedocs.io/en/latest/config.html
+  # https://pypi.org/project/bandit/
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.9.2
+    hooks:
+      - id: bandit
+        args: [ "-c", "pyproject.toml", "-s", "B101", "B608"  ]
+        additional_dependencies: [ "bandit[toml]" ]
+
+  - repo: https://github.com/pycqa/isort
+    rev: 7.0.0
+    hooks:
+      - id: isort
+        name: isort (python)
+        args: [ "--profile", "black", "--line-length", "88" ]
