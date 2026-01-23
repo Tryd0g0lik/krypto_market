@@ -5,7 +5,7 @@ class SQLText(Enum):
     CHECK_DB = """SELECT %s FROM %s WHERE %s IS NOT NULL;"""
     CREATE_DB = """CREATE DATABASE %s;"""
     CREATE_ONETABLE = """CREATE TABLE IF NOT EXISTS %s ( %s );"""
-    FIND_DB = """SELECT 1 FROM pg_database WHERE datname = :kryptomarket_db"""
+    FIND_DB = """SELECT 1 FROM pg_database WHERE datname = :cryptomarket_db"""
     FIND_DB_TABLE = """SELECT %d FROM %s WHERE %s IS NOT NULL;"""
 
     @classmethod
@@ -13,7 +13,7 @@ class SQLText(Enum):
         """
         Create a new database table
         :param 'name': str. Database name.
-            Example: "kryptomarket_db".
+            Example: "cryptomarket_db".
         :return str. SQL rule/text.
         """
         return cls.CREATE_DB.value % name
@@ -23,9 +23,9 @@ class SQLText(Enum):
         """
         This the SQL text is for checks - we have the already exists 'db_name' or not.
         :params 'db_name': str. Database's name whose we want to check on the existence.\
-            Example: "kryptomarket_db".
+            Example: "cryptomarket_db".
             'table_name': str. Table name whose existence we will check.\
-            Example: "kryptomarket_account".
+            Example: "cryptomarket_account".
             'col_name': str. Column name from 'table_name' whose existence we will check.\
                 Example: 'account' or 'email' or 'created_at'
         :return: str. SQL text/rule.
@@ -38,7 +38,7 @@ class SQLText(Enum):
         This the SQL text is for create the one table. This table without \
             refer of type: one-to-one and more.
         :params 'db_name': str Database's name.\
-            Example: "kryptomarket_db".
+            Example: "cryptomarket_db".
             'col_name': lis[str]. This is list from the columns names. \
             Example:  ['id SERIAL PRIMARY KEY', 'account VARCHAR(50) NOT NULL', 'email ...']
         :return:

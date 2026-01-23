@@ -1,12 +1,12 @@
 """
-kryptomarket/main.py
+cryptomarket/main.py
 """
 
 import asyncio
 
 import uvicorn
 
-from kryptomarket.project.settings.settings_env import APP_HOST_, APP_PORT_
+from cryptomarket.project.settings.settings_env import APP_HOST_, APP_PORT_
 
 
 async def main() -> None:

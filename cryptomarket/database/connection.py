@@ -1,5 +1,5 @@
 """
-kryptomarket/database/connection.py
+cryptomarket/database/connection.py
 """
 
 import asyncio
@@ -19,10 +19,10 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.orm import Session, SessionTransaction, sessionmaker
 
-from kryptomarket.database.sql_text import SQLText
-from kryptomarket.project.settings.core import app_settings
-from kryptomarket.type.settings_prop import SettingsProps
-from kryptomarket.type.db import Database
+from cryptomarket.database.sql_text import SQLText
+from cryptomarket.project.settings.core import app_settings
+from cryptomarket.type.settings_prop import SettingsProps
+from cryptomarket.type.db import Database
 
 log = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class DatabaseConnection(Database):
     """
     This is the collection of methods for processing the connection to the database/db.
     Here, we have min 2 database and more four the mode connection with db:
-    - the app settings have variable 'PROJECT_MODE:str' ('kryptomarket/project/settings/core.py' of four mode);
+    - the app settings have variable 'PROJECT_MODE:str' ('cryptomarket/project/settings/core.py' of four mode);
     - plus variable  'DEBUG:bool' (mode).
     - we can have the async/sync connection with db;
     - And.When we are running our app we have difference between the time of creating database and \
@@ -271,7 +271,7 @@ class DatabaseConnection(Database):
         Here we have getting the ASYNC connection on database and creating all tables.
         :return: None
         """
-        from kryptomarket.models import Base
+        from cryptomarket.models import Base
 
         try:
             engine: AsyncEngine = self.engine
@@ -292,7 +292,7 @@ class DatabaseConnection(Database):
         Here we create all tables. Engine need only SYNC.
         :return: None
         """
-        from kryptomarket.models import Base
+        from cryptomarket.models import Base
 
         try:
             with self.engine.begin():
@@ -384,7 +384,7 @@ class DatabaseConnection(Database):
         :param 'engine': async of engine.
         :param 'db_nane': str. Default is value 'session'. Default value is setting.POSTGRES_DB.
             If  db_nane not is None it means wath use value of db_nane.
-        :param settings: app settings = 'app_settings' from the 'kryptomarket/project/settings/core.py'
+        :param settings: app settings = 'app_settings' from the 'cryptomarket/project/settings/core.py'
         :return: True - this if the database 'db_nane' would found or Fasle
         """
         from sqlalchemy import text
@@ -392,7 +392,7 @@ class DatabaseConnection(Database):
         async with engine.connect() as conn:
             try:
                 result = await conn.execute(
-                    text(SQLText.FIND_DB.value), {"kryptomarket_db": "kryptomarket_db"}
+                    text(SQLText.FIND_DB.value), {"cryptomarket_db": "cryptomarket_db"}
                 )
                 if result and result.fetchone():
                     return True
@@ -418,7 +418,7 @@ class DatabaseConnection(Database):
 
     async def drop_tables(self) -> None:
         """Drop to the every database tables."""
-        from kryptomarket.models import Base
+        from cryptomarket.models import Base
 
         if not self.engine:
             self.init_engine()

@@ -1,5 +1,5 @@
 """
-kryptomarket/type/db.py
+cryptomarket/type/db.py
 """
 from dataclasses import dataclass
 from typing import Protocol
@@ -7,7 +7,7 @@ from pydantic import ConfigDict
 from sqlalchemy import DateTime
 from sqlalchemy.orm import Mapped
 
-from kryptomarket.type.settings_prop import SettingsProps
+from cryptomarket.type.settings_prop import SettingsProps
 
 
 class Database(Protocol):

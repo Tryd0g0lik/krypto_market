@@ -1,5 +1,5 @@
 """
-kryptomarket/database/handler_create_db.py
+cryptomarket/database/handler_create_db.py
 """
 
 import asyncio
@@ -9,12 +9,12 @@ import os
 
 from sqlalchemy.exc import InvalidRequestError
 
-from kryptomarket.database.connection import DatabaseConnection
-from kryptomarket.database.sql_text import SQLText
-from kryptomarket.project.settings.core import BASE_DIR, DEBUG
-from kryptomarket.project.settings.settings_env import (POSTGRES_DB_, PROJECT_MODE_)
-from kryptomarket.type.settings_prop import SettingsProps
-from kryptomarket.type.db import Database
+from cryptomarket.database.connection import DatabaseConnection
+from cryptomarket.database.sql_text import SQLText
+from cryptomarket.project.settings.core import BASE_DIR, DEBUG
+from cryptomarket.project.settings.settings_env import (POSTGRES_DB_, PROJECT_MODE_)
+from cryptomarket.type.settings_prop import SettingsProps
+from cryptomarket.type.db import Database
 
 log = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ async def handler_restart_create_tables(
     if db.is_postgresqltype and restart_quantity < max_restart:
         restart_quantity += 1
         dbtable_bool = await db.is_postgres_exists_async(
-            db.engine, "kryptomarket_db", settings
+            db.engine, "cryptomarket_db", settings
         )
         if not dbtable_bool:
             await asyncio.sleep(3)
@@ -164,7 +164,7 @@ async def checkOrCreateTables(settings: SettingsProps, max_restart=3) -> None:
                 sqltexts = SQLText
                 sqlt = text(
                     sqltexts.is_sql_check_db(
-                        settings.POSTGRES_DB, "kryptomarket_account", "created_at"
+                        settings.POSTGRES_DB, "cryptomarket_account", "created_at"
                     )
                 )
                 # The database whose we want to check on the already exists.

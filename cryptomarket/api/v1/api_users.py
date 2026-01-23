@@ -1,11 +1,11 @@
 """
-kryptomarket/api/v1/api_users.py
+cryptomarket/api/v1/api_users.py
 """
 
 from fastapi import (APIRouter, Request, Response, openapi, status)
 
 
-# from kryptomarket.type import (
+# from cryptomarket.type import (
 #     CreateAccountBase,
 # )
 

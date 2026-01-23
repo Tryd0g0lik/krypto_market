@@ -1,5 +1,5 @@
 """
-kryptomarket/project/app.py
+cryptomarket/project/app.py
 """
 
 import asyncio
@@ -8,10 +8,10 @@ import threading
 
 from fastapi import (FastAPI, Request)
 
-from kryptomarket.api.v1.api_users import router_v1
-from kryptomarket.database.handler_create_db import checkOrCreateTables
+from cryptomarket.api.v1.api_users import router_v1
+from cryptomarket.database.handler_create_db import checkOrCreateTables
 
-from kryptomarket.project.settings.core import app_settings
+from cryptomarket.project.settings.core import app_settings
 
 
 # controller = StripCreationQueue()
@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
     # await controller.stop_workers()
 
 
-def app_kryptomarket():
+def app_cryptomarket():
     # ===============================
     # ---- RUN DATABASE
     # ===============================
@@ -58,7 +58,7 @@ def app_kryptomarket():
         log.error(
             "[%s]: Error => %s"
             % (
-                app_kryptomarket.__name__,
+                app_cryptomarket.__name__,
                 e.args[0] if e.args else str(e),
             )
         )
@@ -108,7 +108,7 @@ def app_kryptomarket():
     @app_.get("/")
     async def root():
         return {
-            "message": "kryptomarket API",
+            "message": "cryptomarket API",
             "version": app_settings.PROJECT_VERSION,
             "docs": "/docs",
             "redoc": "/redoc",
@@ -122,4 +122,4 @@ def app_kryptomarket():
     return app_
 
 
-app = app_kryptomarket()
+app = app_cryptomarket()

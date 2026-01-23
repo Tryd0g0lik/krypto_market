@@ -1,5 +1,5 @@
 """
-kryptomarket/project/settings/core.py
+cryptomarket/project/settings/core.py
 
 """
 
@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import List
 
 from logs import configure_logging
-from kryptomarket.project.settings.settings_env import (
+from cryptomarket.project.settings.settings_env import (
     APP_HOST_,
     APP_PORT_,
     POSTGRES_DB_,
@@ -19,7 +19,7 @@ from kryptomarket.project.settings.settings_env import (
     POSTGRES_USER_,
     PROJECT_MODE_,
 )
-from kryptomarket.type.settings_prop import SettingsProps
+from cryptomarket.type.settings_prop import SettingsProps
 
 
 log = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ class Settings(SettingsProps):
             Default value is 'http'.
         'APP_PORT': str Default value is '8003'.
         '__SQLITE_DB_PATH': str This is used as local path for connection to the SQLite database. Default value is the string.
-            It is local path to the database 'kryptomarket_db.sqlit3'.
+            It is local path to the database 'cryptomarket_db.sqlit3'.
             You can make changes to dp.  There insert the value 'None' and use 'SQLALCHEMY_DATABASE_URL' (below)
         '__SQLALCHEMY_DATABASE_URL': str This is a full path/address to the external db. .
         'ALLOWED_ORIGINS': list[str]This is list of allowed URLs/source. App cant get receive requests from these sources.
@@ -66,7 +66,7 @@ class Settings(SettingsProps):
     # ---------------------------------------
     #  COMMON
     # ---------------------------------------
-    PROJECT_NAME: str = "KryptoMarket"
+    PROJECT_NAME: str = "cryptoMarket"
     PROJECT_VERSION: str = "0.1.0"
     PROJECT_MODE: str = PROJECT_MODE_
     DEFAULT_LANGUAGE: str = "en"

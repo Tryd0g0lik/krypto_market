@@ -1,5 +1,5 @@
 """
-kryptomarket/type/settings_prop.py
+cryptomarket/type/settings_prop.py
 """
 from datetime import datetime
 from typing import Any, Protocol
@@ -9,7 +9,7 @@ from pydantic import (BaseModel, Field)
 # Settings
 # -----------------------------------------
 class SettingsProps(Protocol):
-    PROJECT_NAME: str = "bc24-kryptomarket"
+    PROJECT_NAME: str = "bc24-cryptomarket"
     PROJECT_VERSION: str = "0.1.0"
     DEFAULT_LANGUAGE: str = "en"
     POSTGRES_PORT: str = "8000"
@@ -17,7 +17,7 @@ class SettingsProps(Protocol):
     POSTGRES_PASSWORD: str = "postgres"
     POSTGRES_USER: str = "postgres"
     POSTGRES_HOST: str = "127.0.0.1"
-    __SQLITE_DB_PATH: str = "kryptomarket_db.sqlit3"
+    __SQLITE_DB_PATH: str = "cryptomarket_db.sqlit3"
     __SQLALCHEMY_DATABASE_URL: str | None = None
     ALLOWED_ORIGINS: list[str] = []
     ALLOWED_METHODS: list[str] = []
