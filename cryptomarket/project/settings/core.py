@@ -8,7 +8,6 @@ import os
 from pathlib import Path
 from typing import List
 
-from logs import configure_logging
 from cryptomarket.project.settings.settings_env import (
     APP_HOST_,
     APP_PORT_,
@@ -20,7 +19,7 @@ from cryptomarket.project.settings.settings_env import (
     PROJECT_MODE_,
 )
 from cryptomarket.type.settings_prop import SettingsProps
-
+from logs import configure_logging
 
 log = logging.getLogger(__name__)
 
@@ -57,12 +56,16 @@ class Settings(SettingsProps):
         'ALLOWED_METHODS': list[str] This is list of allowed methods. Example: 'GET', 'POST'.
         'ALLOWED_HEADERS': list[str] This is list of allowed headers. Example: 'X-Language', 'Accept-Language'.
         `DEBUG`: bool  The True it is mean project was run to the debug mode or not.
-        'STRIPE_MAX_QUANTITY_WORKERS' - This is the fix worker's quantity for protecting the Stripe's server from \
+        'DERIBIT_MAX_QUANTITY_WORKERS' - This is the fix worker's quantity for protecting the Deribit server from \
             a unlimited flow of requests. You can chang the max number.
-        'STRIPE_MAX_CONCURRENT' = stripe lock a work protection and API stability (it is tate limiting for \
+        'DERIBIT_MAX_CONCURRENT' = The Deribit lock a work protection and API stability (it is tate limiting for \
             the concurrent requests)
     """
 
+    # ---------------------------------------
+    # DERIBIT
+    # ---------------------------------------
+    DERIBIT_MAX_QUANTITY_WORKERS = 10
     # ---------------------------------------
     #  COMMON
     # ---------------------------------------

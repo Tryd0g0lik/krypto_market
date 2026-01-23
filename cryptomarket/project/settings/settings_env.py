@@ -1,7 +1,9 @@
 """
 cryptomarket/models/__init__.py
 """
+
 import os
+
 import dotenv
 
 dotenv.load_dotenv()
@@ -22,4 +24,12 @@ REDIS_URL: str = os.getenv("REDIS_URL", "http://127.0.0.1:6379")
 
 # Deribit
 DERIBIT_SECRET_KEY: str = os.getenv("DERIBIT_SECRET_KEY")
+DERIBIT_CLIENT_ID: str = os.getenv("DERIBIT_CLIENT_ID")
 
+# WebScoket
+# Default value is the 'ws' protocol ('WS_PROTOCOL').
+# You can have the protocol 'wss', if that is true, please make a comment for the 'WS_PROTOCOL' variable and remove
+# the comment from 'WSS_PROTOCOL' variable.
+# If you have wss  '.env' file (inside)
+# WS_PROTOCOL = os.getenv("WS_PROTOCOL", None)
+# WSS_PROTOCOL = os.getenv("WSS_PROTOCOL", None)
