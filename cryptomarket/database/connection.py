@@ -3,7 +3,6 @@ cryptomarket/database/connection.py
 """
 
 import asyncio
-
 import logging
 import re
 from contextlib import asynccontextmanager, contextmanager
@@ -21,8 +20,8 @@ from sqlalchemy.orm import Session, SessionTransaction, sessionmaker
 
 from cryptomarket.database.sql_text import SQLText
 from cryptomarket.project.settings.core import app_settings
-from cryptomarket.type.settings_prop import SettingsProps
 from cryptomarket.type.db import Database
+from cryptomarket.type.settings_prop import SettingsProps
 
 log = logging.getLogger(__name__)
 
@@ -93,8 +92,11 @@ class DatabaseConnection(Database):
         ````
         :return:
         """
-        if (max_overflow_ is not None and max_overflow_ < 0) or (
-            pool_size_ is not None and pool_size_ < 0
+        if (
+            max_overflow_ is None
+            or (max_overflow_ is not None and max_overflow_ < 0)
+            or (pool_size_ is None)
+            or (pool_size_ is not None and pool_size_ < 0)
         ):
 
             log_t = (
@@ -232,7 +234,6 @@ class DatabaseConnection(Database):
                     self.asyncsession_scope.__name__,
                 )
             )
-
 
     @property
     def __db_type(self) -> str:

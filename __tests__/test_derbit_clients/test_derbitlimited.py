@@ -11,6 +11,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from __tests__.fixtures.fixture_test_log import (
+    fixt_end_TEST,
+    fixt_start_TEST,
+    fixt_START_work,
+)
 from cryptomarket.deribit_client.deribit_clients import DeribitLimited
 from cryptomarket.project.enum import RadisKeysEnum
 from cryptomarket.project.settings.core import app_settings
@@ -24,24 +29,6 @@ class TestDeribitLimited:
     max_concurrent = 0
     counter_lock = asyncio.Lock()
 
-    @pytest.fixture
-    def fixt_START_work(self):
-        """Start test - mark for the log file"""
-        log.info("------ START TestDeribitLimited ------")
-
-    @pytest.fixture(scope="function")
-    def fixt_start_TEST(self):
-        """Start test - mark for the log file"""
-        def test_wrap(method_name: str):
-            log.info("------ START %s  ------" % method_name)
-        return test_wrap
-
-    @pytest.fixture(scope="function")
-    def fixt_end_TEST(self):
-        """ End test - mark for the log file"""
-        def test_wrap(method_name: str):
-            log.info("------ END %s  ------" % method_name)
-        return test_wrap
 
     @asynccontextmanager
     async def acquire(self,  redis, task_id: str, user_id: str, cache_limit: int = 95):
