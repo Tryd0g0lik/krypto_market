@@ -11,11 +11,11 @@ from cryptomarket.project.settings.settings_env import APP_HOST_, APP_PORT_
 
 async def main() -> None:
     uvicorn.run(
-        "merchants.router_path.routers:app",
+        # "cryptomarket.router_path.routers:app",
         host=APP_HOST_,
         port=int(APP_PORT_),
         reload=True,
-        reload_dirs=["merchants"],
+        reload_dirs=["cryptomarket"],
     )
 
 

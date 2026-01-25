@@ -26,19 +26,18 @@ log = logging.getLogger(__name__)
 BASE_DIR = Path(__file__).parent.parent.parent
 
 DEBUG = True
-configure_logging(logging.INFO)
 
 
 # ================ SETTINGS =================
 class Settings(SettingsProps):
     """
-    TODO: Добавить логику условй распределяющие 'development' or 'testing' or 'staging' or 'production'.
-    :params:'PROJECT_NAME': str App name.
-        'PROJECT_VERSION': str App version. Example '0.1.0'
-        'PROJECT_MODE': str. Choice only one from the collection strings: the 'development' or 'testing' or 'staging' \
-            or 'production'.
-            - 'production' - we make choice the setting and the connection to the db when we make deployment.
-            - 'development'- It is for the development.
+        TODO: Добавить логику условй распределяющие 'development' or 'testing' or 'staging' or 'production'.
+        :params:'PROJECT_NAME': str App name.
+            'PROJECT_VERSION': str App version. Example '0.1.0'
+            'PROJECT_MODE': str. Choice only one from the collection strings: the 'development' or 'testing' or 'staging' \
+                or 'production'.
+                - 'production' - we make choice the setting and the connection to the db when we make deployment.
+                - 'development'- It is for the development.
             - 'testing' - It is for the testing.
             - 'staging' - and some.
         'DEFAULT_LANGUAGE': str This is a language model from the client/browser. Default value is 'en'.
@@ -66,6 +65,8 @@ class Settings(SettingsProps):
     # DERIBIT
     # ---------------------------------------
     DERIBIT_MAX_QUANTITY_WORKERS = 10
+    DERIBIT_MAX_CONCURRENT = 40
+    DERIBIT_QUEUE_SIZE = 5000
     # ---------------------------------------
     #  COMMON
     # ---------------------------------------

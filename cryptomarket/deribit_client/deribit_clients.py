@@ -2,24 +2,26 @@
 cryptomarket/deribit_client/deribit_clients.py
 """
 
+import asyncio
 import logging
+from collections import deque
+from contextlib import asynccontextmanager
+from contextvars import ContextVar
 
 import aiohttp
 from fastapi import websockets
-from websockets import ClientConnection
+from redis.asyncio import Redis
 
-from cryptomarket.project.enum import ExternalAPIEnum
+from cryptomarket.project.enum import ExternalAPIEnum, RadisKeysEnum
 from cryptomarket.project.settings.core import app_settings
 from cryptomarket.project.settings.settings_env import (
     DERIBIT_CLIENT_ID,
     DERIBIT_SECRET_KEY,
+    REDIS_HOST,
+    REDIS_PORT,
 )
 
 log = logging.getLogger(__name__)
-
-
-def type_coroutine():
-    return 42
 
 
 # ==============================
@@ -27,7 +29,9 @@ def type_coroutine():
 # ==============================
 class DeribitWebsocketPool:
     _instance = None
-    _connections: list = []  # This list is the list[coroutine]. \
+    _connections: list = deque(
+        maxlen=app_settings.DERIBIT_MAX_CONCURRENT
+    )  # This list is the list[coroutine]. \
     # Below (DeribitWebsocketPool.__new__) he will receive the coroutine for a connection with the Deribit API.
     # The length of list will be containe the quantity of elements == 'app_settings.STRIPE_MAX_QUANTITY_WORKERS'.
     # Everything coroutine/connection will require the:
@@ -164,9 +168,9 @@ class DeribitWebsocketPool:
             client_session = cls.DeribitClient(_client_id, _client_secret)
             # This is creating the coroutines for clients (entry points or entry windows).
             # Everyone coroutine for connections with the Deribit.
-            # Max quantity of coroutines contain value require - the 'app_settings.STRIPE_MAX_QUANTITY_WORKERS',
+            # Max quantity of coroutines contain value require - the 'app_settings.DERIBIT_MAX_QUANTITY_WORKERS',
             # it is the max number of connection.
-            for i in range(app_settings.STRIPE_MAX_QUANTITY_WORKERS):
+            for i in range(app_settings.DERIBIT_MAX_QUANTITY_WORKERS):
                 ws = client_session.initialize(i, _heartbeat, _timeout)
                 cls._connections.append(ws)
         return cls._instance
@@ -181,10 +185,135 @@ class DeribitWebsocketPool:
             (
                 self._current_index
                 if self._current_index < app_settings.DERIBIT_MAX_QUANTITY_WORKERS
-                else app_settings.DERIBIT_MAX_QUANTITY_WORKERS - 1
+                and self._current_index
+                < app_settings.DERIBIT_MAX_QUANTITY_WORKERS
+                <= app_settings.DERIBIT_MAX_CONCURRENT
+                else app_settings.DERIBIT_MAX_CONCURRENT - 1
             )
         ]
 
         # Resent the cls._current_index
         self._current_index = (self._current_index + 1) % len(self._connections)
         return conn
+
+
+class DeribitLimited:
+    """
+    This is limiter for a one user and  protection the Stripe's server. Example. We often make requests to the server \
+            and could  receive an error or waiting a long time. Here we begin to repeat it  \
+            a single request more and more.
+            So, the method 'DeribitLimited.acquire' is our calculater/limiter for the one user's request to \
+                the Stripe server.
+    :param max_concurrent: int. Default value is 40 means - app can send no more than 'max_concurrent' request\
+            per one second.
+    :param sleep: float. This is a delay in seconds. Everytime when our user exceeds the limit:
+        - we add additional seconds for a sleep;
+        - say him to sleep/relax.
+    """
+
+    def __init__(
+        self, max_conrurrents: int = app_settings.DERIBIT_MAX_CONCURRENT, _sleep=0.1
+    ):
+        self.semaphore = asyncio.Semaphore(max_conrurrents)
+        self.sleep = _sleep
+
+    def context_redis_connection(self):
+        redis = Redis(
+            f"{REDIS_HOST}",
+            f"{REDIS_PORT}",
+        )
+        try:
+            yield redis
+        except Exception as e:
+            log.error(
+                "[%s.%s]: RedisError => %s"
+                % (
+                    DeribitLimited.__class__.__name__,
+                    self.context_redis_connection.__name__,
+                    e.args[0] if e.args else str(e),
+                )
+            )
+        finally:
+            redis.close()
+
+    @asynccontextmanager
+    async def acquire(self, redis, task_id: str, user_id: str, cache_limit: int = 95):
+        """
+        This is the rate/request (it concurrently requests/websocket of one user) limited.
+        This is counting what Radis has no more than 100 request per 1 second.
+        - 'self.semaphore' Limits the number of simultaneous operations Default value in app \
+            settings - the var/  'DERIBIT_MAX_CONCURRENT'.
+        - "current_request"  Limit per a parallel resuest.
+        :param task_id: This is index of task for which execution the user could be  to make a concurrent/parallel \
+            request to Stripe. Here make a limit. It must be less than 'cache_limit'
+        :param cache_limit: This is the redis's limit. 100 request in Redis is available on one second.
+        :return:
+        """
+        # Параллельные запросы на оду задачу
+        key = RadisKeysEnum.DERBIT_STRIPE_RATELIMIT_TASK.value % (
+            user_id,
+            task_id,
+        )
+        current_request = redis.get(key)
+        try:
+            # Checking our limits per a parallel requests
+            if current_request and int(current_request) > cache_limit:
+                key_current_sleep = redis.get(f"sleep:{key}")
+                await asyncio.sleep(self.sleep)
+                if key_current_sleep:
+                    self.sleep += 0.1
+                    await asyncio.to_thread(lambda: redis.incr(f"sleep:{key}", 1))
+                    await asyncio.to_thread(lambda: redis.expire(f"sleep:{key}", 2))
+
+            async with self.semaphore:
+                # create 0 or  +1 (if key exists) request in th total quantity of user requests
+                # This is 100 in second for one task
+                await asyncio.to_thread(lambda: redis.incr(key, 1))
+                await asyncio.to_thread(lambda: redis.expire(key, 1))
+                try:
+                    yield task_id
+                finally:
+                    # write logic of code by less current/calculater if all successfully.
+                    pass
+
+        except ValueError as e:
+            log_t = "[%s.%s]: ValueError => %s" % (
+                self.__class__.__name__,
+                self.acquire.__name__,
+                e.args[0] if e.args else str(e),
+            )
+            log.error(log_t)
+            raise
+        except Exception as e:
+            log_t = "[%s.%s]: Error => %s" % (
+                self.__class__.__name__,
+                self.acquire.__name__,
+                e.args[0] if e.args else str(e),
+            )
+            log.error(log_t)
+            print(log_t)
+            raise
+
+
+class DeribitCreationQueue:
+
+    def __init__(self, max_concurrent=None):
+        """
+        TODO  Сделать timer который будет отправлять запросы по времени.
+            Запросы перенести на http - по таймеру
+            Добавить websocket который будет реагировать на изменение в промежутке
+             таймера
+            Сохранять в базу данных через кеш и очередь. Возможно по времени. В полночь проводить сохранение. Чтоб снять нагрузку с базу даных.
+
+        :param max_concurrent: int.  This is our calculater/limiter for the one user's requests to the Stripe server. \
+            Rate/ limitation quantities of requests per 1 second from one user (it is request to the Stripe server) .
+            Default value is number from  the variable of 'app_settings.STRIPE_MAX_CONCURRENT'.
+        """
+        self.queue = asyncio.Queue(maxsize=app_settings.STRIPE_QUEUE_SIZE)
+        self.processing_tasks = set()
+        self.rate_limit: DeribitLimited | None = DeribitLimited()
+        self.connection_pool = DeribitWebsocketPool()
+        if max_concurrent is not None:
+            self.rate_limit = DeribitWebsocketPool(max_concurrent)
+        self.stripe_response_var = ContextVar("deribit_response", default=None)
+        self.stripe_response_var_token = None
