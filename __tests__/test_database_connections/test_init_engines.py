@@ -1,7 +1,8 @@
 """
-__tests__/test_database_connections/test_init_engines_parameter_max_overflow_error_None.py
+__tests__/test_database_connections/test_init_engines_parameter_max_overflow_error_none.py
 """
 import logging
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -18,12 +19,13 @@ log = logging.getLogger(__name__)
 
 class TestInitEngines:
 
-    def test_init_engines_parameter_max_overflow_error_None(self, fixt_START_work, fixt_start_TEST, fixt_end_TEST):
+    def test_init_engines_parameter_max_overflow_error_none(self, fixt_START_work, fixt_start_TEST, fixt_end_TEST):
+        """The 'max_overflow_' parameter contain value the None. This must be a ValueError'"""
         connection = DatabaseConnection(app_settings.get_database_url_sqlite)
         # =====================
         # test the 'max_overflow_' =None parameter return error
         # =====================
-        fixt_start_TEST(self.test_init_engines_parameter_max_overflow_error_None.__name__)
+        fixt_start_TEST(self.test_init_engines_parameter_max_overflow_error_none.__name__)
         with pytest.raises(ValueError) as test_session:
 
             connection.init_engine(max_overflow_=None)
@@ -34,9 +36,10 @@ class TestInitEngines:
         error_message = test_session.value.args[0]
         result_bool  = "ERROR => The variables is invalid: 'pool_size_'" in str(error_message)
         assert  result_bool == True
-        fixt_end_TEST(self.test_init_engines_parameter_max_overflow_error_None.__name__)
+        fixt_end_TEST(self.test_init_engines_parameter_max_overflow_error_none.__name__)
 
     def test_init_engines_parameter_max_overflow_error_zero(self, fixt_START_work, fixt_start_TEST, fixt_end_TEST):
+        """The 'max_overflow_' parameter contain value < 0 (less than zero). This must be a ValueError'"""
         connection = DatabaseConnection(app_settings.get_database_url_sqlite)
         # =====================
         # test the 'max_overflow_' =(-1) parameter return error
@@ -56,6 +59,7 @@ class TestInitEngines:
 
 
     def test_init_engines_parameter_pool_size_error_none(self, fixt_START_work, fixt_start_TEST, fixt_end_TEST):
+        """The 'pool_size_' parameter contain value the None. This must be a ValueError'"""
         connection = DatabaseConnection(app_settings.get_database_url_sqlite)
         # =====================
         # test the 'pool_size_' =None parameter return error
@@ -73,6 +77,7 @@ class TestInitEngines:
         fixt_end_TEST(self.test_init_engines_parameter_pool_size_error_none.__name__)
 
     def test_init_engines_parameter_pool_size_error_zero(self, fixt_START_work, fixt_start_TEST, fixt_end_TEST):
+        """The 'pool_size_' parameter contain value < 0 (less than zero). This must be a ValueError'"""
         connection = DatabaseConnection(app_settings.get_database_url_sqlite)
         # =====================
         # test the 'pool_size_' =(-1) parameter return error
@@ -89,8 +94,18 @@ class TestInitEngines:
         result_bool = "ERROR => The variables is invalid: 'pool_size_'" in str(error_message)
         assert result_bool == True
         fixt_end_TEST(self.test_init_engines_parameter_pool_size_error_zero.__name__)
-    def test_init_engines_parameter_db_ur_error(self, fixt_START_work, fixt_start_TEST, fixt_end_TEST):
 
+    def test_init_engines_parameter_db_ur_error(self,monkeypatch, fixt_START_work, fixt_start_TEST, fixt_end_TEST, ):
+
+        # =====================
+        # Mock self._is_check_async_url
+        # =====================
+        mock_is_check_async_url = MagicMock(return_velue = True)
+        monkeypatch.setattr(
+            DatabaseConnection,
+            "_is_check_async_url",
+            mock_is_check_async_url
+        )
         # =====================
         # test the 'pool_size_' =(-1) parameter return error
         # =====================
@@ -105,6 +120,7 @@ class TestInitEngines:
         assert test_session.value.args[0] is not None
         error_message = test_session.value.args[0]
         result_bool = "ERROR => The variables is invalid: 'pool_size_'" not in str(error_message)
+        assert result_bool == True
         result_bool = "ERROR => " in str(error_message)
         assert result_bool == True
         fixt_end_TEST(self.test_init_engines_parameter_db_ur_error.__name__)

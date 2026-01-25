@@ -137,15 +137,24 @@ class DatabaseConnection(Database):
                 log.error(log_t)
                 raise ValueError(log_t)
         else:
-            engine = create_engine(
-                self.db_url, echo=True, pool_size=5, max_overflow=max_overflow_
-            )
-            self.session_factory: Session | SessionTransaction = sessionmaker(
-                bind=engine,
-                autocommit=False,
-                autoflush=False,
-            )
-            self.engine = engine
+            try:
+                engine = create_engine(
+                    self.db_url, echo=True, pool_size=5, max_overflow=max_overflow_
+                )
+                self.session_factory: Session | SessionTransaction = sessionmaker(
+                    bind=engine,
+                    autocommit=False,
+                    autoflush=False,
+                )
+                self.engine = engine
+            except Exception as e:
+                log_t = "[%s.%s]: ERROR => %s", (
+                    self.__class__.__name__,
+                    self.init_engine.__name__,
+                    e,
+                )
+                log.error(log_t)
+                raise ValueError(log_t)
 
     @contextmanager
     def session_scope(self):
