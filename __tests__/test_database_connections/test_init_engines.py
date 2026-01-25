@@ -89,3 +89,22 @@ class TestInitEngines:
         result_bool = "ERROR => The variables is invalid: 'pool_size_'" in str(error_message)
         assert result_bool == True
         fixt_end_TEST(self.test_init_engines_parameter_pool_size_error_zero.__name__)
+    def test_init_engines_parameter_db_ur_error(self, fixt_START_work, fixt_start_TEST, fixt_end_TEST):
+
+        # =====================
+        # test the 'pool_size_' =(-1) parameter return error
+        # =====================
+        fixt_start_TEST(self.test_init_engines_parameter_db_ur_error.__name__)
+        with pytest.raises(ValueError) as test_session:
+            connection = DatabaseConnection(None)
+            connection.init_engine()
+
+        assert test_session.type == ValueError
+        assert test_session.value is not None
+        assert test_session.value.args is not None
+        assert test_session.value.args[0] is not None
+        error_message = test_session.value.args[0]
+        result_bool = "ERROR => The variables is invalid: 'pool_size_'" not in str(error_message)
+        result_bool = "ERROR => " in str(error_message)
+        assert result_bool == True
+        fixt_end_TEST(self.test_init_engines_parameter_db_ur_error.__name__)
