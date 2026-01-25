@@ -99,9 +99,9 @@ class DatabaseConnection(Database):
             or (pool_size_ is not None and pool_size_ < 0)
         ):
 
-            log_t = (
-                "[%s.%s]: ERROR => The variables is invalid: 'pool_size_' & 'max_overflow_'.",
-                (
+            log_t = str(
+                "[%s.%s]: ERROR => The variables is invalid: 'pool_size_' & 'max_overflow_'."
+                % (
                     self.__class__.__name__,
                     self.init_engine.__name__,
                 ),
@@ -129,32 +129,34 @@ class DatabaseConnection(Database):
 
                 self.engine = engine
             except Exception as e:
-                log_t = "[%s.%s]: ERROR => %s", (
+                log_t = "[%s.%s]: async ERROR => %s", (
                     self.__class__.__name__,
                     self.init_engine.__name__,
                     e,
                 )
-                log.error(log_t)
-                raise ValueError(log_t)
+                log.error(str(log_t))
+                raise ValueError(str(log_t))
         else:
             try:
                 engine = create_engine(
                     self.db_url, echo=True, pool_size=5, max_overflow=max_overflow_
                 )
-                self.session_factory: Session | SessionTransaction = sessionmaker(
-                    bind=engine,
-                    autocommit=False,
-                    autoflush=False,
+                self.session_factory: Session | AsyncSession | SessionTransaction = (
+                    sessionmaker(
+                        bind=engine,
+                        autocommit=False,
+                        autoflush=False,
+                    )
                 )
                 self.engine = engine
             except Exception as e:
-                log_t = "[%s.%s]: ERROR => %s", (
+                log_t = "[%s.%s]: sync ERROR => %s", (
                     self.__class__.__name__,
                     self.init_engine.__name__,
                     e,
                 )
-                log.error(log_t)
-                raise ValueError(log_t)
+                log.error(str(log_t))
+                raise ValueError(str(log_t))
 
     @contextmanager
     def session_scope(self):
@@ -162,42 +164,38 @@ class DatabaseConnection(Database):
         Sync contex manager of session
         :return:
         """
+        session = None
         if self.is_async:
             raise ValueError("Cannot get sync session from async engine")
-        session: AsyncSession | Session = self.session_factory()
-        log.info(
-            "[%s.%s]: Sync session open!"
-            % (
+        try:
+            session: AsyncSession | Session = self.session_factory()
+            log_t = "[%s.%s]: Sync session open!" % (
                 self.__class__.__name__,
                 self.session_scope.__name__,
             )
-        )
-        try:
+            log.info(str(log_t))
+
             yield session
             session.commit()
         except Exception as e:
-            log.error(
-                "[%s.%s] ERROR => %s"
-                % (
-                    self.__class__.__name__,
-                    self.session_scope.__name__,
-                    e.args[0] if e.args else str(e),
-                )
+            logg_t = "[%s.%s]: session ERROR => %s" % (
+                self.__class__.__name__,
+                self.session_scope.__name__,
+                e.args[0] if e.args else str(e),
             )
+            log.error(str(logg_t))
             session.rollback()
-            raise
+            raise ValueError(str(logg_t))
         finally:
             if self.session_factory:
                 self.session_factory = None
             session.close()
             self.engine = None
-            log.info(
-                "[%s.%s]: Sync session closed!"
-                % (
-                    self.__class__.__name__,
-                    self.session_scope.__name__,
-                )
+            log_t = "[%s.%s]: Sync session closed!" % (
+                self.__class__.__name__,
+                self.session_scope.__name__,
             )
+            log.info(str(log_t))
 
     @asynccontextmanager
     async def asyncsession_scope(self):

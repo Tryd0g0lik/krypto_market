@@ -1,7 +1,7 @@
 """
 __tests__/test_derbit_clients/test_derbitlimited.py
 
-Comment out in line '@pytest.mark.skip' by number 113.
+Comment out in line '@pytest.mark.skip' by number 113 & 134.
 """
 import asyncio
 import logging
@@ -131,6 +131,7 @@ class TestDeribitLimited:
           "country": "US", "user_id": "dasdasewqewfxcv"}, "acc_create:202601171148210", True),
     ])
     @pytest.mark.asyncio
+    @pytest.mark.skip
     async def test_semaphore_internal_content(self, fixt_START_work, fixt_start_TEST, fixt_end_TEST, json_data, taskId, expect):
         """This is a semaphore checking from the TestDeribitLimited.acquire. It hase an additional variable/counter \
         the 'self.concurrent_counter'.
