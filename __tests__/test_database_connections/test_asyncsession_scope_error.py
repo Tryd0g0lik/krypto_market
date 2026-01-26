@@ -5,6 +5,7 @@ import logging
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from more_itertools.more import side_effect
 
 from __tests__.fixtures.fixt_mock import (
     fix_mock_iS_ASYNC_False,
@@ -40,8 +41,6 @@ class TestSessionScope:
 
         with pytest.raises(ValueError) as test_session:
             connection = fixt_DatabaseConnection(None)
-            # connection.session_factory = AsyncMock(return_value=True)
-            # connection.close = AsyncMock(return_value=None)
             asyncsession_scope = connection.asyncsession_scope
             async with asyncsession_scope() as session:
                 pass
@@ -64,29 +63,34 @@ class TestSessionScope:
         fixt_start_TEST(self.test_asyncsession_scope_parameter_session_error.__name__)
 
         db_url = app_settings.get_database_url_sqlite
+        # =====================
+        # MOCK SESSION of 'self.session_factory()'
+        # =====================
         mock_session = AsyncMock(return_value=True)
         mock_session.close = AsyncMock(return_value=None)
         mock_session.rollback = AsyncMock(return_value=None)
-        mock_session.commit = AsyncMock(return_value=None)
-        log.warning("-------- 1 -------- ")
+        # =====================
+        # MOCK ERROR FOR TESTS
+        # =====================
+        mock_session.commit = AsyncMock(side_effect=ValueError("My error in commit"))
+
         # with pytest.raises(ValueError) as test_session:
         connection = fixt_DatabaseConnection(db_url)
+        # =====================
+        # MOCK INSERTED IN THE 'asybcsession_scope' METHOD
+        # =====================
         mock_session_factory = AsyncMock(return_value=mock_session)
         connection.session_factory = mock_session_factory
         asyncsession_scope = connection.asyncsession_scope
 
         try:
             async with asyncsession_scope() as session:
-                log.warning("-------- 2 -------- ")
                 pass
         except ValueError as err:
-            log.warning("-------- 3 -------- ")
             log_error = err.args[0] if err.args else str(err)
             assert log_error is not None
             result_bool = "Cannot get async session from sync engine" not in log_error
             assert result_bool == True
-            log.warning(result_bool)
-            log.warning(log_error)
             result_bool = "]: ERROR =>" in log_error
             assert result_bool == True
             fixt_end_TEST(self.test_asyncsession_scope_parameter_session_error.__name__)

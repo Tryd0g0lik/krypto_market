@@ -30,14 +30,16 @@ class TestSessionScope:
         """Check error in session scope 'Cannot get sync session from async engine'"""
         fixt_start_TEST(self.test_session_scope_parameter_is_async_error.__name__)
         # =====================
-        # test the 'db_url' not is string parameter return error
+        # PATCH the 'db_url' not is string parameter return error
         # =====================
         monkeypatch.setattr(
             DatabaseConnection,
             "_is_check_async_url",
             fix_mock_iS_ASYNC_True()
         )
-
+        # =====================
+        # SESSION of '.session_scope()' METHOD
+        # =====================
         with pytest.raises(ValueError) as test_session:
             connection = fixt_DatabaseConnection(None)
 
@@ -59,7 +61,7 @@ class TestSessionScope:
 
         fixt_start_TEST(self.test_session_scope_parameter_session_error.__name__)
         # =====================
-        # test the 'self.is_async'  return False
+        # PATCH the 'self.is_async'  return TEST False
         # =====================
         monkeypatch.setattr(
             DatabaseConnection,
@@ -68,28 +70,31 @@ class TestSessionScope:
         )
 
         connection = fixt_DatabaseConnection(None)
-
+        # =====================
+        # MOCK SESSION of 'self.session_factory()'
+        # =====================
         mock_session = MagicMock(return_value=True)
         mock_session.close = MagicMock(return_value=None)
         mock_session.reset_mock = MagicMock(return_value=None)
         mock_session.rollback = MagicMock(return_value=None)
+        # =====================
+        # MOCK ERROR FOR TESTS
+        # =====================
         mock_session.commit = MagicMock(side_effect=ValueError("My error in commit"))
-
+        # =====================
+        # MOCK INSERTED IN THE 'session_scope' METHOD
+        # =====================
         mock_session_factory = MagicMock(return_value=mock_session)
         connection.session_factory = mock_session_factory
 
         try:
-            log.warning("-------- 1 -------- ")
             with connection.session_scope() as session:
                 pass
-                log.warning("-------- 2 -------- ")
         except Exception as err:
-            log.warning("-------- 3 -------- ")
             log_error = err.args[0] if err.args else str(err)
             assert log_error is not None
             result_bool = "Cannot get sync session from async engine" not in log_error
             assert result_bool == True
-            log.warning(log_error)
             result_bool = "]: session ERROR =>" in log_error
             assert result_bool == True
             fixt_end_TEST(self.test_session_scope_parameter_session_error.__name__)
