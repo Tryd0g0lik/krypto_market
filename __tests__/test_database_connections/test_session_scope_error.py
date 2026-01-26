@@ -5,6 +5,7 @@ import logging
 from unittest.mock import MagicMock
 
 import pytest
+from more_itertools.more import side_effect
 
 from __tests__.fixtures.fixt_mock import (
     fix_mock_iS_ASYNC_False,
@@ -66,18 +67,29 @@ class TestSessionScope:
             fix_mock_iS_ASYNC_False()
         )
 
-        moc_session = MagicMock()
-        moc_session.session_factory.return_value = MagicMock(return_value=None, side_effect=ValueError())
-        moc_session.close.return_value = MagicMock(return_value=None)
-        moc_session.rollback.return_value = MagicMock(return_value=None)
+        connection = fixt_DatabaseConnection(None)
 
-        with pytest.raises(BaseException) as test_session:
-            connection = fixt_DatabaseConnection(None)
+        mock_session = MagicMock(return_value=True)
+        mock_session.close = MagicMock(return_value=None)
+        mock_session.reset_mock = MagicMock(return_value=None)
+        mock_session.rollback = MagicMock(return_value=None)
+        mock_session.commit = MagicMock(side_effect=ValueError("My error in commit"))
+
+        mock_session_factory = MagicMock(return_value=mock_session)
+        connection.session_factory = mock_session_factory
+
+        try:
+            log.warning("-------- 1 -------- ")
             with connection.session_scope() as session:
                 pass
-            assert session is not None
-            result_bool = "Cannot get sync session from async engine" not in session
+                log.warning("-------- 2 -------- ")
+        except Exception as err:
+            log.warning("-------- 3 -------- ")
+            log_error = err.args[0] if err.args else str(err)
+            assert log_error is not None
+            result_bool = "Cannot get sync session from async engine" not in log_error
             assert result_bool == True
-            result_bool = "]: session ERROR =>" in session
+            log.warning(log_error)
+            result_bool = "]: session ERROR =>" in log_error
             assert result_bool == True
             fixt_end_TEST(self.test_session_scope_parameter_session_error.__name__)

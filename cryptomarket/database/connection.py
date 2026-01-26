@@ -167,8 +167,8 @@ class DatabaseConnection(Database):
         session = None
         if self.is_async:
             raise ValueError("Cannot get sync session from async engine")
+        session: AsyncSession | Session = self.session_factory()
         try:
-            session: AsyncSession | Session = self.session_factory()
             log_t = "[%s.%s]: Sync session open!" % (
                 self.__class__.__name__,
                 self.session_scope.__name__,
@@ -203,31 +203,40 @@ class DatabaseConnection(Database):
         Async contex manager of session
         :return:
         """
+        session = None
         if not self.is_async:
             raise ValueError("Cannot get async session from sync engine")
-        session = self.session_factory()
-        log.info(
-            "[%s.%s]: Sync session open!"
-            % (
-                self.__class__.__name__,
-                self.asyncsession_scope.__name__,
-            )
-        )
+
+        session = await self.session_factory()
         try:
+            log.info(
+                "[%s.%s]: ------------ SESSION ------------  %s"
+                % (session.__dict__.__str__())
+            )
+            log.info(
+                str(
+                    "[%s.%s]: Sync session open!"
+                    % (
+                        self.__class__.__name__,
+                        self.asyncsession_scope.__name__,
+                    )
+                )
+            )
+
             yield session
             await session.commit()
 
         except Exception as e:
-            log.error(
-                "[%s.%s] ERROR => %s"
-                % (
-                    self.__class__.__name__,
-                    self.asyncsession_scope.__name__,
-                    e.args[0] if e.args else str(e),
-                )
+            log_t = "[%s.%s]: ERROR => %s" % (
+                self.__class__.__name__,
+                self.asyncsession_scope.__name__,
+                e.args[0] if e.args else str(e),
             )
+
             await session.rollback()
-            raise
+            log.error(str(log_t))
+            raise ValueError(str(log_t))
+
         finally:
             if self.session_factory:
                 self.session_factory = None
