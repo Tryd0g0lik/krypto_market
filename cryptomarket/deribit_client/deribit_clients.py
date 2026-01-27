@@ -3,10 +3,12 @@ cryptomarket/deribit_client/deribit_clients.py
 """
 
 import asyncio
+import json
 import logging
 from collections import deque
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
+from datetime import datetime
 
 import aiohttp
 from fastapi import websockets
@@ -20,6 +22,7 @@ from cryptomarket.project.settings.settings_env import (
     REDIS_HOST,
     REDIS_PORT,
 )
+from cryptomarket.type.deribit_type import OAuthAutenticationType
 
 log = logging.getLogger(__name__)
 
@@ -81,6 +84,7 @@ class DeribitWebsocketPool:
             _url=ExternalAPIEnum.WS_COMMON_URL.value,
         ) -> websockets.WebSocket:
             """
+            TODO  данные получить из кеша взамен 'auth_msg'
             https://docs.aiohttp.org/en/stable/client_reference.html#aiohttp.ClientSession
             https://docs.aiohttp.org/en/stable/client_reference.html#aiohttp.ClientWebSocketResponse.receive_json
             :param index: This is the 'index' of connection.
@@ -296,20 +300,18 @@ class DeribitLimited:
 
 
 class DeribitCreationQueue:
+    _postman = deque(maxlen=5000)
+    _deque_error = deque(maxlen=10000)  # Which have not passed caching
 
     def __init__(self, max_concurrent=None):
         """
-        TODO  Сделать timer который будет отправлять запросы по времени.
-            Запросы перенести на http - по таймеру
-            Добавить websocket который будет реагировать на изменение в промежутке
-             таймера
-            Сохранять в базу данных через кеш и очередь. Возможно по времени. В полночь проводить сохранение. Чтоб снять нагрузку с базу даных.
-
         :param max_concurrent: int.  This is our calculater/limiter for the one user's requests to the Stripe server. \
             Rate/ limitation quantities of requests per 1 second from one user (it is request to the Stripe server) .
             Default value is number from  the variable of 'app_settings.STRIPE_MAX_CONCURRENT'.
+
         """
         self.queue = asyncio.Queue(maxsize=app_settings.STRIPE_QUEUE_SIZE)
+
         self.processing_tasks = set()
         self.rate_limit: DeribitLimited | None = DeribitLimited()
         self.connection_pool = DeribitWebsocketPool()
@@ -317,3 +319,122 @@ class DeribitCreationQueue:
             self.rate_limit = DeribitWebsocketPool(max_concurrent)
         self.stripe_response_var = ContextVar("deribit_response", default=None)
         self.stripe_response_var_token = None
+
+    async def enqueue(self, cache_live: int, **kwargs):
+        """
+        We can have a big flow of requests. Means make a limit on the server through caching and queues.
+        :param kwargs:
+            - OAuthAutenticationType type of kwargs data if we wanted the user to authenticate.
+        :param cache_live: int - second. This is live time of cache.
+        :return:
+        """
+        log_t = "[%s.%s]:" % (self.__class__.__name__, self.enqueue.__name__)
+        try:
+            loog_err = "%s ERROR => %s" % (log_t, "API URL did not find!")
+            if kwargs is not None and isinstance(kwargs, OAuthAutenticationType):
+                # Remove an aPI key from kwargs and we leave the kwargs without url
+                api_key = kwargs.pop("api_key")
+                # This is key for queue and task
+                task_id = "%s:%s" % (
+                    (
+                        (api_key.split("://"))[0]
+                        if api_key is not None
+                        else ValueError(str(loog_err))
+                    ),
+                    str(datetime.now().strftime("%Y%m%d%H%M%S")),
+                )
+                # The general key from a user data and the user data add in joint/general list
+                self._postman.append({str(task_id): kwargs})
+
+        except ValueError as err:
+            raise err.args[0] if err.args else str(err)
+
+        try:
+            if len(self._postman) > 0:
+                # ===============================
+                # CACHE RAQUEST's BODY DATA
+                # ===============================
+                # cache of the user data
+                contex_redis_connection = self.rate_limit.context_redis_connection
+
+                with contex_redis_connection() as redis:
+                    redis_setex = redis.setex
+                    # List a coroutines for send to the caching server
+                    # k - key common between the cache data and queue
+                    # v - the cache data
+                    # tasks_collections - gather results after cache on the server.
+                    tasks_collections = deque(maxlen=5000)
+                    [
+                        tasks_collections.append(
+                            redis_setex(
+                                k,
+                                cache_live,
+                                (
+                                    json.dumps(v)
+                                    if isinstance(v, dict | list | str | int | bool)
+                                    else str(v)
+                                ),
+                            )
+                        )
+                        for view in self._postman
+                        for k, v in [next(iter(view.items()))]
+                    ]
+                    # Checking the 'tasks_collections' after caching.
+                    if not all(tasks_collections):
+                        self.__error_passed_cached(list(tasks_collections))
+
+                    # The list of keys from the data cached on the server
+                    keys_in_leave_queue = [
+                        key
+                        for view in self._postman.pop()
+                        for key, val in [next(iter(view.items()))]
+                        if val is not None and key not in list(self._deque_error)
+                    ]
+                    # ===============================
+                    # CREATE THE QUEUE FROM THE CACHE KEYS
+                    # ===============================
+                    [self.queue.put(view) for view in keys_in_leave_queue]
+                    tasks_collections.clear()
+
+            else:
+                log.warning(
+                    str(
+                        "%s WARNING => %s"
+                        % (
+                            log_t,
+                            "Something what wrong. The '_postman' queue is empty!",
+                        )
+                    )
+                )
+
+        except Exception as e:
+            log.error(str("%s ERROR => %s" % (log_t, e.args[0] if e.args else str(e))))
+
+    def __error_passed_cached(self, tasks_collections: list):
+        """When the value False received from caching. Every error we save in separately list"""
+        count_false = tasks_collections.count(False)
+        for i in range(count_false):
+            position_in_postman = tasks_collections.index(False, i if i == 0 else i + 1)
+            # Array from the '_postman' Here is data which have not passed caching on the server
+            self._deque_error.append(self._postman[position_in_postman])
+
+    # def _start_worker(self, tasks: list[], limitations=40,):
+    #     """
+    #     :param limitations:int This is number for limitation the parallels tasks at the cache moment
+    #     :param limitations:
+    #     :return:
+    #     """
+    #     try:
+    #         # ===============================
+    #         # RAN THE CACHE
+    #         # ===============================
+    #         # 40 This is number for limitations the parallels tasks at the cache moment.
+    #         for i in range(0, len(tasks_collections), 40):
+    #             new_list = []
+    #             for patch in tasks_collections[i:i + 40]:
+    #                 new_list.append(patch)
+    #             await asyncio.gather(*new_list)
+    #         tasks_collections.clear()
+    #     except Exception as err:
+    #         loog_err = "%s ERROR => %s" % (str(log_t), err.args[0] if err.args else str(err))
+    #         log.error(str(loog_err))
