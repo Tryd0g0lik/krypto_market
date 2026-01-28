@@ -9,8 +9,16 @@ from collections import deque
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
 from datetime import datetime
+from typing import Any, AsyncGenerator, Generator
 
-import aiohttp
+import backoff
+from aiohttp import (
+    ClientSession,
+    ClientWebSocketResponse,
+    WSMessageTypeError,
+    WSMsgType,
+)
+from aiohttp.client import _BaseRequestContextManager
 from fastapi import websockets
 from redis.asyncio import Redis
 
@@ -22,13 +30,15 @@ from cryptomarket.project.settings.settings_env import (
     REDIS_HOST,
     REDIS_PORT,
 )
+from cryptomarket.project.signals import signal
+from cryptomarket.tasks.queues.task_account_user import task_account
 from cryptomarket.type.deribit_type import OAuthAutenticationType
 
 log = logging.getLogger(__name__)
 
 
 # ==============================
-# WEBSOCKET ENVIRONMENT
+# ---- WEBSOCKET ENVIRONMENT
 # ==============================
 class DeribitWebsocketPool:
     _instance = None
@@ -45,44 +55,55 @@ class DeribitWebsocketPool:
     _auth_tokens = {}
 
     # ==============================
-    # CLIENT FOR THE BASIC CONNECTION
+    # ---- CLIENT FOR THE BASIC CONNECTION
     # ==============================
     class DeribitClient:
+        _semaphore = asyncio.Semaphore(value=1)
+
         def __init__(
-            self,
-            _client_id: str = None,
-            _client_secret: str = None,
+            self, _client_id: str = None, _client_secret: str = None, _limit: int = 1
         ):
             """
            Here we generate of the clients for connection with the Deribit server.
            https://docs.aiohttp.org/en/stable/client_reference.html#aiohttp.ClientSession.request
            https://docs.deribit.com/articles/deribit-quickstart#websocket-recommended
            Here is creating a list  of the stripe's connections.
-           :param _client_id: str|None This is the secret 'client_id' key from Deribit. Default value is \
+           :param _client_id (str|None) This is the secret 'client_id' key from Deribit. Default value is \
                the value of variable the 'DERIBIT_CLIENT_ID'.
-           :param _client_secret: str|None This is the secret 'client_secret' key from Deribit.  Default value is \
+           :param _client_secret (str|None) This is the secret 'client_secret' key from Deribit.  Default value is \
                the value of variable the 'DERIBIT_SECRET_KEY'.
+            :param _limit (int) This is controller per a joint requests, Default value is 1.
            """
+
             self.client_id: str = (
                 "%s" % DERIBIT_CLIENT_ID if _client_id is None else "%s" % _client_id
             )
-            self.client_secret: str = (
+            self.__client_secret: str = (
                 "%s" % DERIBIT_SECRET_KEY
                 if _client_secret is None
                 else "%s" % _client_secret
             )
 
-        def __new__(cls):
-            cls.client_session = aiohttp.ClientSession()
-            return super().__new__(cls)
+        #
+        # def __new__(cls):
+        #     cls._client_session = ClientSession()
+        #     return super().__new__(cls)
 
+        @backoff.on_exception(
+            backoff.expo,
+            (ConnectionError,),
+            max_tries=3,
+            max_time=30,
+        )
         async def initialize(
             self,
-            index,
-            _heartbeat=30,
-            _timeout=10,
-            _url=ExternalAPIEnum.WS_COMMON_URL.value,
-        ) -> websockets.WebSocket:
+            index: int | str,
+            _heartbeat: int = 30,
+            _timeout: int = 10,
+            _url: str = ExternalAPIEnum.WS_COMMON_URL.value,
+            _method: str = "GET",
+            _autoping: bool = False,
+        ):
             """
             TODO  данные получить из кеша взамен 'auth_msg'
             https://docs.aiohttp.org/en/stable/client_reference.html#aiohttp.ClientSession
@@ -94,51 +115,157 @@ class DeribitWebsocketPool:
             :param _timeout - timeout – a ClientWSTimeout timeout for websocket. By default, the value \
                 ClientWSTimeout(ws_receive=None, ws_close=10.0) is used (10.0 seconds for the websocket to close).\
                 None means no timeout will be used. Default value is 10 second.
-
+            :param _url Websocket server url, URL or str that will be encoded with URL (see URL to skip encoding).
+            :param _method (str) –HTTP method to establish WebSocket connection, 'GET' by default.
+            :param _autoping (bool) – automatically send pong on ping message from server. True by default
             :return:
             """
             log_t = "[%s.%s]: " % (self.__class__.__name__, self.initialize.__name__)
             try:
-                ws = self.client_session.ws_connect(
-                    url=_url,
-                    heartbeat=_heartbeat,
-                    timeout=_timeout,
+                auth_msg = self.__get_autantication_data(
+                    index, self.client_id, self.__client_secret
                 )
-                auth_msg = {
-                    "jsonrpc": "2.0",
-                    "id": index + 1,
-                    "method": "public/auth",
-                    "params": {
-                        "grant_type": "client_credentials",
-                        "client_id": self.client_id,
-                        "client_secret": self.client_secret,
-                    },
-                }
+                # ==============================
+                # ---- CREATE CONNECTION TO THE DERIBIT SERVER
+                # ==============================
+                async with self.client_session() as session:
+                    # Connection by the WebSocker cannel
+                    async with self.ws_send(
+                        session, _heartbeat, _timeout, _url, _method, _autoping
+                    ) as ws:
+                        # Controller
+                        async with self._semaphore:
+                            try:
+                                # Data sending
+                                await ws.send_json(auth_msg)
+                                async for msg in ws:
+                                    if msg.type == WSMsgType.TEXT:
+                                        print(f"Received: {msg.data}")
+                                        log.warning(f"WS Received: {msg.data}")
+                                    elif msg.type == WSMsgType.ERROR:
+                                        log_err = "%s ERROR connection. Code: %s" % (
+                                            log_t,
+                                            msg.value,
+                                        )
+                                        log.error(str(log_err))
+                                        raise ValueError(str(log_err))
 
-                await ws.send_json(auth_msg)
-                ws_response = await ws.receive_json()
-                return ws_response
-            except RuntimeError as e:
-                log_tesx = (
-                    "%s RuntimeError Connection is not started or closing=> %s"
-                    % (log_t, e.args[0] if e.args else str(e))
-                )
-                log.error(log_tesx)
-                raise RuntimeError(log_tesx)
-            except ValueError as e:
-                log_tesx = "%s ValueError Data is not serializable object => %s" % (
-                    log_t,
-                    e.args[0] if e.args else str(e),
-                )
-                log.error(log_tesx)
-                raise ValueError(log_tesx)
-            except TypeError as e:
-                log_tesx = (
-                    "%s TypeError Value returned by dumps(data) is not str  => %s"
-                    % (log_t, e.args[0] if e.args else str(e))
-                )
-                log.error(log_tesx)
-                raise TypeError(log_tesx)
+                                    elif msg.type == WSMsgType.CLOSED:
+                                        log.warning(
+                                            "%s Closing connection. Code: %s"
+                                            % (log_t, msg.data)
+                                        )
+                                        break
+
+                            except WSMessageTypeError as e:
+                                log_err = (
+                                    "%s WSMessageTypeError message is not TEXT => %s"
+                                    % (log_t, e.args[0] if e.args else str(e))
+                                )
+                                log.error(str(log_err))
+                                raise WSMessageTypeError(str(log_err))
+                            except RuntimeError as e:
+                                log_err = (
+                                    "%s RuntimeError Connection is not started or closing => %s"
+                                    % (log_t, e.args[0] if e.args else str(e))
+                                )
+                                log.error(str(log_err))
+                                raise RuntimeError(str(log_err))
+                            except ValueError as e:
+                                log_err = (
+                                    "%s ValueError Data is not serializable object => %s"
+                                    % (log_t, e.args[0] if e.args else str(e))
+                                )
+                                log.error(str(log_err))
+                                raise ValueError(str(log_err))
+                            except TypeError as e:
+                                log_err = (
+                                    "%s Value returned by dumps(data) is not str => %s"
+                                    % (log_t, e.args[0] if e.args else str(e))
+                                )
+                                log.error(str(log_err))
+                                raise TypeError(str(log_err))
+                """
+
+                Check a connection and ???
+
+                """
+
+            except Exception as e:
+                log_err = "%s ERROR => %s" % (log_t, e.args[0] if e.args else str(e))
+                log.error(str(log_err))
+                raise ValueError(str(log_err))
+
+        @asynccontextmanager
+        async def client_session(self) -> AsyncGenerator[ClientSession, Any]:
+            log_t = "[%s.%s]:" % (self.__class__.__name__, self.client_session.__name__)
+            _client_session = ClientSession()
+            log.info("%s %s" % (log_t, "Client session opening!"))
+            try:
+                yield _client_session
+            except Exception as e:
+                log.error("%s ERROR => %s" % (log_t, e.args[0] if e.args else str(e)))
+            finally:
+                await _client_session.close()
+                log.info("%s %s" % (log_t, "Client session closed!"))
+
+        @asynccontextmanager
+        async def ws_send(
+            self,
+            _client_session: ClientSession,
+            _heartbeat: int = 30,
+            _timeout: int = 10,
+            _url: str = ExternalAPIEnum.WS_COMMON_URL.value,
+            _method: str = "GET",
+            _autoping: bool = True,
+        ) -> AsyncGenerator[_BaseRequestContextManager[ClientWebSocketResponse], Any]:
+            """
+            WebvSocket connection on the Deribit server.
+                :param index: This is the 'index' of connection.
+                :param _heartbeat (float) – Send ping message every heartbeat seconds and wait pong response, if pong response\
+                     is not received then close connection. The timer is reset on any data reception.(optional).\
+                      Default value 30 seconds.
+                :param _timeout - timeout – a ClientWSTimeout timeout for websocket. By default, the value \
+                    ClientWSTimeout(ws_receive=None, ws_close=10.0) is used (10.0 seconds for the websocket to close).\
+                    None means no timeout will be used. Default value is 10 second.
+                :param _url Websocket server url, URL or str that will be encoded with URL (see URL to skip encoding).
+                :param _method (str) –HTTP method to establish WebSocket connection, 'GET' by default.
+                :param _autoping (bool) – automatically send pong on ping message from server. True by default
+                :param _client_session:
+                :return:
+            """
+            log_t = "[%s.%s]:" % (self.__class__.__name__, self.ws_send.__name__)
+            log.info("%s %s" % (log_t, "WebSocket connection is successfully!"))
+            ws = _client_session.ws_connect(
+                url=_url,
+                heartbeat=_heartbeat,
+                timeout=_timeout,
+                method=_method,
+                autoping=_autoping,
+            )
+            try:
+                log.info("%s %s" % (log_t, "WebSocket connection is closed!"))
+                yield ws
+            except Exception as e:
+                log.error("%s ERROR => %s" % (log_t, e.args[0] if e.args else str(e)))
+            finally:
+                ws.close()
+                log.info("%s %s" % (log_t, "WebSocket connection is closed!"))
+
+        @staticmethod
+        def __get_autantication_data(
+            index: int, client_id: int | str, client_secret_key: str
+        ) -> dict:
+            return {
+                "jsonrpc": "2.0",
+                "id": index + 1,
+                "method": "public/auth",
+                "params": {
+                    "grant_type": "client_credentials",
+                    "client_id": client_id,
+                    "client_secret": client_secret_key,
+                },
+            }
 
     def __new__(
         cls,
@@ -303,7 +430,7 @@ class DeribitCreationQueue:
     _postman = deque(maxlen=5000)
     _deque_error = deque(maxlen=10000)  # Which have not passed caching
 
-    def __init__(self, max_concurrent=None):
+    def __init__(self, max_concurrent=None) -> None:
         """
         :param max_concurrent: int.  This is our calculater/limiter for the one user's requests to the Stripe server. \
             Rate/ limitation quantities of requests per 1 second from one user (it is request to the Stripe server) .
@@ -320,7 +447,7 @@ class DeribitCreationQueue:
         self.stripe_response_var = ContextVar("deribit_response", default=None)
         self.stripe_response_var_token = None
 
-    async def enqueue(self, cache_live: int, **kwargs):
+    async def enqueue(self, cache_live: int, **kwargs) -> None:
         """
         We can have a big flow of requests. Means make a limit on the server through caching and queues.
         :param kwargs:
@@ -352,7 +479,7 @@ class DeribitCreationQueue:
         try:
             if len(self._postman) > 0:
                 # ===============================
-                # CACHE RAQUEST's BODY DATA
+                # ---- CACHE RAQUEST's BODY DATA
                 # ===============================
                 # cache of the user data
                 contex_redis_connection = self.rate_limit.context_redis_connection
@@ -391,11 +518,14 @@ class DeribitCreationQueue:
                         if val is not None and key not in list(self._deque_error)
                     ]
                     # ===============================
-                    # CREATE THE QUEUE FROM THE CACHE KEYS
+                    # ---- CREATE THE QUEUE FROM THE CACHE KEYS
                     # ===============================
                     [self.queue.put(view) for view in keys_in_leave_queue]
                     tasks_collections.clear()
-
+                    # ===============================
+                    # ---- RAN SIGNAL
+                    # ===============================
+                    await signal.schedule_with_delay(task_account, *keys_in_leave_queue)
             else:
                 log.warning(
                     str(
@@ -410,13 +540,19 @@ class DeribitCreationQueue:
         except Exception as e:
             log.error(str("%s ERROR => %s" % (log_t, e.args[0] if e.args else str(e))))
 
-    def __error_passed_cached(self, tasks_collections: list):
+    def __error_passed_cached(self, tasks_collections: list) -> None:
         """When the value False received from caching. Every error we save in separately list"""
         count_false = tasks_collections.count(False)
         for i in range(count_false):
             position_in_postman = tasks_collections.index(False, i if i == 0 else i + 1)
             # Array from the '_postman' Here is data which have not passed caching on the server
             self._deque_error.append(self._postman[position_in_postman])
+
+    # async def _process_queue_worker(
+    #     self,
+    #     work_id: str,
+    #     handler: QueueHandlerFunc = None,
+    # ) -> None:
 
     # def _start_worker(self, tasks: list[], limitations=40,):
     #     """
