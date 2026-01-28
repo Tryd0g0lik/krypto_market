@@ -129,62 +129,65 @@ class DeribitWebsocketPool:
                 # ---- CREATE CONNECTION TO THE DERIBIT SERVER
                 # ==============================
                 async with self.client_session() as session:
+
+                    yield session
+
                     # Connection by the WebSocker cannel
-                    async with self.ws_send(
-                        session, _heartbeat, _timeout, _url, _method, _autoping
-                    ) as ws:
-                        # Controller
-                        async with self._semaphore:
-                            try:
-                                # Data sending
-                                await ws.send_json(auth_msg)
-                                async for msg in ws:
-                                    if msg.type == WSMsgType.TEXT:
-                                        print(f"Received: {msg.data}")
-                                        log.warning(f"WS Received: {msg.data}")
-                                    elif msg.type == WSMsgType.ERROR:
-                                        log_err = "%s ERROR connection. Code: %s" % (
-                                            log_t,
-                                            msg.value,
-                                        )
-                                        log.error(str(log_err))
-                                        raise ValueError(str(log_err))
-
-                                    elif msg.type == WSMsgType.CLOSED:
-                                        log.warning(
-                                            "%s Closing connection. Code: %s"
-                                            % (log_t, msg.data)
-                                        )
-                                        break
-
-                            except WSMessageTypeError as e:
-                                log_err = (
-                                    "%s WSMessageTypeError message is not TEXT => %s"
-                                    % (log_t, e.args[0] if e.args else str(e))
-                                )
-                                log.error(str(log_err))
-                                raise WSMessageTypeError(str(log_err))
-                            except RuntimeError as e:
-                                log_err = (
-                                    "%s RuntimeError Connection is not started or closing => %s"
-                                    % (log_t, e.args[0] if e.args else str(e))
-                                )
-                                log.error(str(log_err))
-                                raise RuntimeError(str(log_err))
-                            except ValueError as e:
-                                log_err = (
-                                    "%s ValueError Data is not serializable object => %s"
-                                    % (log_t, e.args[0] if e.args else str(e))
-                                )
-                                log.error(str(log_err))
-                                raise ValueError(str(log_err))
-                            except TypeError as e:
-                                log_err = (
-                                    "%s Value returned by dumps(data) is not str => %s"
-                                    % (log_t, e.args[0] if e.args else str(e))
-                                )
-                                log.error(str(log_err))
-                                raise TypeError(str(log_err))
+                    # async with self.ws_send(
+                    #     session, _heartbeat, _timeout, _url, _method, _autoping
+                    # ) as ws:
+                    #     # Controller
+                    #     # async with self._semaphore:
+                    #     try:
+                    #         # Data sending
+                    #         await ws.send_json(auth_msg)
+                    #         async for msg in ws:
+                    #             if msg.type == WSMsgType.TEXT:
+                    #                 print(f"Received: {msg.data}")
+                    #                 log.warning(f"WS Received: {msg.data}")
+                    #             elif msg.type == WSMsgType.ERROR:
+                    #                 log_err = "%s ERROR connection. Code: %s" % (
+                    #                     log_t,
+                    #                     msg.value,
+                    #                 )
+                    #                 log.error(str(log_err))
+                    #                 raise ValueError(str(log_err))
+                    #
+                    #             elif msg.type == WSMsgType.CLOSED:
+                    #                 log.warning(
+                    #                     "%s Closing connection. Code: %s"
+                    #                     % (log_t, msg.data)
+                    #                 )
+                    #                 break
+                    #
+                    #     except WSMessageTypeError as e:
+                    #         log_err = (
+                    #             "%s WSMessageTypeError message is not TEXT => %s"
+                    #             % (log_t, e.args[0] if e.args else str(e))
+                    #         )
+                    #         log.error(str(log_err))
+                    #         raise WSMessageTypeError(str(log_err))
+                    #     except RuntimeError as e:
+                    #         log_err = (
+                    #             "%s RuntimeError Connection is not started or closing => %s"
+                    #             % (log_t, e.args[0] if e.args else str(e))
+                    #         )
+                    #         log.error(str(log_err))
+                    #         raise RuntimeError(str(log_err))
+                    #     except ValueError as e:
+                    #         log_err = (
+                    #             "%s ValueError Data is not serializable object => %s"
+                    #             % (log_t, e.args[0] if e.args else str(e))
+                    #         )
+                    #         log.error(str(log_err))
+                    #         raise ValueError(str(log_err))
+                    #     except TypeError as e:
+                    #         log_err = (
+                    #             "%s Value returned by dumps(data) is not str => %s"
+                    #             % (log_t, e.args[0] if e.args else str(e))
+                    #         )
+                    #         log.error(str(log_err))
+                    #         raise TypeError(str(log_err))
                 """
 
                 Check a connection and ???
@@ -328,6 +331,9 @@ class DeribitWebsocketPool:
         return conn
 
 
+# ==============================
+# ---- LIMIT BY USE
+# ==============================
 class DeribitLimited:
     """
     This is limiter for a one user and  protection the Stripe's server. Example. We often make requests to the server \
@@ -426,7 +432,10 @@ class DeribitLimited:
             raise
 
 
-class DeribitCreationQueue:
+# ==============================
+# ---- DERIBIT MENEGE
+# ==============================
+class DeribitManage:
     _postman = deque(maxlen=5000)
     _deque_error = deque(maxlen=10000)  # Which have not passed caching
 
