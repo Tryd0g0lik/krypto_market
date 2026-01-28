@@ -20,6 +20,7 @@ from aiohttp import (
 )
 from aiohttp.client import _BaseRequestContextManager
 from fastapi import websockets
+from psycopg2.extras import register_uuid
 from redis.asyncio import Redis
 
 from cryptomarket.project.enum import ExternalAPIEnum, RadisKeysEnum
@@ -32,7 +33,7 @@ from cryptomarket.project.settings.settings_env import (
 )
 from cryptomarket.project.signals import signal
 from cryptomarket.tasks.queues.task_account_user import task_account
-from cryptomarket.type.deribit_type import OAuthAutenticationType
+from cryptomarket.type import DeribitLimitedType, DeribitManageType
 
 log = logging.getLogger(__name__)
 
@@ -334,7 +335,7 @@ class DeribitWebsocketPool:
 # ==============================
 # ---- LIMIT BY USE
 # ==============================
-class DeribitLimited:
+class DeribitLimited(DeribitLimitedType):
     """
     This is limiter for a one user and  protection the Stripe's server. Example. We often make requests to the server \
             and could  receive an error or waiting a long time. Here we begin to repeat it  \
@@ -351,6 +352,7 @@ class DeribitLimited:
     def __init__(
         self, max_conrurrents: int = app_settings.DERIBIT_MAX_CONCURRENT, _sleep=0.1
     ):
+        super().__init__()
         self.semaphore = asyncio.Semaphore(max_conrurrents)
         self.sleep = _sleep
 
@@ -435,8 +437,8 @@ class DeribitLimited:
 # ==============================
 # ---- DERIBIT MENEGE
 # ==============================
-class DeribitManage:
-    _postman = deque(maxlen=5000)
+class DeribitManage(DeribitManageType):
+    _deque_postman = deque(maxlen=5000)
     _deque_error = deque(maxlen=10000)  # Which have not passed caching
 
     def __init__(self, max_concurrent=None) -> None:
@@ -446,6 +448,7 @@ class DeribitManage:
             Default value is number from  the variable of 'app_settings.STRIPE_MAX_CONCURRENT'.
 
         """
+        super().__init__()
         self.queue = asyncio.Queue(maxsize=app_settings.STRIPE_QUEUE_SIZE)
 
         self.processing_tasks = set()
@@ -465,9 +468,14 @@ class DeribitManage:
         :return:
         """
         log_t = "[%s.%s]:" % (self.__class__.__name__, self.enqueue.__name__)
+        register_id = kwargs.get("request_id")
         try:
-            loog_err = "%s ERROR => %s" % (log_t, "API URL did not find!")
-            if kwargs is not None and isinstance(kwargs, OAuthAutenticationType):
+            loog_err = "%s RequestID %s ERROR => %s" % (
+                log_t,
+                register_id,
+                "API URL did not find!",
+            )
+            if kwargs is not None:
                 # Remove an aPI key from kwargs and we leave the kwargs without url
                 api_key = kwargs.pop("api_key")
                 # This is key for queue and task
@@ -480,13 +488,13 @@ class DeribitManage:
                     str(datetime.now().strftime("%Y%m%d%H%M%S")),
                 )
                 # The general key from a user data and the user data add in joint/general list
-                self._postman.append({str(task_id): kwargs})
+                self._deque_postman.append({str(task_id): kwargs})
 
         except ValueError as err:
             raise err.args[0] if err.args else str(err)
 
         try:
-            if len(self._postman) > 0:
+            if len(self._deque_postman) > 0:
                 # ===============================
                 # ---- CACHE RAQUEST's BODY DATA
                 # ===============================
@@ -512,7 +520,7 @@ class DeribitManage:
                                 ),
                             )
                         )
-                        for view in self._postman
+                        for view in self._deque_postman
                         for k, v in [next(iter(view.items()))]
                     ]
                     # Checking the 'tasks_collections' after caching.
@@ -522,7 +530,7 @@ class DeribitManage:
                     # The list of keys from the data cached on the server
                     keys_in_leave_queue = [
                         key
-                        for view in self._postman.pop()
+                        for view in self._deque_postman.pop()
                         for key, val in [next(iter(view.items()))]
                         if val is not None and key not in list(self._deque_error)
                     ]
@@ -555,7 +563,7 @@ class DeribitManage:
         for i in range(count_false):
             position_in_postman = tasks_collections.index(False, i if i == 0 else i + 1)
             # Array from the '_postman' Here is data which have not passed caching on the server
-            self._deque_error.append(self._postman[position_in_postman])
+            self._deque_error.append(self._deque_postman[position_in_postman])
 
     # async def _process_queue_worker(
     #     self,
@@ -563,23 +571,32 @@ class DeribitManage:
     #     handler: QueueHandlerFunc = None,
     # ) -> None:
 
-    # def _start_worker(self, tasks: list[], limitations=40,):
-    #     """
-    #     :param limitations:int This is number for limitation the parallels tasks at the cache moment
-    #     :param limitations:
-    #     :return:
-    #     """
-    #     try:
-    #         # ===============================
-    #         # RAN THE CACHE
-    #         # ===============================
-    #         # 40 This is number for limitations the parallels tasks at the cache moment.
-    #         for i in range(0, len(tasks_collections), 40):
-    #             new_list = []
-    #             for patch in tasks_collections[i:i + 40]:
-    #                 new_list.append(patch)
-    #             await asyncio.gather(*new_list)
-    #         tasks_collections.clear()
-    #     except Exception as err:
-    #         loog_err = "%s ERROR => %s" % (str(log_t), err.args[0] if err.args else str(err))
-    #         log.error(str(loog_err))
+    async def start_worker(
+        self,
+        limitations: int = 10,
+    ) -> None:
+        """
+        This is controller of the workers.
+        This controller starting through parameter of the FastAPI.lifespan
+        :param limitations:int This is number for limitation the parallels tasks at the cache moment
+        :param limitations:
+        :return: None
+        """
+        log_t = "[%s.%s]:" % (self.__class__.__name__, self.start_worker.__name__)
+        try:
+            # ===============================
+            # RAN THE CACHE
+            # ===============================
+            # 40 This is number for limitations the parallels tasks at the cache moment.
+            for i in range(limitations):
+                task = asyncio.create_task(
+                    self._process_queue_worker(work_id=f"worker_{i}")
+                )
+                task.add_done_callback(self.processing_tasks.discard)
+                self.processing_tasks.add(task)
+        except Exception as err:
+            loog_err = "%s ERROR => %s" % (
+                str(log_t),
+                err.args[0] if err.args else str(err),
+            )
+            log.error(str(loog_err))

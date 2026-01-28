@@ -5,29 +5,30 @@ cryptomarket/project/app.py
 import asyncio
 import logging
 import threading
+from contextlib import asynccontextmanager
 
-from fastapi import (FastAPI, Request)
+from fastapi import FastAPI, Request
 
 from cryptomarket.api.v1.api_users import router_v1
 from cryptomarket.database.handler_create_db import checkOrCreateTables
-
+from cryptomarket.deribit_client import DeribitManage
+from cryptomarket.project.middleware.middleware_basic import DeribitMiddleware
 from cryptomarket.project.settings.core import app_settings
+from cryptomarket.type import DeribitManageType
 
-
-# controller = StripCreationQueue()
+manager: DeribitManageType = DeribitManage()
 
 log = logging.getLogger(__name__)
 
 
-# @asynccontextmanager
-# async def lifespan(app: FastAPI):
-#     await controller.start_workers()
-#     try:
-#         yield  # Приложение работает
-#     finally:
-#         # Очистка
-#         pass
-    # await controller.stop_workers()
+@asynccontextmanager
+async def lifespan():
+    await manager.start_worker(limitations=10)
+    try:
+        yield
+    finally:
+        pass
+    await manager.stop_workers()
 
 
 def app_cryptomarket():
@@ -70,18 +71,14 @@ def app_cryptomarket():
         version=app_settings.PROJECT_VERSION,
         description="""This project is the microservice and service for
         the payments between roles the OWNER & MASTER""",
-        # lifespan=lifespan,
+        lifespan=lifespan,
     )
     # ===============================
     # ---- MIDDLEWARE
     # ===============================
-    # middleware = AccountCreationMiddleware(controller)
-    # app_.middleware("http")(middleware)
-    # ===============================
-    # ---- LANGUAGE - ENG RU
-    # ===============================
-    # I18N_PATH = os.path.join(BASE_DIR, "service\\core\\i18n")
-    # set_path(I18N_PATH, replace=True)
+    middleware = DeribitMiddleware(manager)
+    app_.middleware("http")(middleware)
+
 
     # ===============================
     # ---- CORS MIDDLEWARE
@@ -104,6 +101,7 @@ def app_cryptomarket():
     # ---- ROUTER OPENAPI
     # ===============================
     app_.include_router(router_v1, prefix="/api/v1")
+
     # root endpoint
     @app_.get("/")
     async def root():

@@ -3,27 +3,48 @@ cryptomarket/project/middleware/middleware_basic.py
 This the middleware mock is model of start for work by DERIBIT API.
 """
 
-from typing import Any, Dict
+import logging
+from contextvars import ContextVar
+from typing import Any
+from uuid import uuid4
 
-from fastapi import Request, Response, status
+from fastapi import Request, status
 
-from cryptomarket.type import DeribitManageProp
+from cryptomarket.project.enum import ExternalAPIEnum
+from cryptomarket.type import DeribitManageType
+from cryptomarket.type.deribit_type import DeribitMiddlewareType
+
+log = logging.getLogger(__name__)
 
 
-class DeribitMiddleware:
-
-    def __init__(self, manage: DeribitManageProp):
-        self.manager: DeribitManageProp = manage
+class DeribitMiddleware(DeribitMiddlewareType):
+    def __init__(self, manager: DeribitManageType):
+        super().__init__()
+        self.manager: DeribitManageType = manager
 
     async def __call__(self, request: Request, call_next):
         """
 
         TODO:  Here add additional user identification.
         """
+
+        # ===============================
+        # CREATE REQUEST ID
+        # Get a request index and token for ContexVar
+        # This request id will be with us until user gets response.
+        # ===============================
+        request_id_var = ContextVar("request_id", default="")
+        request_id_var_token = request_id_var.set(str(uuid4()))
+        log.info("Start request id: %s", request_id_var.get())
         # ===============================
         # START THE DERIBIT MANAGE
         # ===============================
-        kwargs = {"deribit_id": 1, "client_id": "< insert client_id >"}
+        kwargs = {
+            "request_id": request_id_var.get(),
+            "api_key": ExternalAPIEnum.WS_COMMON_URL.value,
+            "deribit_id": 1,
+            "client_id": "< insert client_id >",
+        }
         await self.manager.enqueue(**kwargs)
         # ===============================
         # GET RESPONSE DATA
@@ -59,6 +80,7 @@ class DeribitMiddleware:
         # Add captured data to response headers
         response.headers["X-Request-Captured"] = "true"
         response.status_code = status.HTTP_201_CREATED
+        request_id_var.reset(request_id_var_token)
         return response
 
     async def _capture_body_and_form(self, request: Request):
