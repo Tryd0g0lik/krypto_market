@@ -2,8 +2,7 @@
 cryptomarket/api/v1/api_users.py
 """
 
-from fastapi import (APIRouter, Request, Response, openapi, status)
-
+from fastapi import APIRouter, Request, Response, openapi, status
 
 # from cryptomarket.type import (
 #     CreateAccountBase,
@@ -43,7 +42,7 @@ router_v1 = APIRouter(
     tags=["account"],
     status_code=status.HTTP_201_CREATED,
 )
-def create_account(request: Request, *args, **kwargs: CreateAccountBase):
+def create_account(request: Request, *args, **kwargs):
     """Create a new Stripe's account"""
 
     if "data" in list(request.__dict__.keys()):
@@ -51,5 +50,3 @@ def create_account(request: Request, *args, **kwargs: CreateAccountBase):
         response.content = request.body()
         return response
     return request
-
-

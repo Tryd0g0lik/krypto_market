@@ -2,10 +2,9 @@
 __tests__/test_database_connections/test_asyncsession_scope_error.py
 """
 import logging
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
-from more_itertools.more import side_effect
 
 from __tests__.fixtures.fixt_mock import (
     fix_mock_iS_ASYNC_False,
@@ -18,7 +17,8 @@ from __tests__.fixtures.fixture_test_log import (
     fixt_START_work,
 )
 from cryptomarket.database.connection import DatabaseConnection
-from cryptomarket.project.settings.core import app_settings
+
+app_settings
 
 log = logging.getLogger(__name__)
 
@@ -62,7 +62,7 @@ class TestSessionScope:
 
         fixt_start_TEST(self.test_asyncsession_scope_parameter_session_error.__name__)
 
-        db_url = app_settings.get_database_url_sqlite
+        db_url = settings().get_database_url_sqlite
         # =====================
         # MOCK SESSION of 'self.session_factory()'
         # =====================

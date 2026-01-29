@@ -18,7 +18,7 @@ from __tests__.fixtures.fixture_test_log import (
 )
 from cryptomarket.deribit_client.deribit_clients import DeribitLimited
 from cryptomarket.project.enum import RadisKeysEnum
-from cryptomarket.project.settings.core import app_settings
+from cryptomarket.project.settings.core import settings
 
 log = logging.getLogger(__name__)
 
@@ -120,8 +120,8 @@ class TestDeribitLimited:
           tasks.append(asyncio.create_task(newtest_function()))
 
         await asyncio.gather(*tasks)
-        assert app_settings.DERIBIT_MAX_CONCURRENT is not None, 'We have a limit by parallels/concurrents tasks'
-        assert deribit_limited.semaphore._value <=  app_settings.DERIBIT_MAX_CONCURRENT, "Re-check of counter through \
+        assert settings().DERIBIT_MAX_CONCURRENT is not None, 'We have a limit by parallels/concurrents tasks'
+        assert deribit_limited.semaphore._value <=  settings().DERIBIT_MAX_CONCURRENT, "Re-check of counter through \
             the Semaphore"
 
         fixt_end_TEST(self.test_semaphore.__name__)
@@ -165,11 +165,11 @@ class TestDeribitLimited:
 
         await asyncio.gather(*tasks)
         assert self.concurrent_counter is not None, "The 'concurrent_counter' is exists"
-        assert app_settings.DERIBIT_MAX_CONCURRENT is not None, 'We have a limit by parallels/concurrents tasks'
-        assert self.concurrent_counter <= app_settings.DERIBIT_MAX_CONCURRENT, f"Check of counter on the maximum \
+        assert settings().DERIBIT_MAX_CONCURRENT is not None, 'We have a limit by parallels/concurrents tasks'
+        assert self.concurrent_counter <= settings().DERIBIT_MAX_CONCURRENT, f"Check of counter on the maximum \
                by parallels/works tasks: {self.concurrent_counter}"
         log.info("Check of counter on Semaphore value: %s " % self.semaphore._value)
-        assert self.semaphore._value <= app_settings.DERIBIT_MAX_CONCURRENT, "Re-check of counter through \
+        assert self.semaphore._value <= settings().DERIBIT_MAX_CONCURRENT, "Re-check of counter through \
                the Semaphore"
 
         fixt_end_TEST(self.test_semaphore.__name__)

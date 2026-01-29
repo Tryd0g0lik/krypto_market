@@ -6,8 +6,7 @@ import asyncio
 import logging
 import threading
 
-from cryptomarket.database.connection import DatabaseConnection
-from cryptomarket.project.settings.core import DEBUG, app_settings
+from cryptomarket.project.settings.core import DEBUG, settings
 
 log = logging.getLogger(__name__)
 
@@ -141,9 +140,16 @@ def wrapper_delayed_task(
 
 
 url_str = (
-    app_settings.get_database_url_sqlite
+    settings().get_database_url_sqlite
     if DEBUG
-    else app_settings.get_database_url_external
+    else settings().get_database_url_external
 )
 
-connection_db = DatabaseConnection(url_str)
+
+def connection_database():
+    from cryptomarket.database.connection import DatabaseConnection
+
+    return DatabaseConnection(url_str)
+
+
+# connection_db = connection_database()

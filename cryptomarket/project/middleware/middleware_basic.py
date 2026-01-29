@@ -45,7 +45,7 @@ class DeribitMiddleware(DeribitMiddlewareType):
             "deribit_id": 1,
             "client_id": "< insert client_id >",
         }
-        await self.manager.enqueue(**kwargs)
+        await self.manager.enqueue(43200, **kwargs)
         # ===============================
         # GET RESPONSE DATA
         # ===============================

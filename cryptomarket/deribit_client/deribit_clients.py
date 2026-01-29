@@ -6,48 +6,50 @@ import asyncio
 import json
 import logging
 from collections import deque
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
 from datetime import datetime
-from typing import Any, AsyncGenerator, Generator
 
-import backoff
 from aiohttp import (
     ClientSession,
     ClientWebSocketResponse,
-    WSMessageTypeError,
-    WSMsgType,
 )
-from aiohttp.client import _BaseRequestContextManager
-from fastapi import websockets
-from psycopg2.extras import register_uuid
 from redis.asyncio import Redis
 
 from cryptomarket.project.enum import ExternalAPIEnum, RadisKeysEnum
-from cryptomarket.project.settings.core import app_settings
+from cryptomarket.project.settings.core import settings
 from cryptomarket.project.settings.settings_env import (
     DERIBIT_CLIENT_ID,
     DERIBIT_SECRET_KEY,
+    REDIS_DB,
     REDIS_HOST,
     REDIS_PORT,
 )
 from cryptomarket.project.signals import signal
 from cryptomarket.tasks.queues.task_account_user import task_account
-from cryptomarket.type import DeribitLimitedType, DeribitManageType
+from cryptomarket.type import (
+    DeribitClientType,
+    DeribitLimitedType,
+    DeribitManageType,
+    DeribitWebsocketPoolType,
+)
 
 log = logging.getLogger(__name__)
+
+setting = settings()
 
 
 # ==============================
 # ---- WEBSOCKET ENVIRONMENT
 # ==============================
-class DeribitWebsocketPool:
+class DeribitWebsocketPool(DeribitWebsocketPoolType):
     _instance = None
-    _connections: list = deque(
-        maxlen=app_settings.DERIBIT_MAX_CONCURRENT
+
+    _clients: list = deque(
+        maxlen=setting.DERIBIT_MAX_CONCURRENT
     )  # This list is the list[coroutine]. \
     # Below (DeribitWebsocketPool.__new__) he will receive the coroutine for a connection with the Deribit API.
-    # The length of list will be containe the quantity of elements == 'app_settings.STRIPE_MAX_QUANTITY_WORKERS'.
+    # The length of list will be containe the quantity of elements == 'setting.STRIPE_MAX_QUANTITY_WORKERS'.
     # Everything coroutine/connection will require the:
     # - OAuth 2.0;
     # - client_id from the Deribit;
@@ -58,7 +60,7 @@ class DeribitWebsocketPool:
     # ==============================
     # ---- CLIENT FOR THE BASIC CONNECTION
     # ==============================
-    class DeribitClient:
+    class DeribitClient(DeribitClientType):
         _semaphore = asyncio.Semaphore(value=1)
 
         def __init__(
@@ -75,30 +77,26 @@ class DeribitWebsocketPool:
                the value of variable the 'DERIBIT_SECRET_KEY'.
             :param _limit (int) This is controller per a joint requests, Default value is 1.
            """
-
+            super().__init__()
             self.client_id: str = (
                 "%s" % DERIBIT_CLIENT_ID if _client_id is None else "%s" % _client_id
             )
-            self.__client_secret: str = (
-                "%s" % DERIBIT_SECRET_KEY
-                if _client_secret is None
-                else "%s" % _client_secret
-            )
+            self.__client_secret: str = _client_secret
 
         #
         # def __new__(cls):
         #     cls._client_session = ClientSession()
         #     return super().__new__(cls)
 
-        @backoff.on_exception(
-            backoff.expo,
-            (ConnectionError,),
-            max_tries=3,
-            max_time=30,
-        )
-        async def initialize(
+        # @backoff.on_exception(
+        #     backoff.expo,
+        #     (ConnectionError,),
+        #     max_tries=3,
+        #     max_time=30,
+        # )
+        @contextmanager
+        def initialize(
             self,
-            index: int | str,
             _heartbeat: int = 30,
             _timeout: int = 10,
             _url: str = ExternalAPIEnum.WS_COMMON_URL.value,
@@ -123,72 +121,24 @@ class DeribitWebsocketPool:
             """
             log_t = "[%s.%s]: " % (self.__class__.__name__, self.initialize.__name__)
             try:
-                auth_msg = self.__get_autantication_data(
-                    index, self.client_id, self.__client_secret
-                )
+                # auth_msg = self.__get_autantication_data(
+                #     index, self.client_id, self.__client_secret
+                # )
                 # ==============================
                 # ---- CREATE CONNECTION TO THE DERIBIT SERVER
                 # ==============================
-                async with self.client_session() as session:
+                __connection = self.__client_session()
+                try:
+                    yield __connection
+                finally:
+                    __connection.close()
+                # Connection by the WebSocker cannel
+                # async with self.ws_send(
+                #     session, _heartbeat, _timeout, _url, _method, _autoping
+                # ) as ws:
+                #     # Controller
+                #     # async with self._semaphore:
 
-                    yield session
-
-                    # Connection by the WebSocker cannel
-                    # async with self.ws_send(
-                    #     session, _heartbeat, _timeout, _url, _method, _autoping
-                    # ) as ws:
-                    #     # Controller
-                    #     # async with self._semaphore:
-                    #     try:
-                    #         # Data sending
-                    #         await ws.send_json(auth_msg)
-                    #         async for msg in ws:
-                    #             if msg.type == WSMsgType.TEXT:
-                    #                 print(f"Received: {msg.data}")
-                    #                 log.warning(f"WS Received: {msg.data}")
-                    #             elif msg.type == WSMsgType.ERROR:
-                    #                 log_err = "%s ERROR connection. Code: %s" % (
-                    #                     log_t,
-                    #                     msg.value,
-                    #                 )
-                    #                 log.error(str(log_err))
-                    #                 raise ValueError(str(log_err))
-                    #
-                    #             elif msg.type == WSMsgType.CLOSED:
-                    #                 log.warning(
-                    #                     "%s Closing connection. Code: %s"
-                    #                     % (log_t, msg.data)
-                    #                 )
-                    #                 break
-                    #
-                    #     except WSMessageTypeError as e:
-                    #         log_err = (
-                    #             "%s WSMessageTypeError message is not TEXT => %s"
-                    #             % (log_t, e.args[0] if e.args else str(e))
-                    #         )
-                    #         log.error(str(log_err))
-                    #         raise WSMessageTypeError(str(log_err))
-                    #     except RuntimeError as e:
-                    #         log_err = (
-                    #             "%s RuntimeError Connection is not started or closing => %s"
-                    #             % (log_t, e.args[0] if e.args else str(e))
-                    #         )
-                    #         log.error(str(log_err))
-                    #         raise RuntimeError(str(log_err))
-                    #     except ValueError as e:
-                    #         log_err = (
-                    #             "%s ValueError Data is not serializable object => %s"
-                    #             % (log_t, e.args[0] if e.args else str(e))
-                    #         )
-                    #         log.error(str(log_err))
-                    #         raise ValueError(str(log_err))
-                    #     except TypeError as e:
-                    #         log_err = (
-                    #             "%s Value returned by dumps(data) is not str => %s"
-                    #             % (log_t, e.args[0] if e.args else str(e))
-                    #         )
-                    #         log.error(str(log_err))
-                    #         raise TypeError(str(log_err))
                 """
 
                 Check a connection and ???
@@ -200,18 +150,16 @@ class DeribitWebsocketPool:
                 log.error(str(log_err))
                 raise ValueError(str(log_err))
 
-        @asynccontextmanager
-        async def client_session(self) -> AsyncGenerator[ClientSession, Any]:
+        def __client_session(self):
             log_t = "[%s.%s]:" % (self.__class__.__name__, self.client_session.__name__)
             _client_session = ClientSession()
             log.info("%s %s" % (log_t, "Client session opening!"))
             try:
-                yield _client_session
+                return _client_session
             except Exception as e:
                 log.error("%s ERROR => %s" % (log_t, e.args[0] if e.args else str(e)))
             finally:
-                await _client_session.close()
-                log.info("%s %s" % (log_t, "Client session closed!"))
+                pass
 
         @asynccontextmanager
         async def ws_send(
@@ -222,7 +170,7 @@ class DeribitWebsocketPool:
             _url: str = ExternalAPIEnum.WS_COMMON_URL.value,
             _method: str = "GET",
             _autoping: bool = True,
-        ) -> AsyncGenerator[_BaseRequestContextManager[ClientWebSocketResponse], Any]:
+        ):
             """
             WebvSocket connection on the Deribit server.
                 :param index: This is the 'index' of connection.
@@ -257,7 +205,7 @@ class DeribitWebsocketPool:
                 log.info("%s %s" % (log_t, "WebSocket connection is closed!"))
 
         @staticmethod
-        def __get_autantication_data(
+        def _get_autantication_data(
             index: int, client_id: int | str, client_secret_key: str
         ) -> dict:
             return {
@@ -300,35 +248,38 @@ class DeribitWebsocketPool:
         if not cls._instance:
             cls._instance = super().__new__(cls)
 
-            client_session = cls.DeribitClient(_client_id, _client_secret)
+            # client_session = cls.DeribitClient(_client_id, _client_secret)
             # This is creating the coroutines for clients (entry points or entry windows).
             # Everyone coroutine for connections with the Deribit.
-            # Max quantity of coroutines contain value require - the 'app_settings.DERIBIT_MAX_QUANTITY_WORKERS',
+            # Max quantity of coroutines contain value require - the 'setting.DERIBIT_MAX_QUANTITY_WORKERS',
             # it is the max number of connection.
-            for i in range(app_settings.DERIBIT_MAX_QUANTITY_WORKERS):
-                ws = client_session.initialize(i, _heartbeat, _timeout)
-                cls._connections.append(ws)
+            for i in range(setting.DERIBIT_MAX_QUANTITY_WORKERS):
+                # session = __client_session.initialize(i, _heartbeat, _timeout)
+                # connection = client_session.initialize()
+                client_ = cls.DeribitClient(_client_id, _client_secret)
+                cls._clients.append(client_)
         return cls._instance
 
-    def get_connection(self) -> DeribitClient.initialize:
+    # def get_clients(self) -> DeribitClient.initialize:
+    def get_clients(self) -> DeribitClient.initialize:
         """
         HEre we received the one coroutine for connection to the Deribit server.
-        Coroutine receive by index. It's from 0 before 'app_settings.DERIBIT_MAX_QUANTITY_WORKERS'.
+        Coroutine receive by index. It's from 0 before 'setting.DERIBIT_MAX_QUANTITY_WORKERS'.
         :return: DeribitClient.initialize (coroutine).
         """
-        conn = self._connections[
+        conn = self._clients[
             (
                 self._current_index
-                if self._current_index < app_settings.DERIBIT_MAX_QUANTITY_WORKERS
+                if self._current_index < setting.DERIBIT_MAX_QUANTITY_WORKERS
                 and self._current_index
-                < app_settings.DERIBIT_MAX_QUANTITY_WORKERS
-                <= app_settings.DERIBIT_MAX_CONCURRENT
-                else app_settings.DERIBIT_MAX_CONCURRENT - 1
+                < setting.DERIBIT_MAX_QUANTITY_WORKERS
+                <= setting.DERIBIT_MAX_CONCURRENT
+                else setting.DERIBIT_MAX_CONCURRENT - 1
             )
         ]
 
         # Resent the cls._current_index
-        self._current_index = (self._current_index + 1) % len(self._connections)
+        self._current_index = (self._current_index + 1) % len(self._clients)
         return conn
 
 
@@ -350,16 +301,18 @@ class DeribitLimited(DeribitLimitedType):
     """
 
     def __init__(
-        self, max_conrurrents: int = app_settings.DERIBIT_MAX_CONCURRENT, _sleep=0.1
+        self, max_conrurrents: int = setting.DERIBIT_MAX_CONCURRENT, _sleep=0.1
     ):
-        super().__init__()
+        # super().__init__()
         self.semaphore = asyncio.Semaphore(max_conrurrents)
         self.sleep = _sleep
 
-    def context_redis_connection(self):
+    @asynccontextmanager
+    async def context_redis_connection(self):
         redis = Redis(
-            f"{REDIS_HOST}",
-            f"{REDIS_PORT}",
+            host=f"{REDIS_HOST}",
+            port=int(REDIS_PORT),
+            db=f"{REDIS_DB}",
         )
         try:
             yield redis
@@ -373,7 +326,7 @@ class DeribitLimited(DeribitLimitedType):
                 )
             )
         finally:
-            redis.close()
+            await redis.close()
 
     @asynccontextmanager
     async def acquire(self, redis, task_id: str, user_id: str, cache_limit: int = 95):
@@ -445,17 +398,23 @@ class DeribitManage(DeribitManageType):
         """
         :param max_concurrent: int.  This is our calculater/limiter for the one user's requests to the Stripe server. \
             Rate/ limitation quantities of requests per 1 second from one user (it is request to the Stripe server) .
-            Default value is number from  the variable of 'app_settings.STRIPE_MAX_CONCURRENT'.
+            Default value is number from  the variable of 'setting.STRIPE_MAX_CONCURRENT'.
 
         """
         super().__init__()
-        self.queue = asyncio.Queue(maxsize=app_settings.STRIPE_QUEUE_SIZE)
+
+        self.queue = asyncio.Queue(maxsize=setting.DERIBIT_QUEUE_SIZE)
 
         self.processing_tasks = set()
         self.rate_limit: DeribitLimited | None = DeribitLimited()
-        self.connection_pool = DeribitWebsocketPool()
+        self.client_pool: DeribitWebsocketPoolType = DeribitWebsocketPool(
+            (lambda: "%s" % DERIBIT_CLIENT_ID)(),
+            (lambda: "%s" % DERIBIT_SECRET_KEY)(),
+            _heartbeat=30,
+            _timeout=10,
+        )
         if max_concurrent is not None:
-            self.rate_limit = DeribitWebsocketPool(max_concurrent)
+            self.rate_limit = DeribitLimited(max_concurrent)
         self.stripe_response_var = ContextVar("deribit_response", default=None)
         self.stripe_response_var_token = None
 
@@ -501,7 +460,7 @@ class DeribitManage(DeribitManageType):
                 # cache of the user data
                 contex_redis_connection = self.rate_limit.context_redis_connection
 
-                with contex_redis_connection() as redis:
+                async with contex_redis_connection() as redis:
                     redis_setex = redis.setex
                     # List a coroutines for send to the caching server
                     # k - key common between the cache data and queue
@@ -542,7 +501,7 @@ class DeribitManage(DeribitManageType):
                     # ===============================
                     # ---- RAN SIGNAL
                     # ===============================
-                    await signal.schedule_with_delay(task_account, *keys_in_leave_queue)
+                    # await signal.schedule_with_delay(task_account, *keys_in_leave_queue)
             else:
                 log.warning(
                     str(
@@ -565,11 +524,53 @@ class DeribitManage(DeribitManageType):
             # Array from the '_postman' Here is data which have not passed caching on the server
             self._deque_error.append(self._deque_postman[position_in_postman])
 
-    # async def _process_queue_worker(
-    #     self,
-    #     work_id: str,
-    #     handler: QueueHandlerFunc = None,
-    # ) -> None:
+    async def _process_queue_worker(
+        self,
+        work_id: str,
+    ) -> None:
+        """
+        TODO: Протестировать!!
+        Only for keys with names 'wss:...' & 'http:...'
+        :param work_id:
+        :return:
+        """
+        # log_t = "[%s.%s]:" % (
+        #     self.__class__.__name__,
+        #     self._process_queue_worker.__name__,
+        # )
+        client: DeribitClientType = self.client_pool.get_clients()
+        controller = True
+        # dataVar = ContextVar("data_srt")
+        # dataVar_token: str = ''
+        while controller:
+            if self.queue.qsize() == 0:
+                controller = False
+                continue
+
+            queue = await self.queue.get()
+            if "wss" not in queue and "http" not in queue:
+                await self.queue.put(queue)
+                continue
+            kwargs = {"task_id": queue}
+            args = (client,)
+            # ===============================
+            # ---- RAN SIGNAL
+            # ===============================
+            await signal.schedule_with_delay(task_account, *args, **kwargs)
+            # context_redis_connection = self.rate_limit.context_redis_connection
+            # with context_redis_connection() as redis:
+            #     data_str = redis.get(queue)
+            #     dataVar_token += dataVar.set(data_str)
+            # data_str_ = dataVar.get()
+            # try:
+            #     data_json = json.loads(data_str_)
+            #     data_json
+            # except json.decoder.JSONDecodeError as e:
+            #     log.error("%s JSONDecodeError => %s" % (log_t, e.args[0] if e.args else str(e)))
+        # # client = self.client_pool.get_clients()
+        # with client.initialize() as session:
+        #     async with client.ws_send(session) as ws:
+        #         pass
 
     async def start_worker(
         self,

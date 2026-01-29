@@ -46,8 +46,8 @@ class Settings(SettingsProps):
         'APP_PROTOCOL': str  This is the 'http' or 'https'. This depends from the IP of out the out/external server.
             Default value is 'http'.
         'APP_PORT': str Default value is '8003'.
-        '__SQLITE_DB_PATH': str This is used as local path for connection to the SQLite database. Default value is the string.
-            It is local path to the database 'cryptomarket_db.sqlit3'.
+        '__SQLITE_DB_PATH': str This is used as local path for connection to the SQLite connection_database. Default value is the string.
+            It is local path to the connection_database 'cryptomarket_db.sqlit3'.
             You can make changes to dp.  There insert the value 'None' and use 'SQLALCHEMY_DATABASE_URL' (below)
         '__SQLALCHEMY_DATABASE_URL': str This is a full path/address to the external db. .
         'ALLOWED_ORIGINS': list[str]This is list of allowed URLs/source. App cant get receive requests from these sources.
@@ -160,12 +160,12 @@ class Settings(SettingsProps):
         return hosts
 
     def set_database_url_external(self, url: str) -> None:
-        """Set up the new url to the database"""
+        """Set up the new url to the connection_database"""
         self.__SQLALCHEMY_DATABASE_URL = url
 
     @property
     def get_database_url_external(self) -> str:
-        """The async path to the database postgresql"""
+        """The async path to the connection_database postgresql"""
         # POSTGRES
         return self.__SQLALCHEMY_DATABASE_URL
 
@@ -174,8 +174,10 @@ class Settings(SettingsProps):
 
     @property
     def get_database_url_sqlite(self) -> str:
-        """The async path to the database sqlite"""
+        """The async path to the connection_database sqlite"""
         return self.__SQLITE_DB_PATH
 
 
-app_settings = Settings()
+def settings():
+    app_settings = Settings()
+    return app_settings

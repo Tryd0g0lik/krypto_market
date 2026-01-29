@@ -1,9 +1,8 @@
 """
-cryptomarket/database/handler_create_db.py
+cryptomarket/connection_database/handler_create_db.py
 """
 
 import asyncio
-
 import logging
 import os
 
@@ -12,9 +11,9 @@ from sqlalchemy.exc import InvalidRequestError
 from cryptomarket.database.connection import DatabaseConnection
 from cryptomarket.database.sql_text import SQLText
 from cryptomarket.project.settings.core import BASE_DIR, DEBUG
-from cryptomarket.project.settings.settings_env import (POSTGRES_DB_, PROJECT_MODE_)
-from cryptomarket.type.settings_prop import SettingsProps
+from cryptomarket.project.settings.settings_env import POSTGRES_DB_, PROJECT_MODE_
 from cryptomarket.type.db import Database
+from cryptomarket.type.settings_prop import SettingsProps
 
 log = logging.getLogger(__name__)
 
@@ -25,7 +24,7 @@ async def handler_restart_create_tables(
     """
     This is child function for  the main function "checkOrCreateTables()".
     :param 'db': Database connection Example 'DatabaseConnection(settings.GET_DATABASE_URL_SQLITE)'.
-    :param 'max_restart': Restart create database if we have not  received from the initial.
+    :param 'max_restart': Restart create connection_database if we have not  received from the initial.
     :param 'restart_quantity':int. Default value is 0. Variable is count  of current restart.
     :param 'settings': SettingsProps Properties Example 'Settings(settings.GET_DATABASE_URL_PS)'
     :return: True/False
@@ -33,9 +32,9 @@ async def handler_restart_create_tables(
 
     """
     await db.create_table()
-    # Checking a database - whose type already exists.
+    # Checking a connection_database - whose type already exists.
     await asyncio.sleep(3)
-    # Check database postgres
+    # Check connection_database postgres
     if db.is_postgresqltype and restart_quantity < max_restart:
         restart_quantity += 1
         dbtable_bool = await db.is_postgres_exists_async(
@@ -106,7 +105,7 @@ async def checkOrCreateTables(settings: SettingsProps, max_restart=3) -> None:
         To the line 'except InvalidRequestError as e:' & 'InvalidRequestError as e' insert the clean SQL
     This is function for processing the checking or creating db tables.
     :param 'settings': Settings Properties Example 'Settings(settings.GET_DATABASE_URL_PS)'.
-    :param 'max_restart': Restart create database if we have not  received from the initial.
+    :param 'max_restart': Restart create connection_database if we have not  received from the initial.
 
     :return:
     """
@@ -167,7 +166,7 @@ async def checkOrCreateTables(settings: SettingsProps, max_restart=3) -> None:
                         settings.POSTGRES_DB, "cryptomarket_account", "created_at"
                     )
                 )
-                # The database whose we want to check on the already exists.
+                # The connection_database whose we want to check on the already exists.
                 if conn.execute(sqlt).fetchone():
                     # If all successful and db exists.
                     return

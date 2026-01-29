@@ -1,5 +1,5 @@
 """
-cryptomarket/database/connection.py
+cryptomarket/connection_database/connection.py
 """
 
 import asyncio
@@ -19,21 +19,19 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import Session, SessionTransaction, sessionmaker
 
 from cryptomarket.database.sql_text import SQLText
-from cryptomarket.project.settings.core import app_settings
 from cryptomarket.type.db import Database
-from cryptomarket.type.settings_prop import SettingsProps
 
 log = logging.getLogger(__name__)
 
 
 class DatabaseConnection(Database):
     """
-    This is the collection of methods for processing the connection to the database/db.
-    Here, we have min 2 database and more four the mode connection with db:
+    This is the collection of methods for processing the connection to the connection_database/db.
+    Here, we have min 2 connection_database and more four the mode connection with db:
     - the app settings have variable 'PROJECT_MODE:str' ('cryptomarket/project/settings/core.py' of four mode);
     - plus variable  'DEBUG:bool' (mode).
     - we can have the async/sync connection with db;
-    - And.When we are running our app we have difference between the time of creating database and \
+    - And.When we are running our app we have difference between the time of creating connection_database and \
         time when our app reads models of db's tables. So, this collection of methods make a time buffer - it is \
         responsible checking  and restarting (if needed).
     This is the methods collection check:
@@ -48,7 +46,7 @@ class DatabaseConnection(Database):
 
     def __init__(self, db_url: str = None):
         """
-        :param db_url: str This is url/path to the database
+        :param db_url: str This is url/path to the connection_database
         :param is_async: bool
         engine = None
         session_factory = None
@@ -254,24 +252,24 @@ class DatabaseConnection(Database):
     @property
     def __db_type(self) -> str:
         """
-        This method determines the database type.
-        Everytime,  we have to determination the database through the string 'postgresql+asyncpg: ...'\
+        This method determines the connection_database type.
+        Everytime,  we have to determination the connection_database through the string 'postgresql+asyncpg: ...'\
             or 'sqlite+aiosqlite: ...' or '...+...: ...'.
         And, the 'self.db_url' must be the character '+' (plus).
-        Everytime we look the character '+' for determine a database type.
+        Everytime we look the character '+' for determine a connection_database type.
         """
         db_urls = self.db_url.strip().split("+")
         return db_urls[0]
 
     @property
     def is_postgresqltype(self) -> bool:
-        """This method determine a type of the connected database.\
+        """This method determine a type of the connected connection_database.\
          It is 'postgresql' (True) or False """
         return self.__db_type == "postgresql"
 
     @property
     def is_sqlitetype(self) -> bool:
-        """This method determine a type of the connected database.\
+        """This method determine a type of the connected connection_database.\
             It is 'sqlite' (True) or False """
         return self.__db_type == "sqlite"
 
@@ -285,7 +283,7 @@ class DatabaseConnection(Database):
 
     async def __create_all_async(self) -> None:
         """
-        Here we have getting the ASYNC connection on database and creating all tables.
+        Here we have getting the ASYNC connection on connection_database and creating all tables.
         :return: None
         """
         from cryptomarket.models import Base
@@ -377,7 +375,7 @@ class DatabaseConnection(Database):
     def is_sqlite_exists(self) -> bool:
         """
         Sync method.
-        This is method. Checking sqlite database exists or not exists. It is using a local path.
+        This is method. Checking sqlite connection_database exists or not exists. It is using a local path.
         Example: '/my/pathe/name/to/file_db.sqlit3'"""
         try:
             import os
@@ -393,16 +391,14 @@ class DatabaseConnection(Database):
             log.error(log_t)
             raise ValueError(log_t)
 
-    async def is_postgres_exists_async(
-        self, engine, db_nane: str = None, settings: SettingsProps = app_settings
-    ) -> bool:
+    async def is_postgres_exists_async(self, engine, db_nane: str = None) -> bool:
         """
-        ASYNC method. His task is to check the existence of database.
+        ASYNC method. His task is to check the existence of connection_database.
         :param 'engine': async of engine.
         :param 'db_nane': str. Default is value 'session'. Default value is setting.POSTGRES_DB.
             If  db_nane not is None it means wath use value of db_nane.
         :param settings: app settings = 'app_settings' from the 'cryptomarket/project/settings/core.py'
-        :return: True - this if the database 'db_nane' would found or Fasle
+        :return: True - this if the connection_database 'db_nane' would found or Fasle
         """
         from sqlalchemy import text
 
@@ -434,7 +430,7 @@ class DatabaseConnection(Database):
         return False
 
     async def drop_tables(self) -> None:
-        """Drop to the every database tables."""
+        """Drop to the every connection_database tables."""
         from cryptomarket.models import Base
 
         if not self.engine:

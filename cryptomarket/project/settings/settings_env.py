@@ -18,6 +18,7 @@ POSTGRES_HOST_: str = os.getenv("POSTGRES_HOST", "127.0.0.1")
 POSTGRES_PORT_: str = os.getenv("POSTGRES_PORT", "5432")
 
 # Redis
+REDIS_DB: str = os.getenv("REDIS_DB", "0")
 REDIS_HOST: str = os.getenv("REDIS_HOST", "127.0.0.1")
 REDIS_PORT: str = os.getenv("REDIS_PORT", "6379")
 REDIS_URL: str = os.getenv("REDIS_URL", "http://127.0.0.1:6379")

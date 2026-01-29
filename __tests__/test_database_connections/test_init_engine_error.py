@@ -2,15 +2,12 @@
 __tests__/test_database_connections/test_init_engine_error.py
 """
 import logging
-from logging import Manager
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 
 import pytest
-from more_itertools.more import side_effect
 
 from __tests__.fixtures.fixt_mock import (
     fix_mock_iS_ASYNC_False,
-    fix_mock_iS_ASYNC_True,
     fixt_DatabaseConnection,
 )
 from __tests__.fixtures.fixture_test_log import (
@@ -19,7 +16,7 @@ from __tests__.fixtures.fixture_test_log import (
     fixt_START_work,
 )
 from cryptomarket.database.connection import DatabaseConnection
-from cryptomarket.project.settings.core import app_settings
+from cryptomarket.project.settings.core import settings
 
 log = logging.getLogger(__name__)
 
@@ -31,7 +28,7 @@ class TestInitEngines:
     def test_init_engines_parameter_max_overflow_error_none(self, fixt_START_work, fixt_start_TEST, fixt_end_TEST):
 
         """The 'max_overflow_' parameter contain value the None. This must be a ValueError'"""
-        connection = DatabaseConnection(app_settings.get_database_url_sqlite)
+        connection = DatabaseConnection(settings().get_database_url_sqlite)
         # =====================
         # test the 'max_overflow_' =None parameter return error
         # =====================
@@ -50,7 +47,7 @@ class TestInitEngines:
 
     def test_init_engines_parameter_max_overflow_error_zero(self, fixt_START_work, fixt_start_TEST, fixt_end_TEST):
         """The 'max_overflow_' parameter contain value < 0 (less than zero). This must be a ValueError'"""
-        connection = DatabaseConnection(app_settings.get_database_url_sqlite)
+        connection = DatabaseConnection(settings().get_database_url_sqlite)
         # =====================
         # test the 'max_overflow_' =(-1) parameter return error
         # =====================
@@ -70,7 +67,7 @@ class TestInitEngines:
 
     def test_init_engines_parameter_pool_size_error_none(self, fixt_START_work, fixt_start_TEST, fixt_end_TEST):
         """The 'pool_size_' parameter contain value the None. This must be a ValueError'"""
-        connection = DatabaseConnection(app_settings.get_database_url_sqlite)
+        connection = DatabaseConnection(settings().get_database_url_sqlite)
         # =====================
         # test the 'pool_size_' =None parameter return error
         # =====================
@@ -88,7 +85,7 @@ class TestInitEngines:
 
     def test_init_engines_parameter_pool_size_error_zero(self, fixt_START_work, fixt_start_TEST, fixt_end_TEST):
         """The 'pool_size_' parameter contain value < 0 (less than zero). This must be a ValueError'"""
-        connection = DatabaseConnection(app_settings.get_database_url_sqlite)
+        connection = DatabaseConnection(settings().get_database_url_sqlite)
         # =====================
         # test the 'pool_size_' =(-1) parameter return error
         # =====================

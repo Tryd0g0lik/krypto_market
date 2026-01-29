@@ -13,22 +13,22 @@ from cryptomarket.api.v1.api_users import router_v1
 from cryptomarket.database.handler_create_db import checkOrCreateTables
 from cryptomarket.deribit_client import DeribitManage
 from cryptomarket.project.middleware.middleware_basic import DeribitMiddleware
-from cryptomarket.project.settings.core import app_settings
-from cryptomarket.type import DeribitManageType
+from cryptomarket.project.settings.core import DEBUG, settings
 
-manager: DeribitManageType = DeribitManage()
+# from cryptomarket.type import DeribitManageType
+
+manager = DeribitManage()
 
 log = logging.getLogger(__name__)
 
 
 @asynccontextmanager
-async def lifespan():
+async def lifespan(app: FastAPI):
     await manager.start_worker(limitations=10)
     try:
         yield
     finally:
         pass
-    await manager.stop_workers()
 
 
 def app_cryptomarket():
@@ -39,7 +39,8 @@ def app_cryptomarket():
         loop = asyncio.new_event_loop()
         try:
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(checkOrCreateTables(app_settings))
+            setting = settings()
+            loop.run_until_complete(checkOrCreateTables(setting))
         except Exception as e:
             log.error(
                 "[%s]: Error => %s"
@@ -67,8 +68,9 @@ def app_cryptomarket():
     # ---- APP
     # ===============================
     app_ = FastAPI(
-        title=app_settings.PROJECT_NAME,
-        version=app_settings.PROJECT_VERSION,
+        debug=DEBUG,
+        title=settings().PROJECT_NAME,
+        version=settings().PROJECT_VERSION,
         description="""This project is the microservice and service for
         the payments between roles the OWNER & MASTER""",
         lifespan=lifespan,
@@ -79,7 +81,6 @@ def app_cryptomarket():
     middleware = DeribitMiddleware(manager)
     app_.middleware("http")(middleware)
 
-
     # ===============================
     # ---- CORS MIDDLEWARE
     # ===============================
@@ -89,10 +90,10 @@ def app_cryptomarket():
         response = await call_next(request)
         response.headers["Access-Control-Allow-Origin"] = "*"
         response.headers["Access-Control-Allow-Methods"] = ",".join(
-            app_settings.ALLOWED_METHODS
+            settings().ALLOWED_METHODS
         )
         response.headers["Access-Control-Allow-Headers"] = ",".join(
-            app_settings.ALLOWED_HEADERS
+            settings().ALLOWED_HEADERS
         )
 
         return response
@@ -107,7 +108,7 @@ def app_cryptomarket():
     async def root():
         return {
             "message": "cryptomarket API",
-            "version": app_settings.PROJECT_VERSION,
+            "version": settings().PROJECT_VERSION,
             "docs": "/docs",
             "redoc": "/redoc",
         }

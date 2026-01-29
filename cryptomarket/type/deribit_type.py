@@ -6,18 +6,19 @@ import asyncio
 from collections import deque
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
+from typing import Protocol
 
 from fastapi import Request
 from pydantic import BaseModel, Field
 
-from cryptomarket.deribit_client import DeribitLimited, DeribitWebsocketPool
+from cryptomarket.project.enum import ExternalAPIEnum
 
 
-class OAuthAutenticationParamsType(BaseModel):
+class OAuthAutenticationParamsType:
 
-    grant_type: str = Field(default="client_credentials")
-    client_id: str = Field(default="YOUR_CLIENT_ID")
-    client_secret: str = Field(default="YOUR_CLIENT_SECRET")
+    grant_type: str
+    client_id: str
+    client_secret: str
 
 
 class OAuthAutenticationType(BaseModel):
@@ -44,10 +45,10 @@ class OAuthAutenticationType(BaseModel):
     id: int = Field(gt=0, description="Must be a positive integer")
     api_key: str = Field(description="""Must be a string contain the api key (url)""")
     jsonrpc: str = Field(
-        pattern="^\d+\.\d+$", default="2.0", description="JSON-RPC version"
+        pattern=r"^\d+\.\d+$", default="2.0", description="JSON-RPC version"
     )
     method: str = Field(
-        pattern="^(public\/auth)$",
+        pattern=r"^(public/auth)$",
         default="public/auth",
         description="Method used to the authentication",
     )
@@ -57,18 +58,69 @@ class OAuthAutenticationType(BaseModel):
         from_attributes = True
 
 
-class DeribitMiddlewareType(BaseModel):
+class DeribitClientType:
+
+    _semaphore: asyncio.Semaphore
+
+    client_id: str
+    __client_secret: str
+
+    def initialize(
+        self,
+        _url: str,
+        _heartbeat: int = 30,
+        _timeout: int = 10,
+        _method: str = "GET",
+        _autoping: bool = False,
+    ):
+        pass
+
+    def client_session(self):
+        pass
+
+    @asynccontextmanager
+    async def ws_send(
+        self,
+        _url: str,
+        _heartbeat: int = 30,
+        _timeout: int = 10,
+        _method: str = "GET",
+        _autoping: bool = True,
+    ):
+        pass
+
+    @staticmethod
+    def _get_autantication_data(
+        index: int, client_id: int | str, client_secret_key: str
+    ):
+        pass
+
+    @property
+    def semaphore(self):
+        return self._semaphore
+
+
+class DeribitWebsocketPoolType:
+
+    _clients: deque
+    _current_index: int
+    _auth_tokens: str
+
+    def get_clients(self):
+        pass
+
+
+class DeribitMiddlewareType:
     def __init__(self):
-        super().__init__()
         pass
 
     async def __call__(self, request: Request, call_next):
         pass
 
 
-class DeribitLimitedType(BaseModel):
+class DeribitLimitedType:
 
-    def context_redis_connection(self):
+    async def context_redis_connection(self):
         pass
 
     @asynccontextmanager
@@ -76,28 +128,18 @@ class DeribitLimitedType(BaseModel):
         pass
 
 
-class DeribitManageType(BaseModel):
+class DeribitManageType(Protocol):
     _deque_postman: deque
     _deque_error: deque
 
-    def __init__(
-        self,
-    ) -> None:
-        """
-        :param max_concurrent: int.  This is our calculater/limiter for the one user's requests to the Stripe server. \
-            Rate/ limitation quantities of requests per 1 second from one user (it is request to the Stripe server) .
-            Default value is number from  the variable of 'app_settings.STRIPE_MAX_CONCURRENT'.
+    queue: asyncio.Queue
 
-        """
-        super().__init__()
-        self.queue: asyncio.Queue
+    processing_tasks: set
+    rate_limit: DeribitLimitedType | None = None
+    client_pool: DeribitWebsocketPoolType | None = None
 
-        self.processing_tasks: set
-        self.rate_limit: DeribitLimited | None
-        self.connection_pool: DeribitWebsocketPool
-
-        self.stripe_response_var: ContextVar
-        self.stripe_response_var_token: str | None
+    stripe_response_var: ContextVar | None = None
+    stripe_response_var_token: str | None = None
 
     async def enqueue(self, cache_live: int, **kwargs):
         pass
@@ -110,3 +152,11 @@ class DeribitManageType(BaseModel):
         limitations: int = 10,
     ):
         pass
+
+
+request_user_data = {
+    "request_id": str,
+    "api_key": str,
+    "deribit_id": int,
+    "client_id": "< insert client_id >",
+}
