@@ -23,6 +23,7 @@ from cryptomarket.project.settings.settings_env import (
     DERIBIT_SECRET_KEY,
     REDIS_DB,
     REDIS_HOST,
+    REDIS_PASSWORD,
     REDIS_PORT,
 )
 from cryptomarket.project.signals import signal
@@ -309,18 +310,23 @@ class DeribitLimited(DeribitLimitedType):
 
     @asynccontextmanager
     async def context_redis_connection(self):
+        log.info(
+            "DEBUG REDIS CONNECTION => -h %s -p %s -d %s"
+            % (REDIS_HOST, REDIS_PORT, REDIS_DB)
+        )
         redis = Redis(
             host=f"{REDIS_HOST}",
             port=int(REDIS_PORT),
-            db=f"{REDIS_DB}",
+            db=int((lambda: f"{REDIS_DB}")()),
         )
+        # password=(lambda : f"{REDIS_PASSWORD}")()
         try:
             yield redis
         except Exception as e:
             log.error(
                 "[%s.%s]: RedisError => %s"
                 % (
-                    DeribitLimited.__class__.__name__,
+                    self.__class__.__name__,
                     self.context_redis_connection.__name__,
                     e.args[0] if e.args else str(e),
                 )
@@ -448,6 +454,10 @@ class DeribitManage(DeribitManageType):
                 )
                 # The general key from a user data and the user data add in joint/general list
                 self._deque_postman.append({str(task_id): kwargs})
+                log.info(
+                    "EBUG REDIS (attribute 'items') 'self._deque_postman' => %s "
+                    % str(self._deque_postman)
+                )
 
         except ValueError as err:
             raise err.args[0] if err.args else str(err)
@@ -458,30 +468,26 @@ class DeribitManage(DeribitManageType):
                 # ---- CACHE RAQUEST's BODY DATA
                 # ===============================
                 # cache of the user data
-                contex_redis_connection = self.rate_limit.context_redis_connection
+                context_redis_connection = self.rate_limit.context_redis_connection
 
-                async with contex_redis_connection() as redis:
+                async with context_redis_connection() as redis:
                     redis_setex = redis.setex
                     # List a coroutines for send to the caching server
                     # k - key common between the cache data and queue
                     # v - the cache data
                     # tasks_collections - gather results after cache on the server.
                     tasks_collections = deque(maxlen=5000)
-                    [
-                        tasks_collections.append(
-                            redis_setex(
-                                k,
-                                cache_live,
-                                (
-                                    json.dumps(v)
-                                    if isinstance(v, dict | list | str | int | bool)
-                                    else str(v)
-                                ),
-                            )
+                    result = [
+                        await redis_setex(
+                            k,
+                            cache_live,
+                            json.dumps(v),
                         )
-                        for view in self._deque_postman
-                        for k, v in [next(iter(view.items()))]
+                        for view in list(self._deque_postman)
+                        for k, v in view.items()
                     ]
+                    tasks_collections.append(result)
+
                     # Checking the 'tasks_collections' after caching.
                     if not all(tasks_collections):
                         self.__error_passed_cached(list(tasks_collections))
@@ -489,14 +495,15 @@ class DeribitManage(DeribitManageType):
                     # The list of keys from the data cached on the server
                     keys_in_leave_queue = [
                         key
-                        for view in self._deque_postman.pop()
-                        for key, val in [next(iter(view.items()))]
+                        for view in list(self._deque_postman)
+                        for key, val in view.items()
                         if val is not None and key not in list(self._deque_error)
                     ]
+
                     # ===============================
                     # ---- CREATE THE QUEUE FROM THE CACHE KEYS
                     # ===============================
-                    [self.queue.put(view) for view in keys_in_leave_queue]
+                    [self.queue.put(view) for view in list(keys_in_leave_queue)]
                     tasks_collections.clear()
                     # ===============================
                     # ---- RAN SIGNAL

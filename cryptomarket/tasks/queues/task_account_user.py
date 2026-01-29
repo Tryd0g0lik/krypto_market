@@ -48,7 +48,7 @@ async def task_account(*args, **kwargs) -> bool:
         try:
             get_redis_session = deribit_limited.context_redis_connection
             async with get_redis_session() as redis:
-                data_str: str = redis.get(task_id)
+                data_str: str = await redis.get(task_id)
                 dataVar_token = dataVar.set(data_str)
         except Exception as e:
             log.error(
