@@ -71,6 +71,7 @@ class DatabaseConnection(Database):
 
     def init_engine(self, pool_size_: int = 5, max_overflow_: int = 10) -> None:
         """
+         Connection to the database
         Here we define the engine. It could be how async or sync.
         Type of engine be depend from url to the db file.
         '.table_exists_create()' - create the tables from models.
@@ -205,11 +206,15 @@ class DatabaseConnection(Database):
         if not self.is_async:
             raise ValueError("Cannot get async session from sync engine")
 
-        session = await self.session_factory()
         try:
+            session = self.session_factory()
             log.info(
                 "[%s.%s]: ------------ SESSION ------------  %s"
-                % (session.__dict__.__str__())
+                % (
+                    self.__class__.__name__,
+                    self.asyncsession_scope.__name__,
+                    session.__dict__.__str__(),
+                )
             )
             log.info(
                 str(

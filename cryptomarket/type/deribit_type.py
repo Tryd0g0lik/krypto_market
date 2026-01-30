@@ -11,7 +11,7 @@ from typing import Protocol
 from fastapi import Request
 from pydantic import BaseModel, Field
 
-from cryptomarket.project.enum import ExternalAPIEnum
+from cryptomarket.project.enums import ExternalAPIEnum
 
 
 class OAuthAutenticationParamsType:
@@ -134,7 +134,7 @@ class DeribitManageType(Protocol):
 
     queue: asyncio.Queue
 
-    processing_tasks: set
+    processing_deribits: set
     rate_limit: DeribitLimitedType | None = None
     client_pool: DeribitWebsocketPoolType | None = None
 
@@ -157,6 +157,6 @@ class DeribitManageType(Protocol):
 request_user_data = {
     "request_id": str,
     "api_key": str,
-    "deribit_id": int,
+    "client_secret": int,
     "client_id": "< insert client_id >",
 }

@@ -24,7 +24,15 @@ log = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await manager.start_worker(limitations=10)
+    from threading import Thread
+
+    def run_new_loop():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(manager.start_worker(limitations=10))
+
+    Thread(target=run_new_loop, daemon=True).start()
+    # await manager.start_worker(limitations=10)
     try:
         yield
     finally:

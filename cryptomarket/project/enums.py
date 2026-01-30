@@ -1,12 +1,12 @@
 """
-cryptomarket/project/enum.py
+cryptomarket/project/enums.py
 """
 
 from enum import Enum
 
 
 class ExternalAPIEnum(Enum):
-    WS_COMMON_URL = "wss://www.deribit.com/ws/api/v2"
+    WS_COMMON_URL = "wss://test.deribit.com/ws/api/v2/"
 
 
 class RadisKeysEnum(Enum):

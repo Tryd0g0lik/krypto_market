@@ -17,7 +17,7 @@ from __tests__.fixtures.fixture_test_log import (
     fixt_START_work,
 )
 from cryptomarket.deribit_client.deribit_clients import DeribitLimited
-from cryptomarket.project.enum import RadisKeysEnum
+from cryptomarket.project.enums import RadisKeysEnum
 from cryptomarket.project.settings.core import settings
 
 log = logging.getLogger(__name__)

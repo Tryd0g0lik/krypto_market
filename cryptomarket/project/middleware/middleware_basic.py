@@ -10,7 +10,11 @@ from uuid import uuid4
 
 from fastapi import Request, status
 
-from cryptomarket.project.enum import ExternalAPIEnum
+from cryptomarket.project.enums import ExternalAPIEnum
+from cryptomarket.project.settings.settings_env import (
+    DERIBIT_CLIENT_ID,
+    DERIBIT_SECRET_KEY,
+)
 from cryptomarket.type import DeribitManageType
 from cryptomarket.type.deribit_type import DeribitMiddlewareType
 
@@ -40,10 +44,11 @@ class DeribitMiddleware(DeribitMiddlewareType):
         # START THE DERIBIT MANAGE
         # ===============================
         kwargs = {
+            "index": 0,
             "request_id": request_id_var.get(),
             "api_key": ExternalAPIEnum.WS_COMMON_URL.value,
-            "deribit_id": 1,
-            "client_id": "< insert client_id >",
+            "client_secret": (lambda: DERIBIT_SECRET_KEY)(),
+            "client_id": (lambda: DERIBIT_CLIENT_ID)(),
         }
         await self.manager.enqueue(43200, **kwargs)
         # ===============================
