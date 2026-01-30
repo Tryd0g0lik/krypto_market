@@ -11,7 +11,7 @@ class SQLText(Enum):
     @classmethod
     def sql_create_db(cls, name: str):
         """
-        Create a new database table
+        Create a new connection_database table
         :param 'name': str. Database name.
             Example: "cryptomarket_db".
         :return str. SQL rule/text.
@@ -45,4 +45,3 @@ class SQLText(Enum):
         """
         columns: str = ", ".join(col_name)
         return cls.CREATE_ONETABLE.value % (table_name, columns)
-

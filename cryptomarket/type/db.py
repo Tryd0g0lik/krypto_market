@@ -1,8 +1,10 @@
 """
 cryptomarket/type/db.py
 """
+
 from dataclasses import dataclass
 from typing import Protocol
+
 from pydantic import ConfigDict
 from sqlalchemy import DateTime
 from sqlalchemy.orm import Mapped
@@ -21,7 +23,7 @@ class Database(Protocol):
 
     async def __create_all_async(self) -> None:
         """
-        Here is to the getting the ASYNC connection on database and creating all tables.
+        Here is to the getting the ASYNC connection on connection_database and creating all tables.
         """
         pass
 
@@ -50,17 +52,17 @@ class Database(Protocol):
         self, engine, db_nane: str = None, settings: SettingsProps | None = None
     ) -> bool:
         """
-        ASYNC method. His task is to check the existence of database.
+        ASYNC method. His task is to check the existence of connection_database.
         """
         pass
 
     async def drop_tables(self) -> None:
-        """ "Drop tables from database"""
+        """ "Drop tables from connection_database"""
         pass
 
     @property
     def is_sqlitetype(self) -> bool:
-        """This method determine a type of the connected database.\
+        """This method determine a type of the connected connection_database.\
             It is 'sqlite' (True) or False """
         pass
 

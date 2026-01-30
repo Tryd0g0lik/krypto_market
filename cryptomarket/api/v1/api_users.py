@@ -2,12 +2,7 @@
 cryptomarket/api/v1/api_users.py
 """
 
-from fastapi import (APIRouter, Request, Response, openapi, status)
-
-
-# from cryptomarket.type import (
-#     CreateAccountBase,
-# )
+from fastapi import APIRouter, Request, Response, openapi, status
 
 router_v1 = APIRouter(
     prefix="/accounts",
@@ -26,7 +21,7 @@ router_v1 = APIRouter(
                 We receive data (the type CreateAccountProp for account registration) through \
                 AccountCreationMiddleware. There, the data is sent to the cache and then processed \
                 in turn/queue via the StripCreationQueue.
-                Stripe API: https://docs.stripe.com/api/accounts/create?api-version=2025-12-15.preview&rds=1&architecture-style=services
+
 
                 **Required parameters of Headers**
 
@@ -43,7 +38,7 @@ router_v1 = APIRouter(
     tags=["account"],
     status_code=status.HTTP_201_CREATED,
 )
-def create_account(request: Request, *args, **kwargs: CreateAccountBase):
+def create_account(request: Request, *args, **kwargs):
     """Create a new Stripe's account"""
 
     if "data" in list(request.__dict__.keys()):
@@ -51,5 +46,3 @@ def create_account(request: Request, *args, **kwargs: CreateAccountBase):
         response.content = request.body()
         return response
     return request
-
-

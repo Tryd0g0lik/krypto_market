@@ -6,8 +6,7 @@ import asyncio
 import logging
 import threading
 
-from cryptomarket.database.connection import DatabaseConnection
-from cryptomarket.project.settings.core import DEBUG, app_settings
+from cryptomarket.project.settings.core import DEBUG, settings
 
 log = logging.getLogger(__name__)
 
@@ -78,9 +77,13 @@ def wrapper_delayed_task(
 
                 threading_result = threading.Thread(
                     target=lambda: (
-                        run_async_worker(asynccallback_, **kwargs)
-                        if kwargs
-                        else run_async_worker(asynccallback_, *args)
+                        run_async_worker(asynccallback_, *args, **kwargs)
+                        if args and kwargs
+                        else (
+                            run_async_worker(asynccallback_, *args)
+                            if args
+                            else run_async_worker(asynccallback_, **kwargs)
+                        )
                     ),
                     daemon=True,
                 )
@@ -99,14 +102,18 @@ def wrapper_delayed_task(
             elif callback_ is not None:
                 threading_result = threading.Thread(
                     target=lambda: (
-                        run_sync_worker(callback_, **kwargs)
-                        if kwargs
-                        else run_sync_worker(callback_, *args)
+                        run_sync_worker(callback_, *args, **kwargs)
+                        if args and kwargs
+                        else (
+                            run_sync_worker(callback_, *args)
+                            if args
+                            else run_sync_worker(callback_, **kwargs)
+                        )
                     ),
                     daemon=True,
                 )
                 threading_result.start()
-                threading_result.join(timeout=5)
+                threading_result.join(timeout=7)
                 if not threading_result.daemon:
                     log.error(
                         """[%s]: Signal ThreadError => %s deos not found! """
@@ -141,9 +148,13 @@ def wrapper_delayed_task(
 
 
 url_str = (
-    app_settings.get_database_url_sqlite
+    settings().get_database_url_sqlite
     if DEBUG
-    else app_settings.get_database_url_external
+    else settings().get_database_url_external
 )
 
-connection_db = DatabaseConnection(url_str)
+
+def connection_database():
+    from cryptomarket.database.connection import DatabaseConnection
+
+    return DatabaseConnection(url_str)

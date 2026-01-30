@@ -1,3 +1,16 @@
+from cryptomarket.type.db import BaseSession, Database
+from cryptomarket.type.deribit_type import (
+    DeribitClientType,
+    DeribitLimitedType,
+    DeribitManageType,
+    DeribitMiddlewareType,
+    DeribitWebsocketPoolType,
+    OAuthAutenticationParamsType,
+    OAuthAutenticationType,
+)
+from cryptomarket.type.settings_prop import SettingsProps
+from cryptomarket.type.type_signal import UserSignalHandlerProp
+
 __all__ = [
     "Database",
     "BaseSession",
@@ -7,14 +20,6 @@ __all__ = [
     "DeribitManageType",
     "DeribitMiddlewareType",
     "DeribitLimitedType",
+    "DeribitWebsocketPoolType",
+    "DeribitClientType",
 ]
-
-from cryptomarket.type.db import BaseSession, Database
-from cryptomarket.type.deribit_type import (
-    DeribitLimitedType,
-    DeribitManageType,
-    DeribitMiddlewareType,
-    OAuthAutenticationType,
-)
-from cryptomarket.type.settings_prop import SettingsProps
-from cryptomarket.type.type_signal import UserSignalHandlerProp

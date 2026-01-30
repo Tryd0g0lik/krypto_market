@@ -1,15 +1,15 @@
 """
 cryptomarket/type/settings_prop.py
 """
-from datetime import datetime
-from typing import Any, Protocol
 
-from pydantic import (BaseModel, Field)
+from typing import Protocol
+
+
 # -----------------------------------------
 # Settings
 # -----------------------------------------
 class SettingsProps(Protocol):
-    PROJECT_NAME: str = "bc24-cryptomarket"
+    PROJECT_NAME: str = "KryptoMarket"
     PROJECT_VERSION: str = "0.1.0"
     DEFAULT_LANGUAGE: str = "en"
     POSTGRES_PORT: str = "8000"
@@ -31,11 +31,10 @@ class SettingsProps(Protocol):
 
     @property
     def GET_DATABASE_URL_EXTERNAL(self) -> str:
-        """The async path to the database postgresql"""
+        """The async path to the connection_database postgresql"""
         pass
 
     @property
     def get_database_url_sqlite(self) -> str:
-        """The async path to the database sqlite"""
+        """The async path to the connection_database sqlite"""
         pass
-
