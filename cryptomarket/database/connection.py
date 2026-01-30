@@ -207,15 +207,7 @@ class DatabaseConnection(Database):
             raise ValueError("Cannot get async session from sync engine")
 
         try:
-            session = self.session_factory()
-            log.info(
-                "[%s.%s]: ------------ SESSION ------------  %s"
-                % (
-                    self.__class__.__name__,
-                    self.asyncsession_scope.__name__,
-                    session.__dict__.__str__(),
-                )
-            )
+            session = await self.session_factory()
             log.info(
                 str(
                     "[%s.%s]: Sync session open!"
@@ -226,8 +218,10 @@ class DatabaseConnection(Database):
                 )
             )
 
-            yield session
-            await session.commit()
+            try:
+                yield session
+            finally:
+                await session.commit()
 
         except Exception as e:
             log_t = "[%s.%s]: ERROR => %s" % (

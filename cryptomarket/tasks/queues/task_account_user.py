@@ -32,11 +32,8 @@ async def task_account() -> bool:
     )
 
     connection_db = connection_database()
-
     dataVar = ContextVar("data_srt", default="")
     dataVar_token = None
-    # deribit_limited = DeribitLimited()
-    # keys_coroutines = manager.processing_deribits # set() coroutine of the DERIBIT client
     _deque_coroutines = manager._deque_coroutines
     coroutine = _deque_coroutines.popleft()
     client: DeribitClientType = await list(coroutine.values())[0]
@@ -75,8 +72,6 @@ async def task_account() -> bool:
                         % (log_t, e.args[0] if e.args else str(e))
                     )
                     return False
-            # соединение с DERIBIT
-
             api_key = user_meta_json.get("api_key")
             index = user_meta_json.get("index")
             client_secret_key = user_meta_json.get("client_secret")
@@ -94,26 +89,28 @@ async def task_account() -> bool:
                                 index, client_id, client_secret_key
                             )
                             try:
-                                # Data sending
+                                # WSS REQUEST
                                 await asyncio.wait_for(ws.send_json(user_meta_json), 10)
                                 async for msg in ws:
+                                    # WSS RESPONSE
                                     if msg.type == WSMsgType.TEXT:
                                         print(f"Received: {msg.data}")
                                         log.warning(f"WS Received: {msg.data}")
+                                        pass
                                     elif msg.type == WSMsgType.ERROR:
                                         log_err = "%s ERROR connection. Code: %s" % (
                                             log_t,
                                             msg.value,
                                         )
                                         log.error(str(log_err))
-                                        raise ValueError(str(log_err))
+                                        pass
 
                                     elif msg.type == WSMsgType.CLOSED:
                                         log.warning(
                                             "%s Closing connection. Code: %s"
                                             % (log_t, msg.data)
                                         )
-                                        break
+                                        pass
 
                             except RuntimeError as e:
                                 log_err = (

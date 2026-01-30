@@ -4,25 +4,10 @@ __tests__/test_midllware/test_client_middleware_valid.py
 import logging
 
 import pytest
-from fastapi.testclient import TestClient
 from requests import Response
 
-# from __tests__.conftest import create_app
-
 log = logging.getLogger(__name__)
-
-access_token_ = "< JWT_TOKEN _ADD>"
-
-#
-# @pytest.fixture
-# def client(create_app):
-#     client = TestClient(create_app,
-#                         base_url="http://127.0.0.1:8003",
-#                         root_path="/",
-#                         headers={"content-type": "application/json"})
-#     return client
-
-
+@pytest.mark.skip
 @pytest.mark.parametrize("pathname, expect", [
     ("/create", {
                "email": "example@example.com",

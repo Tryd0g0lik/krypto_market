@@ -18,7 +18,7 @@ from __tests__.fixtures.fixture_test_log import (
 )
 from cryptomarket.database.connection import DatabaseConnection
 
-app_settings
+# app_settings
 
 log = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ class TestSessionScope:
                                                               fixt_DatabaseConnection, fixt_START_work,
                                                       fixt_start_TEST, fixt_end_TEST, ):
         """Check error in session scope '[%s.%s]: session ERROR => %s'"""
-
+        from cryptomarket.project.settings.core import settings
         fixt_start_TEST(self.test_asyncsession_scope_parameter_session_error.__name__)
 
         db_url = settings().get_database_url_sqlite
