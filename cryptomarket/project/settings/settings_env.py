@@ -22,12 +22,15 @@ REDIS_PASSWORD: str = os.getenv("REDIS_PASSWORD", "Not_password")
 REDIS_DB: str = os.getenv("REDIS_DB", "0")
 REDIS_HOST: str = os.getenv("REDIS_HOST", "127.0.0.1")
 REDIS_PORT: str = os.getenv("REDIS_PORT", "6379")
-REDIS_URL: str = os.getenv("REDIS_URL", "http://127.0.0.1:6379")
+REDIS_URL: str = os.getenv("REDIS_URL", "redis://127.0.0.1:6379")
 
 # Deribit
 DERIBIT_SECRET_KEY: str = os.getenv("DERIBIT_SECRET_KEY")
 DERIBIT_CLIENT_ID: str = os.getenv("DERIBIT_CLIENT_ID")
 
+# Celery
+CELERY_BROKER_URL = REDIS_URL[:] + "/" + REDIS_DB[:]
+CELERY_RESULT_BACKEND = REDIS_URL[:] + "/" + REDIS_DB[:]
 # WebScoket
 # Default value is the 'ws' protocol ('WS_PROTOCOL').
 # You can have the protocol 'wss', if that is true, please make a comment for the 'WS_PROTOCOL' variable and remove
