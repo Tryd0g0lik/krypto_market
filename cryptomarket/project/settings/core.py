@@ -70,7 +70,7 @@ class Settings(SettingsProps):
     # ---------------------------------------
     #  COMMON
     # ---------------------------------------
-    PROJECT_NAME: str = "cryptoMarket"
+    PROJECT_NAME: str = "KryptoMarket"
     PROJECT_VERSION: str = "0.1.0"
     PROJECT_MODE: str = PROJECT_MODE_
     DEFAULT_LANGUAGE: str = "en"

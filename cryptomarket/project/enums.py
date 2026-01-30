@@ -12,5 +12,5 @@ class ExternalAPIEnum(Enum):
 class RadisKeysEnum(Enum):
     REDIS_KEY_REQUESTiD_DATA = "%s:working_request"  # "< REQUEST_ID >:working_request"
     DERBIT_STRIPE_RATELIMIT_TASK = (
-        "stripe:ratelimit:%s:%s"  # stripe:ratelimit:<USER_ID>:<TASK_ID>>
+        "deribit:ratelimit:%s:%s"  # stripe:ratelimit:<USER_ID>:<TASK_ID>>
     )

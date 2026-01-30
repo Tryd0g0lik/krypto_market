@@ -48,8 +48,6 @@ class Signal:
             :param __tasks:int | str | None. default value is None. [{<USER_ID>: <USER_IMAGE>}, ]
             """
             self._semaphore = semaphore
-            # self._batch_size = batch_size
-            # self.max_concurrent_batches = max_concurrent_batches
             self.controller = False
             self.__tasks: list[asyncio.Task] = []
             self.user_id: int | str | None = None
@@ -195,7 +193,6 @@ class Signal:
         :param delay_seconds: int Seconds. It is the deadline by work task
         :return:
         """
-        # task_ = lambda: task
         return await asyncio.wait_for(task, timeout=delay_seconds)
 
 

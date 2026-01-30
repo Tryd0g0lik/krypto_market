@@ -9,11 +9,9 @@ from collections import deque
 from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
 from datetime import datetime
-from typing import Any, Coroutine
 
 from aiohttp import (
     ClientSession,
-    ClientWebSocketResponse,
 )
 from redis.asyncio import Redis
 
@@ -24,7 +22,6 @@ from cryptomarket.project.settings.settings_env import (
     DERIBIT_SECRET_KEY,
     REDIS_DB,
     REDIS_HOST,
-    REDIS_PASSWORD,
     REDIS_PORT,
 )
 from cryptomarket.project.signals import signal
@@ -46,10 +43,8 @@ setting = settings()
 # ==============================
 class DeribitWebsocketPool(DeribitWebsocketPoolType):
     _instance = None
-
-    _clients: list = deque(
-        maxlen=setting.DERIBIT_MAX_CONCURRENT
-    )  # This list is the list[coroutine]. \
+    # This list is the list[coroutine].
+    _clients: list = deque(maxlen=setting.DERIBIT_MAX_CONCURRENT)
     # Below (DeribitWebsocketPool.__new__) he will receive the coroutine for a connection with the Deribit API.
     # The length of list will be containe the quantity of elements == 'setting.STRIPE_MAX_QUANTITY_WORKERS'.
     # Everything coroutine/connection will require the:
@@ -87,17 +82,6 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
             )
             self.__client_secret: str = _client_secret
 
-        #
-        # def __new__(cls):
-        #     cls._client_session = ClientSession()
-        #     return super().__new__(cls)
-
-        # @backoff.on_exception(
-        #     backoff.expo,
-        #     (ConnectionError,),
-        #     max_tries=3,
-        #     max_time=30,
-        # )
         @contextmanager
         def initialize(
             self,
@@ -125,9 +109,6 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
             """
             log_t = "[%s.%s]: " % (self.__class__.__name__, self.initialize.__name__)
             try:
-                # auth_msg = self.__get_autantication_data(
-                #     index, self.client_id, self.__client_secret
-                # )
                 # ==============================
                 # ---- CREATE CONNECTION TO THE DERIBIT SERVER
                 # ==============================
@@ -136,20 +117,6 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
                     yield __connection
                 finally:
                     pass
-                    # __connection.close()
-                # Connection by the WebSocker cannel
-                # async with self.ws_send(
-                #     session, _heartbeat, _timeout, _url, _method, _autoping
-                # ) as ws:
-                #     # Controller
-                #     # async with self._semaphore:
-
-                """
-
-                Check a connection and ???
-
-                """
-
             except Exception as e:
                 log_err = "%s ERROR => %s" % (log_t, e.args[0] if e.args else str(e))
                 log.error(str(log_err))
@@ -255,20 +222,15 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
         """
         if not cls._instance:
             cls._instance = super().__new__(cls)
-
-            # client_session = cls.DeribitClient(_client_id, _client_secret)
             # This is creating the coroutines for clients (entry points or entry windows).
             # Everyone coroutine for connections with the Deribit.
             # Max quantity of coroutines contain value require - the 'setting.DERIBIT_MAX_QUANTITY_WORKERS',
             # it is the max number of connection.
             for i in range(setting.DERIBIT_MAX_QUANTITY_WORKERS):
-                # session = __client_session.initialize(i, _heartbeat, _timeout)
-                # connection = client_session.initialize()
                 client_ = cls.DeribitClient(_client_id, _client_secret)
                 cls._clients.append(client_)
         return cls._instance
 
-    # def get_clients(self) -> DeribitClient.initialize:
     def get_clients(self) -> DeribitClient.initialize:
         """
         HEre we received the one coroutine for connection to the Deribit server.
@@ -312,22 +274,16 @@ class DeribitLimited(DeribitLimitedType):
     def __init__(
         self, max_conrurrents: int = setting.DERIBIT_MAX_CONCURRENT, _sleep=0.1
     ):
-        # super().__init__()
         self.semaphore = asyncio.Semaphore(max_conrurrents)
         self.sleep = _sleep
 
     @asynccontextmanager
     async def context_redis_connection(self):
-        log.info(
-            "DEBUG REDIS CONNECTION => -h %s -p %s -d %s"
-            % (REDIS_HOST, REDIS_PORT, REDIS_DB)
-        )
         redis = Redis(
             host=f"{REDIS_HOST}",
             port=int(REDIS_PORT),
             db=int((lambda: f"{REDIS_DB}")()),
         )
-        # password=(lambda : f"{REDIS_PASSWORD}")()
         try:
             yield redis
         except Exception as e:
@@ -407,7 +363,10 @@ class DeribitLimited(DeribitLimitedType):
 class DeribitManage(DeribitManageType):
     _deque_postman = deque(maxlen=5000)
     _deque_error = deque(maxlen=10000)  # Which have not passed caching
-    _deque_coroutines = deque(maxlen=500)
+    _deque_coroutines = deque(
+        maxlen=500
+    )  # Coroutine of workers / Look to the 'self.start_worker' & and the tasks.
+    # Tasks this are place where we can use the '_deque_coroutines'
     _sleep = 1  # second
 
     def __init__(self, max_concurrent=None) -> None:
@@ -420,8 +379,6 @@ class DeribitManage(DeribitManageType):
         super().__init__()
 
         self.queue = asyncio.Queue(maxsize=setting.DERIBIT_QUEUE_SIZE)
-
-        # self.processing_deribits = set()
         self.rate_limit: DeribitLimited | None = DeribitLimited()
         self.client_pool: DeribitWebsocketPoolType = DeribitWebsocketPool(
             (lambda: "%s" % DERIBIT_CLIENT_ID)(),
@@ -464,10 +421,6 @@ class DeribitManage(DeribitManageType):
                 )
                 # The general key from a user data and the user data add in joint/general list
                 self._deque_postman.append({str(task_id): kwargs})
-                log.info(
-                    "EBUG REDIS (attribute 'items') 'self._deque_postman' => %s "
-                    % str(self._deque_postman)
-                )
 
         except ValueError as err:
             raise err.args[0] if err.args else str(err)
@@ -579,47 +532,30 @@ class DeribitManage(DeribitManageType):
         log_t = "[%s.%s]:" % (self.__class__.__name__, self.start_worker.__name__)
         try:
             while True:
-                # log.info("%s ----------- 2 ----------- " % log_t)
                 context_redis_connection = self.rate_limit.context_redis_connection
                 async with context_redis_connection() as redis:
-                    # log.info("%s ----------- 3 ----------- " % log_t)
                     get_sleeptime = await redis.get("sleeptime")
                     if get_sleeptime:
-                        # log.info("%s ----------- 4 ----------- " % log_t)
                         self._sleep += 0.1
                         await redis.incr("sleeptime", 1)
                         await redis.expire("sleeptime", 1)
 
-                    # log.info("%s ----------- 5 ----------- " % log_t)
                     for i in range(limitations):
-                        # log.info("%s ----------- 6 ----------- " % log_t)
                         if len(self._deque_coroutines) == limitations:
-                            # log.info("%s ----------- 7 ----------- " % log_t)
                             await asyncio.sleep(self._sleep)
                             continue
-                        # log.info("%s ----------- 8 ----------- " % log_t)
                         task = asyncio.create_task(
                             self._process_queue_worker(work_id=f"worker_{i}")
                         )
-
-                        # class Worker:
-                        #     def __init__(self, index, task_):
-                        #         self.name = f"worker_{index}"
-                        #         self.tasks =task_
-                        # resp = object_to_bytes(Worker(i, task), format=None)
-                        # task.add_done_callback(self.processing_deribits.discard)
                         self._deque_coroutines.append(
                             {f"worker_{i}": task}
                         )  # coroutine caching
-                        # self.processing_deribits.add(f"worker_{i}")
 
                     await redis.incr("sleeptime", 1)
                     await redis.expire("sleeptime", 1)
-                    # log.info("%s ----------- 9 ----------- " % log_t)
         except Exception as err:
             loog_err = "%s ERROR => %s" % (
                 str(log_t),
                 err.args[0] if err.args else str(err),
             )
             log.error(str(loog_err))
-            # log.info("%s ----------- 10 ----------- " % log_t)

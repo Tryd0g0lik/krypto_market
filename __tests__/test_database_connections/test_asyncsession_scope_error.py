@@ -18,8 +18,6 @@ from __tests__.fixtures.fixture_test_log import (
 )
 from cryptomarket.database.connection import DatabaseConnection
 
-# app_settings
-
 log = logging.getLogger(__name__)
 
 

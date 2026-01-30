@@ -110,7 +110,6 @@ class DatabaseConnection(Database):
 
         if self.is_async:
             try:
-                #
                 engine = create_async_engine(
                     self.db_url,
                     echo=True,
@@ -163,7 +162,7 @@ class DatabaseConnection(Database):
         Sync contex manager of session
         :return:
         """
-        session = None
+
         if self.is_async:
             raise ValueError("Cannot get sync session from async engine")
         session: AsyncSession | Session = self.session_factory()

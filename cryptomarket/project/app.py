@@ -26,13 +26,15 @@ log = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     from threading import Thread
 
+    # This is place for generate the workers -'start_worker'
+    # Maxleng 10
+    # Auto updated
     def run_new_loop():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(manager.start_worker(limitations=10))
 
     Thread(target=run_new_loop, daemon=True).start()
-    # await manager.start_worker(limitations=10)
     try:
         yield
     finally:
@@ -84,7 +86,7 @@ def app_cryptomarket():
         lifespan=lifespan,
     )
     # ===============================
-    # ---- MIDDLEWARE
+    # ---- MIDDLEWARE ZERO
     # ===============================
     middleware = DeribitMiddleware(manager)
     app_.middleware("http")(middleware)
