@@ -2,4 +2,4 @@ Note: Публикация файлов не нарушило условий з�
 ## APP CryptoMarket
  
 
-[![project_model.drawio.svg](img/project_model.drawio.svg)](img/project_model.drawio_max.svg)
+[![project_model.drawio.svg](img/project_model.drawio.png)](img/project_model.drawio_max.png)
