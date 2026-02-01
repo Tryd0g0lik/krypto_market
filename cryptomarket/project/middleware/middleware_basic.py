@@ -43,8 +43,9 @@ class DeribitMiddleware(DeribitMiddlewareType):
         # ===============================
         # START THE DERIBIT MANAGE
         # ===============================
+
         kwargs = {
-            "index": 0,
+            "index": request_id_var.get(),
             "request_id": request_id_var.get(),
             "api_key": ExternalAPIEnum.WS_COMMON_URL.value,
             "client_secret": (lambda: DERIBIT_SECRET_KEY)(),

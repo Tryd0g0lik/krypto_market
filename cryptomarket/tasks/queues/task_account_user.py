@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 
 async def task_account() -> bool:
     """
-    TODO ЗАдача для сохранения в базе после получения ответа
+    TODO Пользователь получает токены . Внести данные в базу данных в момент удачного соединения.
     Check cache on the cache server and record data in connection_database
     Running in 'cryptomarket.deribit_client.deribit_clients.DeribitCreationQueue.enqueue'
     :param args: list[str] This is list of keys for the data. They were caching on the cache server.
@@ -39,6 +39,7 @@ async def task_account() -> bool:
     client: DeribitClientType = await list(coroutine.values())[0]
     queue_keys = manager.queue  # list of keys
     semaphore = manager.rate_limit.semaphore
+    sse_manager = manager.sse_manager
     context_redis_connection = (
         manager.rate_limit.context_redis_connection
     )  # coroutine of the redis asynccontextmanager
@@ -77,7 +78,7 @@ async def task_account() -> bool:
             client_secret_key = user_meta_json.get("client_secret")
             client_id = user_meta_json.get("client_id")
             # ===============================
-            # ---- CONNECTION WITH THE DERIBIT SERVER
+            # ---- USER CONNECTION WITH THE DERIBIT SERVER
             # ===============================
             with client.initialize(_url=api_key) as session:
 
@@ -96,7 +97,17 @@ async def task_account() -> bool:
                                     if msg.type == WSMsgType.TEXT:
                                         print(f"Received: {msg.data}")
                                         log.warning(f"WS Received: {msg.data}")
-                                        pass
+                                        data = json.loads(msg.data)
+                                        _extract_ticker_from_message = (
+                                            sse_manager._extract_ticker_from_message
+                                        )
+                                        with _extract_ticker_from_message(
+                                            data, ("connection",)
+                                        ) as ticker:
+                                            sse_manager.broadcast(ticker)
+                                            """
+                                                add the new user line in db.
+                                            """
                                     elif msg.type == WSMsgType.ERROR:
                                         log_err = "%s ERROR connection. Code: %s" % (
                                             log_t,

@@ -3,7 +3,9 @@ cryptomarket/project/functions.py
 """
 
 import asyncio
+import json
 import logging
+import pickle
 import threading
 
 from cryptomarket.project.settings.core import DEBUG, settings
@@ -158,3 +160,13 @@ def connection_database():
     from cryptomarket.database.connection import DatabaseConnection
 
     return DatabaseConnection(url_str)
+
+
+def obj_to_byte(odj) -> bytes:
+    import pickle
+
+    return pickle.dumps(odj)
+
+
+def byte_to_obj(byte_odj):
+    return pickle.loads(byte_odj)

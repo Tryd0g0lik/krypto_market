@@ -59,6 +59,9 @@ class Settings(SettingsProps):
             a unlimited flow of requests. You can chang the max number.
         'DERIBIT_MAX_CONCURRENT' = The Deribit lock a work protection and API stability (it is tate limiting for \
             the concurrent requests)
+        'DERIBIT_QUEUE_SIZE' This use to the 'collections.deque' for the additional attribute 'maxlen' and
+            for 'asyncio.Queue' (in project logic) - additional attribute 'maxsize', The deque and Queue using
+                for limited the lists,
     """
 
     # ---------------------------------------

@@ -15,6 +15,7 @@ from aiohttp import (
 )
 from redis.asyncio import Redis
 
+from cryptomarket.deribit_client import PersonManager
 from cryptomarket.project.enums import ExternalAPIEnum, RadisKeysEnum
 from cryptomarket.project.settings.core import settings
 from cryptomarket.project.settings.settings_env import (
@@ -25,6 +26,7 @@ from cryptomarket.project.settings.settings_env import (
     REDIS_PORT,
 )
 from cryptomarket.project.signals import signal
+from cryptomarket.project.sse_manager import SSEManager
 from cryptomarket.tasks.queues.task_account_user import task_account
 from cryptomarket.type import (
     DeribitClientType,
@@ -44,7 +46,7 @@ setting = settings()
 class DeribitWebsocketPool(DeribitWebsocketPoolType):
     _instance = None
     # This list is the list[coroutine].
-    _clients: list = deque(maxlen=setting.DERIBIT_MAX_CONCURRENT)
+    _clients: list = deque(maxlen=setting.DERIBIT_QUEUE_SIZE)
     # Below (DeribitWebsocketPool.__new__) he will receive the coroutine for a connection with the Deribit API.
     # The length of list will be containe the quantity of elements == 'setting.STRIPE_MAX_QUANTITY_WORKERS'.
     # Everything coroutine/connection will require the:
@@ -361,7 +363,7 @@ class DeribitLimited(DeribitLimitedType):
 # ---- DERIBIT MENEGE
 # ==============================
 class DeribitManage(DeribitManageType):
-    _deque_postman = deque(maxlen=5000)
+    _deque_postman = deque(maxlen=setting.DERIBIT_QUEUE_SIZE)
     _deque_error = deque(maxlen=10000)  # Which have not passed caching
     _deque_coroutines = deque(
         maxlen=500
@@ -390,6 +392,9 @@ class DeribitManage(DeribitManageType):
             self.rate_limit = DeribitLimited(max_concurrent)
         self.stripe_response_var = ContextVar("deribit_response", default=None)
         self.stripe_response_var_token = None
+        args = ["btc_usd", "eth_usd", "connection"]
+        self.sse_manager = SSEManager(*args)
+        self.person_manager = PersonManager()
 
     async def enqueue(self, cache_live: int, **kwargs) -> None:
         """
@@ -439,7 +444,7 @@ class DeribitManage(DeribitManageType):
                     # k - key common between the cache data and queue
                     # v - the cache data
                     # tasks_collections - gather results after cache on the server.
-                    tasks_collections = deque(maxlen=5000)
+                    tasks_collections = deque(maxlen=setting.DERIBIT_QUEUE_SIZE)
                     result = [
                         await redis_setex(
                             k,
