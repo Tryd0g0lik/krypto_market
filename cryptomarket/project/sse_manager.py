@@ -7,6 +7,7 @@ This is the manager for the Server Sent Events
 import asyncio
 import json
 import logging
+from contextlib import contextmanager
 from pyexpat.errors import messages
 from typing import Set
 
@@ -17,10 +18,18 @@ setting = settings()
 
 
 class SSEManager:
+    _connections: dict[str, Set[asyncio.Queue]] = {}
+    lock: asyncio.Lock = asyncio.Lock()
+
     def __init__(self):
-        self._connections: dict[str, Set[str, Set[asyncio.Queue]]] = {}
-        self.lock: asyncio.Lock = asyncio.Lock()
         self.log_t = f"[{self.__class__.__name__}.%s]:"
+
+    def __new__(
+        cls,
+        *args: list[str],
+    ):
+        cls._connections.update({title: set() for title in args if args is not None})
+        return super().__new__(cls)
 
     async def subscribe(self, ticker: str):
         """Here we create a new queue for subscribe"""
@@ -83,3 +92,29 @@ class SSEManager:
                     "%s The bad queue: %s was removed successfully!",
                     (self.log_t, self.broadcast, queue),
                 )
+
+    @contextmanager
+    def _extract_ticker_from_message(
+        self, data: dict, *args: list[str], **kwargs: dict
+    ):
+        """
+        :param data: (dict)
+        :param args: (list[str]) Example "['connection', ]"
+        :param kwargs: (dict[str, Set[asyncio.Queue]] ) Example "{'eth_usd': < set() >}"
+        :return:
+        """
+        if args is None and kwargs is None:
+            raise ValueError(
+                "%s The parameter 'args' or 'kwargs' is required!",
+                (self.log_t, self._extract_ticker_from_message),
+            )
+
+        data_keys: list = []
+        if kwargs is not None:
+            keys_total = list(kwargs.values())
+            data_keys = [key for key in keys_total if key in json.dumps(data).lower()]
+        else:
+            data_keys = [*args]
+
+        for key in data_keys:
+            yield key
