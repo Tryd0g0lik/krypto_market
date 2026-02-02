@@ -11,13 +11,13 @@ from uuid import uuid4
 from fastapi import Request, status
 
 from cryptomarket.project.encrypt_manager import EncryptManager
-from cryptomarket.project.enums import ExternalAPIEnum
+from cryptomarket.project.enums import ExternalAPIEnum, RadisKeysEnum
 from cryptomarket.project.settings.settings_env import (
     DERIBIT_CLIENT_ID,
     DERIBIT_SECRET_KEY,
 )
 from cryptomarket.project.signals import signal
-from cryptomarket.tasks.queues.task_user_encrypt_key import task_record_user_encrypt_key
+from cryptomarket.tasks.queues.task_user_data_to_cache import task_caching_user_data
 from cryptomarket.type import DeribitManageType
 from cryptomarket.type.deribit_type import DeribitMiddlewareType
 
@@ -61,17 +61,20 @@ class DeribitMiddleware(DeribitMiddlewareType):
         # Get the encrypt key
         kwargs_new["encrypt_key"] = list(result.keys()).pop()
         kwargs["deribit_secret_encrypt"] = list(result.values()).pop()
+        args = [RadisKeysEnum.AES_REDIS_KEY.value % kwargs["client_id"]]
         del result
         # ===============================
-        # ---- RAN SIGNAL encrypt key saving
+        # ---- RAN SIGNAL The encrypt key we savinf
         # ===============================
         await signal.schedule_with_delay(
             user_id=kwargs.get("client_id"),
             callback_=None,
-            asynccallback_=task_record_user_encrypt_key,
+            asynccallback_=task_caching_user_data,
+            *args,
             **kwargs_new
         )
         del kwargs_new
+        del args
 
         await self.manager.enqueue(43200, **kwargs)
         del kwargs

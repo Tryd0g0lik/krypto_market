@@ -202,6 +202,24 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
         def _get_autantication_data(
             index: int, client_id: int | str, client_secret_key: str
         ) -> dict:
+            """
+
+            :param index:
+            :param client_id:
+            :param client_secret_key:
+            :return: Example ```text
+            {
+                "jsonrpc": "2.0",
+                "id": index,
+                "method": "public/auth",
+                "params": {
+                    "grant_type": "client_credentials",
+                    "client_id": < client_id_account_of_deribit_client >, > ,
+                    "client_secret": < DECRYPTIN_secret_key_of_deribit_client >,
+                },
+            }
+            ```
+            """
             if client_id is None or client_secret_key is None:
                 raise ValueError(
                     "[%s]: ERROR => Client id and secret key are required variables!",
@@ -337,7 +355,7 @@ class DeribitLimited(DeribitLimitedType):
         :return:
         """
         # Параллельные запросы на оду задачу
-        key = RadisKeysEnum.DERBIT_STRIPE_RATELIMIT_TASK.value % (
+        key = RadisKeysEnum.DERIBIT_STRIPE_RATELIMIT_TASK.value % (
             user_id,
             task_id,
         )

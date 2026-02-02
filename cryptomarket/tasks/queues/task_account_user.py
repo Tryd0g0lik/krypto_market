@@ -12,6 +12,7 @@ from aiohttp import WSMsgType
 from cryptomarket.project.encrypt_manager import EncryptManager
 from cryptomarket.project.enums import RadisKeysEnum
 from cryptomarket.project.functions import connection_database, str_to_json
+from cryptomarket.project.signals import signal
 from cryptomarket.type import DeribitClientType
 
 log = logging.getLogger(__name__)
@@ -102,17 +103,18 @@ async def task_account() -> bool:
         user_meta_json.get("deribit_secret_encrypt")
     ).encode()
 
+    # ===============================
+    # ---- DECRYPTION TO STR
+    # ===============================
     decrypt_manager = EncryptManager()
-
     deribit_user_secret_encrypt = decrypt_manager.descrypt_to_str(
         {key_cipher_b: deribit_user_secret_encrypt_b}
     )
     client_id = data_json.get("client_id")
-
+    del data_json
     try:
         connection_db.init_engine()  # Connection to the database
         async with connection_db.asyncsession_scope() as session:
-
             # ===============================
             # ---- USER CONNECTION WITH THE DERIBIT SERVER
             # ===============================
@@ -125,6 +127,10 @@ async def task_account() -> bool:
                             user_meta_json = client._get_autantication_data(
                                 index, client_id, deribit_user_secret_encrypt
                             )
+                            from cryptomarket.tasks.queues.task_user_data_to_cache import (
+                                task_caching_user_data,
+                            )
+
                             try:
                                 # WSS REQUEST
                                 await asyncio.wait_for(ws.send_json(user_meta_json), 10)
@@ -135,16 +141,36 @@ async def task_account() -> bool:
                                         # ---- CACHE - THE USER DATA (user data after authenticate)
                                         # ===============================
                                         try:
-                                            async with context_redis_connection() as redis:
-                                                data_str: str = await redis.get(
-                                                    RadisKeysEnum.AES_REDIS_KEY.value
-                                                    % user_meta_json.get("client_id")
-                                                )
-                                                await redis.delete(
-                                                    RadisKeysEnum.AES_REDIS_KEY.value
-                                                    % user_meta_json.get("client_id")
-                                                )
-                                                dataVar_token = dataVar.set(data_str)
+                                            data_json = json.loads(msg.data)
+                                            client_id = user_meta_json.get("client_id")
+                                            args = [
+                                                RadisKeysEnum.DERIBIT_USER_AUTHENTICATED.value
+                                                % client_id
+                                            ]
+                                            kwargs_new = {
+                                                "client_id": client_id,
+                                                "access_token": data_json[
+                                                    "access_token"
+                                                ],
+                                                "expires_in": data_json["expires_in"],
+                                                "refresh_token": data_json[
+                                                    "refresh_token"
+                                                ],
+                                                "scope": data_json["scope"],
+                                                "token_type": data_json["token_type"],
+                                            }
+                                            # ===============================
+                                            # ---- RAN SIGNAL The user authenticate datas sent to cache on the
+                                            # ===============================
+                                            await signal.schedule_with_delay(
+                                                user_id=client_id[:],
+                                                callback_=None,
+                                                asynccallback_=task_caching_user_data,
+                                                *args,
+                                                **kwargs_new
+                                            )
+                                            del client_id
+                                            dataVar_token = dataVar.set(data_str)
 
                                         except Exception as e:
                                             log.error(

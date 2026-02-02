@@ -62,6 +62,9 @@ class Settings(SettingsProps):
         'DERIBIT_QUEUE_SIZE' This use to the 'collections.deque' for the additional attribute 'maxlen' and
             for 'asyncio.Queue' (in project logic) - additional attribute 'maxsize', The deque and Queue using
                 for limited the lists,
+        'CACHE_AUTHENTICATION_DATA_LIVE' This is a time live of data on the cache server.
+            The name of the key by cache data is 'DERIBIT_USER_AUTHENTICATED' (
+            look to the 'cryptomarket/project/enums.py' file).
     """
 
     # ---------------------------------------
@@ -70,6 +73,7 @@ class Settings(SettingsProps):
     DERIBIT_MAX_QUANTITY_WORKERS = 10
     DERIBIT_MAX_CONCURRENT = 40
     DERIBIT_QUEUE_SIZE = 5000
+    CACHE_AUTHENTICATION_DATA_LIVE = 97200
     # ---------------------------------------
     #  COMMON
     # ---------------------------------------

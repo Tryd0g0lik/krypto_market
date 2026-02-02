@@ -22,5 +22,6 @@ class RadisKeysEnum(Enum):
         Example; "{\"client_id\": \"_XcQ7xuV\", \"encrypt_key\": \"0YNfS0SSYWwCRTNrWxfioH3dkhP0YaCxrNqwpOA1HLI=\"}"
     """
 
-    DERBIT_STRIPE_RATELIMIT_TASK = "deribit:ratelimit:%s:%s"
+    DERIBIT_STRIPE_RATELIMIT_TASK = "deribit:ratelimit:%s:%s"
     AES_REDIS_KEY = "aserediskey:%s"
+    DERIBIT_USER_AUTHENTICATED = "deribit:authenticated:%s"
