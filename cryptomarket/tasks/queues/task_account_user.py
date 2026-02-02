@@ -45,7 +45,7 @@ async def task_account() -> bool:
     context_redis_connection = (
         manager.rate_limit.context_redis_connection
     )  # coroutine of the redis asynccontextmanager
-    # ===============================
+    # ============= 1 ==================
     # ---- CACHE - RECEIVE THE USER DATA (classic a user data)
     # ===============================
 
@@ -69,21 +69,26 @@ async def task_account() -> bool:
     api_key = user_meta_json.get("api_key")
     index = user_meta_json.get("index")
 
-    # ===============================
+    # ============ 2 ===================
     # ---- CACHE - RECEIVE THE USER DATA (user key of cipher)
+    #  "{ 'client_id': < deribit_account_index >, 'encrypt_key': < key_cipher > }"
+    #  Get keys: 'client_id' & 'encrypt_key' and delete the old data cache.
     # ===============================
     try:
         async with context_redis_connection() as redis:
             data_str: str = await redis.get(
                 RadisKeysEnum.AES_REDIS_KEY.value % user_meta_json.get("client_id")
             )
+            await redis.delete(
+                RadisKeysEnum.AES_REDIS_KEY.value % user_meta_json.get("client_id")
+            )
             dataVar_token = dataVar.set(data_str)
+
     except Exception as e:
         log.error("%s RedisError => %s" % (log_t, e.args[0] if e.args else str(e)))
 
     # ===============================
     # ---- STR TO JSON
-    # { 'client_id': < deribit_account_index >, 'encrypt_key': < key_cipher > }
     # ===============================
     data_str = dataVar.get()
     data_json = str_to_json(data_str)
@@ -126,6 +131,30 @@ async def task_account() -> bool:
                                 async for msg in ws:
                                     # WSS RESPONSE
                                     if msg.type == WSMsgType.TEXT:
+                                        # ============ 3 ===================
+                                        # ---- CACHE - THE USER DATA (user data after authenticate)
+                                        # ===============================
+                                        try:
+                                            async with context_redis_connection() as redis:
+                                                data_str: str = await redis.get(
+                                                    RadisKeysEnum.AES_REDIS_KEY.value
+                                                    % user_meta_json.get("client_id")
+                                                )
+                                                await redis.delete(
+                                                    RadisKeysEnum.AES_REDIS_KEY.value
+                                                    % user_meta_json.get("client_id")
+                                                )
+                                                dataVar_token = dataVar.set(data_str)
+
+                                        except Exception as e:
+                                            log.error(
+                                                "%s RedisError => %s"
+                                                % (
+                                                    log_t,
+                                                    e.args[0] if e.args else str(e),
+                                                )
+                                            )
+
                                         kwargs = json.loads(msg.data)
                                         _extract_ticker_from_message = (
                                             sse_manager._extract_ticker_from_message

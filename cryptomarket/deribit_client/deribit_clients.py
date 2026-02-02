@@ -324,6 +324,8 @@ class DeribitLimited(DeribitLimitedType):
     @asynccontextmanager
     async def acquire(self, redis, task_id: str, user_id: str, cache_limit: int = 95):
         """
+        TODO: Не использован (рабочий и протестирован). но хороший контролер за количество запросов в секунду и
+            количеством запросов от одного пользователя в секунду
         This is the rate/request (it concurrently requests/websocket of one user) limited.
         This is counting what Radis has no more than 100 request per 1 second.
         - 'self.semaphore' Limits the number of simultaneous operations Default value in app \
