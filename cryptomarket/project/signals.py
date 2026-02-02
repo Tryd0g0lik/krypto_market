@@ -143,7 +143,11 @@ class Signal:
         while self.controller:
             # Waite 'delay_seconds' seconds
             await asyncio.sleep(delay_seconds)
-            await self.__schedule_at_interval()
+            try:
+                await self.__schedule_at_interval()
+            except Exception:
+                self.controller = False if len(self._tasks) <= 1 else True
+                continue
             self.controller = False if len(self._tasks) == 0 else True
 
     async def __schedule_at_interval(self):
@@ -167,10 +171,12 @@ class Signal:
                         if task.done():
                             del self._tasks[user_id]
             except Exception as e:
-                log.error(
-                    "Signal User ID: %s Error => %s"
-                    % (user_id, e.args[0] if e.args else str(e))
+                log_t = "Signal User ID: %s Error => %s" % (
+                    user_id,
+                    e.args[0] if e.args else str(e),
                 )
+                log.error(str(log_t))
+                raise ValueError(str(log_t))
 
     @asynccontextmanager
     async def _get_user_handler(self, user_id: int | str, user: UserSignalHandlerProp):

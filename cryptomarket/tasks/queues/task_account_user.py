@@ -9,7 +9,9 @@ from contextvars import ContextVar
 
 from aiohttp import WSMsgType
 
-from cryptomarket.project.functions import connection_database
+from cryptomarket.project.encrypt_manager import EncryptManager
+from cryptomarket.project.enums import RadisKeysEnum
+from cryptomarket.project.functions import connection_database, str_to_json
 from cryptomarket.type import DeribitClientType
 
 log = logging.getLogger(__name__)
@@ -44,9 +46,9 @@ async def task_account() -> bool:
         manager.rate_limit.context_redis_connection
     )  # coroutine of the redis asynccontextmanager
     # ===============================
-    # ---- CACHE - RECEIVE THE USER DATA
+    # ---- CACHE - RECEIVE THE USER DATA (classic a user data)
     # ===============================
-    # for key in tasks_id:
+
     try:
         async with context_redis_connection() as redis:
             task_id = await queue_keys.get()
@@ -54,29 +56,58 @@ async def task_account() -> bool:
             dataVar_token = dataVar.set(data_str)
     except Exception as e:
         log.error("%s RedisError => %s" % (log_t, e.args[0] if e.args else str(e)))
-
-    data_str_ = dataVar.get()
-    user_meta_json = {}
+    # ===============================
+    # ---- STR TO JSON
+    # {'index': < index_for_request_to_deribit_copy_of_index_of_request>,
+    # 'request_id': < index_of_request >, 'api_key': 'wss://....', 'client_id': < deribit_account_index >,
+    # 'deribit_secret_encrypt': < secret_key_of_account_from_deribit >}
+    # ===============================
+    data_str = dataVar.get()
+    user_meta_json = str_to_json(data_str)
+    del data_str
     dataVar.reset(dataVar_token)
+    api_key = user_meta_json.get("api_key")
+    index = user_meta_json.get("index")
+
+    # ===============================
+    # ---- CACHE - RECEIVE THE USER DATA (user key of cipher)
+    # ===============================
+    try:
+        async with context_redis_connection() as redis:
+            data_str: str = await redis.get(
+                RadisKeysEnum.AES_REDIS_KEY.value % user_meta_json.get("client_id")
+            )
+            dataVar_token = dataVar.set(data_str)
+    except Exception as e:
+        log.error("%s RedisError => %s" % (log_t, e.args[0] if e.args else str(e)))
+
+    # ===============================
+    # ---- STR TO JSON
+    # { 'client_id': < deribit_account_index >, 'encrypt_key': < key_cipher > }
+    # ===============================
+    data_str = dataVar.get()
+    data_json = str_to_json(data_str)
+    del data_str
+    dataVar.reset(dataVar_token)
+    # ===============================
+    # DECRYPT MANAGER 'EncryptManager'
+    # ===============================
+    key_cipher_b = (data_json.get("encrypt_key")).encode()  # Key/cipher
+    deribit_user_secret_encrypt_b = (
+        user_meta_json.get("deribit_secret_encrypt")
+    ).encode()
+
+    decrypt_manager = EncryptManager()
+
+    deribit_user_secret_encrypt = decrypt_manager.descrypt_to_str(
+        {key_cipher_b: deribit_user_secret_encrypt_b}
+    )
+    client_id = data_json.get("client_id")
+
     try:
         connection_db.init_engine()  # Connection to the database
         async with connection_db.asyncsession_scope() as session:
 
-            if isinstance(data_str_, bytes):
-                user_meta_json.update(json.loads(data_str_.decode("utf-8")))
-            else:
-                try:
-                    user_meta_json.update(json.loads(data_str_))
-                except json.decoder.JSONDecodeError as e:
-                    log.error(
-                        "%s JSONDecodeError => %s"
-                        % (log_t, e.args[0] if e.args else str(e))
-                    )
-                    return False
-            api_key = user_meta_json.get("api_key")
-            index = user_meta_json.get("index")
-            client_secret_key = user_meta_json.get("client_secret")
-            client_id = user_meta_json.get("client_id")
             # ===============================
             # ---- USER CONNECTION WITH THE DERIBIT SERVER
             # ===============================
@@ -87,7 +118,7 @@ async def task_account() -> bool:
                     async with semaphore:
                         async with client.ws_send(session) as ws:
                             user_meta_json = client._get_autantication_data(
-                                index, client_id, client_secret_key
+                                index, client_id, deribit_user_secret_encrypt
                             )
                             try:
                                 # WSS REQUEST
@@ -95,18 +126,26 @@ async def task_account() -> bool:
                                 async for msg in ws:
                                     # WSS RESPONSE
                                     if msg.type == WSMsgType.TEXT:
-                                        print(f"Received: {msg.data}")
-                                        log.warning(f"WS Received: {msg.data}")
-                                        data = json.loads(msg.data)
+                                        kwargs = json.loads(msg.data)
                                         _extract_ticker_from_message = (
                                             sse_manager._extract_ticker_from_message
                                         )
+                                        args = ["connection"]
                                         with _extract_ticker_from_message(
-                                            data, ("connection",)
+                                            *args, **kwargs
                                         ) as ticker:
                                             sse_manager.broadcast(ticker)
                                             """
+                                            Полбховтелю надо сообщить об удачном подключении.
+                                            Нужен ключ пользователя.
+                                            Ключ пользователя - нужен шифр.
+
+                                            После создать endpoint для отправления connection.
+                                            """
+                                            """
                                                 add the new user line in db.
+
+
                                             """
                                     elif msg.type == WSMsgType.ERROR:
                                         log_err = "%s ERROR connection. Code: %s" % (
@@ -146,7 +185,8 @@ async def task_account() -> bool:
                                 raise TypeError(str(log_err))
 
                 finally:
-                    await session.close()
+                    pass
+                    # await session.close()
 
             # if connection_db.engine is None:
             #     connection_db.init_engine()

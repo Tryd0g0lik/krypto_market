@@ -10,11 +10,14 @@ from uuid import uuid4
 
 from fastapi import Request, status
 
+from cryptomarket.project.encrypt_manager import EncryptManager
 from cryptomarket.project.enums import ExternalAPIEnum
 from cryptomarket.project.settings.settings_env import (
     DERIBIT_CLIENT_ID,
     DERIBIT_SECRET_KEY,
 )
+from cryptomarket.project.signals import signal
+from cryptomarket.tasks.queues.task_user_encrypt_key import task_record_user_encrypt_key
 from cryptomarket.type import DeribitManageType
 from cryptomarket.type.deribit_type import DeribitMiddlewareType
 
@@ -43,15 +46,35 @@ class DeribitMiddleware(DeribitMiddlewareType):
         # ===============================
         # START THE DERIBIT MANAGE
         # ===============================
-
+        encrypt_manager = EncryptManager()
+        # Note!! Now the "deribit_secret_encrypt" will get a dictionary type value.
+        #
         kwargs = {
             "index": request_id_var.get(),
             "request_id": request_id_var.get(),
             "api_key": ExternalAPIEnum.WS_COMMON_URL.value,
-            "client_secret": (lambda: DERIBIT_SECRET_KEY)(),
             "client_id": (lambda: DERIBIT_CLIENT_ID)(),
         }
+        kwargs_new = {}
+        kwargs_new["client_id"] = kwargs.get("client_id")
+        result: dict = await encrypt_manager.str_to_encrypt(DERIBIT_SECRET_KEY)
+        # Get the encrypt key
+        kwargs_new["encrypt_key"] = list(result.keys()).pop()
+        kwargs["deribit_secret_encrypt"] = list(result.values()).pop()
+        del result
+        # ===============================
+        # ---- RAN SIGNAL encrypt key saving
+        # ===============================
+        await signal.schedule_with_delay(
+            user_id=kwargs.get("client_id"),
+            callback_=None,
+            asynccallback_=task_record_user_encrypt_key,
+            **kwargs_new
+        )
+        del kwargs_new
+
         await self.manager.enqueue(43200, **kwargs)
+        del kwargs
         # ===============================
         # GET RESPONSE DATA
         # ===============================
@@ -93,4 +116,4 @@ class DeribitMiddleware(DeribitMiddlewareType):
         """
         TODO: Here add additional logic by getting the request context data
         """
-        return {"data": "All successfully!"}
+        return {"detail": "All successfully!"}

@@ -2,7 +2,6 @@ __all__ = [
     "DeribitWebsocketPool",
     "DeribitLimited",
     "DeribitManage",
-    "PersonManager",
 ]
 
 from cryptomarket.deribit_client.deribit_clients import (
@@ -10,4 +9,3 @@ from cryptomarket.deribit_client.deribit_clients import (
     DeribitManage,
     DeribitWebsocketPool,
 )
-from cryptomarket.deribit_client.deribit_person import PersonManager

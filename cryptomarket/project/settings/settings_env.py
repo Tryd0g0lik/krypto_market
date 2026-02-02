@@ -10,6 +10,9 @@ dotenv.load_dotenv()
 APP_PROTOCOL_: str = os.getenv("APP_PROTOCOL", "http")
 APP_HOST_: str = os.getenv("APP_HOST", "127.0.0.1")
 APP_PORT_: str = os.getenv("APP_PORT", "8003")
+APP_SECRET_KEY: str = os.getenv(
+    "APP_SECRET_KEY", "Y)zogC38w1avXuTY2bUdxGmbw5egU6ai1LpQnWBba4vsUuG"
+)
 PROJECT_MODE_: str = os.getenv("PROJECT_MODE", "8003")
 POSTGRES_DB_: str = os.getenv("POSTGRES_DB", "cryptomarket_db")
 POSTGRES_PASSWORD_: str = os.getenv("POSTGRES_PASSWORD", "postgres")

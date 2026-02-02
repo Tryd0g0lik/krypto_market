@@ -163,10 +163,33 @@ def connection_database():
 
 
 def obj_to_byte(odj) -> bytes:
-    import pickle
 
     return pickle.dumps(odj)
 
 
-def byte_to_obj(byte_odj):
-    return pickle.loads(byte_odj)
+# def byte_to_obj(byte_odj):
+#     return pickle.loads(byte_odj)
+
+
+# ===============================
+# ---- STR TO JSON
+# ===============================
+
+
+def str_to_json(data_str: str) -> dict:
+    """
+    :param data_str: str the type json data
+    :return:
+    """
+    user_meta_json = {}
+    if isinstance(data_str, bytes):
+        user_meta_json.update(json.loads(data_str.decode("utf-8")))
+    else:
+        try:
+            user_meta_json.update(json.loads(data_str))
+        except json.decoder.JSONDecodeError as e:
+            log.error(
+                "%s JSONDecodeError => %s"
+                % ("[str_to_json]:", e.args[0] if e.args else str(e))
+            )
+    return user_meta_json

@@ -15,12 +15,10 @@ from aiohttp import (
 )
 from redis.asyncio import Redis
 
-from cryptomarket.deribit_client import PersonManager
+from cryptomarket.deribit_client.deribit_person import PersonManager
 from cryptomarket.project.enums import ExternalAPIEnum, RadisKeysEnum
 from cryptomarket.project.settings.core import settings
 from cryptomarket.project.settings.settings_env import (
-    DERIBIT_CLIENT_ID,
-    DERIBIT_SECRET_KEY,
     REDIS_DB,
     REDIS_HOST,
     REDIS_PORT,
@@ -62,27 +60,24 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
     class DeribitClient(DeribitClientType):
         _semaphore = asyncio.Semaphore(value=1)
 
-        def __init__(
-            self, _client_id: str = None, _client_secret: str = None, _limit: int = 1
-        ):
-            """
-           Here we generate of the clients for connection with the Deribit server.
-           https://docs.aiohttp.org/en/stable/client_reference.html#aiohttp.ClientSession.request
-           https://docs.deribit.com/articles/deribit-quickstart#websocket-recommended
-           Here is creating a list  of the stripe's connections.
-           :param _client_id (str|None) This is the secret 'client_id' key from Deribit. Default value is \
-               the value of variable the 'DERIBIT_CLIENT_ID'.
-           :param _client_secret (str|None) This is the secret 'client_secret' key from Deribit.  Default value is \
-               the value of variable the 'DERIBIT_SECRET_KEY'.
-            :param _limit (int) This is controller per a joint requests, Default value is 1.
-           """
-            super().__init__()
-            self.client_id: str = (
-                "%s" % (lambda: "%s" % DERIBIT_CLIENT_ID)()
-                if _client_id is None
-                else "%s" % _client_id
-            )
-            self.__client_secret: str = _client_secret
+        # def __init__(
+        #     self,
+        # ):
+        #     """
+        #    Here we generate of the clients for connection with the Deribit server.
+        #    https://docs.aiohttp.org/en/stable/client_reference.html#aiohttp.ClientSession.request
+        #    https://docs.deribit.com/articles/deribit-quickstart#websocket-recommended
+        #    Here is creating a list  of the stripe's connections.
+        #    :param _client_id (str|None) This is the secret 'client_id' key from Deribit. Default value is \
+        #        the value of variable the 'DERIBIT_CLIENT_ID'.
+        #    :param _client_secret (str|None) This is the secret 'client_secret' key from Deribit.  Default value is \
+        #        the value of variable the 'DERIBIT_SECRET_KEY'.
+        #     # :param _limit (int) This is controller per a joint requests, Default value is 1.
+        #    """
+        #     super().__init__()
+
+        # self.client_id: str|None = None
+        # self.__client_secret: str| None = None
 
         @contextmanager
         def initialize(
@@ -114,26 +109,42 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
                 # ==============================
                 # ---- CREATE CONNECTION TO THE DERIBIT SERVER
                 # ==============================
-                __connection = self.__client_session(_url)
+                log_t = "[%s.%s]:" % (
+                    self.__class__.__name__,
+                    self.client_session.__name__,
+                )
+                _client_session = ClientSession(_url)
+                log.info("%s %s" % (log_t, "Client session opening!"))
                 try:
-                    yield __connection
+                    yield _client_session
+                except Exception as e:
+                    log.error(
+                        "%s ERROR => %s" % (log_t, e.args[0] if e.args else str(e))
+                    )
                 finally:
+                    _client_session.close()
                     pass
+                # __connection = self.__client_session(_url)
+                # try:
+                #     yield __connection
+                # finally:
+                #     pass
             except Exception as e:
                 log_err = "%s ERROR => %s" % (log_t, e.args[0] if e.args else str(e))
                 log.error(str(log_err))
                 raise ValueError(str(log_err))
 
-        def __client_session(self, base_ur):
-            log_t = "[%s.%s]:" % (self.__class__.__name__, self.client_session.__name__)
-            _client_session = ClientSession(base_ur)
-            log.info("%s %s" % (log_t, "Client session opening!"))
-            try:
-                return _client_session
-            except Exception as e:
-                log.error("%s ERROR => %s" % (log_t, e.args[0] if e.args else str(e)))
-            finally:
-                pass
+        # def __client_session(self, base_ur):
+        #     log_t = "[%s.%s]:" % (self.__class__.__name__, self.client_session.__name__)
+        #     _client_session = ClientSession(base_ur)
+        #     log.info("%s %s" % (log_t, "Client session opening!"))
+        #     try:
+        #         return _client_session
+        #     except Exception as e:
+        #         log.error("%s ERROR => %s" % (log_t, e.args[0] if e.args else str(e)))
+        #     finally:
+        #         _client_session.close()
+        #         pass
 
         @asynccontextmanager
         async def ws_send(
@@ -160,6 +171,12 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
                 :param _client_session:
                 :return:
             """
+            if _client_session is None:
+                raise ValueError(
+                    "[%s]: ERROR => The '_client_session' is required variable!",
+                    (DeribitWebsocketPool.__class__.__name__,),
+                )
+
             log_t = "[%s.%s]:" % (self.__class__.__name__, self.ws_send.__name__)
             log.info("%s %s" % (log_t, "WebSocket connection is successfully!"))
             ws_connect = _client_session.ws_connect(
@@ -185,9 +202,15 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
         def _get_autantication_data(
             index: int, client_id: int | str, client_secret_key: str
         ) -> dict:
+            if client_id is None or client_secret_key is None:
+                raise ValueError(
+                    "[%s]: ERROR => Client id and secret key are required variables!",
+                    (DeribitWebsocketPool.__class__.__name__,),
+                )
+
             return {
                 "jsonrpc": "2.0",
-                "id": index + 1,
+                "id": index,
                 "method": "public/auth",
                 "params": {
                     "grant_type": "client_credentials",
@@ -198,8 +221,8 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
 
     def __new__(
         cls,
-        _client_id: str = None,
-        _client_secret: str = None,
+        # _client_id: str = None,
+        # _client_secret: str = None,
         _heartbeat=30,
         _timeout=10,
     ):
@@ -209,10 +232,8 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
         https://docs.deribit.com/articles/deribit-quickstart#websocket-recommended
         Here is creating a list  of the stripe's connections.
 
-        :param _client_id: str|None This is the secret 'client_id' key from Deribit. Default value is \
-            the value of variable the 'DERIBIT_CLIENT_ID'.
-        :param _client_secret: str|None This is the secret 'client_secret' key from Deribit.  Default value is \
-            the value of variable the 'DERIBIT_SECRET_KEY'.
+        :param _client_id: str|None This is the secret 'client_id' key from Deribit.
+        :param _client_secret: str|None This is the secret 'client_secret' key from Deribit.
         :param _heartbeat (float) – Send ping message every heartbeat seconds and wait pong response, if pong response\
              is not received then close connection. The timer is reset on any data reception.(optional).\
               Default value 30 seconds.
@@ -229,7 +250,7 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
             # Max quantity of coroutines contain value require - the 'setting.DERIBIT_MAX_QUANTITY_WORKERS',
             # it is the max number of connection.
             for i in range(setting.DERIBIT_MAX_QUANTITY_WORKERS):
-                client_ = cls.DeribitClient(_client_id, _client_secret)
+                client_ = cls.DeribitClient()
                 cls._clients.append(client_)
         return cls._instance
 
@@ -376,15 +397,14 @@ class DeribitManage(DeribitManageType):
         :param max_concurrent: int.  This is our calculater/limiter for the one user's requests to the Stripe server. \
             Rate/ limitation quantities of requests per 1 second from one user (it is request to the Stripe server) .
             Default value is number from  the variable of 'setting.STRIPE_MAX_CONCURRENT'.
+        :param 'sse_manager' THis is manager of queue
 
         """
         super().__init__()
 
         self.queue = asyncio.Queue(maxsize=setting.DERIBIT_QUEUE_SIZE)
         self.rate_limit: DeribitLimited | None = DeribitLimited()
-        self.client_pool: DeribitWebsocketPoolType = DeribitWebsocketPool(
-            (lambda: "%s" % DERIBIT_CLIENT_ID)(),
-            (lambda: "%s" % DERIBIT_SECRET_KEY)(),
+        self.client_pool: DeribitWebsocketPoolType | None = DeribitWebsocketPool(
             _heartbeat=30,
             _timeout=10,
         )
@@ -392,7 +412,7 @@ class DeribitManage(DeribitManageType):
             self.rate_limit = DeribitLimited(max_concurrent)
         self.stripe_response_var = ContextVar("deribit_response", default=None)
         self.stripe_response_var_token = None
-        args = ["btc_usd", "eth_usd", "connection"]
+        args = ("btc_usd", "eth_usd", "connection")
         self.sse_manager = SSEManager(*args)
         self.person_manager = PersonManager()
 
@@ -429,8 +449,13 @@ class DeribitManage(DeribitManageType):
 
         except ValueError as err:
             raise err.args[0] if err.args else str(err)
-
+        # (lambda: "%s" % kwargs["client_id"])(),
+        # (lambda: "%s" % kwargs["deribit_secret_encrypt"])(),
         try:
+            self.client_pool = DeribitWebsocketPool(
+                _heartbeat=30,
+                _timeout=10,
+            )
             if len(self._deque_postman) > 0:
                 # ===============================
                 # ---- CACHE RAQUEST's BODY DATA
@@ -445,8 +470,8 @@ class DeribitManage(DeribitManageType):
                     # v - the cache data
                     # tasks_collections - gather results after cache on the server.
                     tasks_collections = deque(maxlen=setting.DERIBIT_QUEUE_SIZE)
-                    result = [
-                        await redis_setex(
+                    result_list = [
+                        redis_setex(
                             k,
                             cache_live,
                             json.dumps(v),
@@ -454,6 +479,7 @@ class DeribitManage(DeribitManageType):
                         for view in list(self._deque_postman)
                         for k, v in view.items()
                     ]
+                    result = await asyncio.gather(*result_list)
                     tasks_collections.append(result)
 
                     # Checking the 'tasks_collections' after caching.
@@ -473,6 +499,7 @@ class DeribitManage(DeribitManageType):
                     # ===============================
                     for view in list(keys_in_leave_queue):
                         await self.queue.put(view)
+                    self._deque_postman.clear()
                     tasks_collections.clear()
                     # ===============================
                     # ---- RAN SIGNAL
@@ -508,7 +535,7 @@ class DeribitManage(DeribitManageType):
     ) -> DeribitClientType | None:
         """
         TODO: Протестировать!!
-        Only for keys with names 'wss:...' & 'http:...'
+        Only Requests for keys with names 'wss:...' & 'http:...'
         :param work_id:
         :return:
         """

@@ -82,7 +82,7 @@ class Settings(SettingsProps):
     # ---------------------------------------
     APP_HOST: str = APP_HOST_
     APP_PORT: str = APP_PORT_
-    APP_SECRET_KEY: str = os.getenv("APP_SECRET_KEY", "")
+
     # ---------------------------------------
     #  POSTGRES
     # ---------------------------------------

@@ -21,15 +21,9 @@ class SSEManager:
     _connections: dict[str, Set[asyncio.Queue]] = {}
     lock: asyncio.Lock = asyncio.Lock()
 
-    def __init__(self):
+    def __init__(self, *args):
         self.log_t = f"[{self.__class__.__name__}.%s]:"
-
-    def __new__(
-        cls,
-        *args: list[str],
-    ):
-        cls._connections.update({title: set() for title in args if args is not None})
-        return super().__new__(cls)
+        self._connections.update({title: set() for title in args if args is not None})
 
     async def subscribe(self, ticker: str):
         """Here we create a new queue for subscribe"""
@@ -40,7 +34,7 @@ class SSEManager:
             self._connections[ticker].add(queue)
         log.info(
             "%s The new subscribe was created successfully!",
-            (self.log_t, self.subscribe.__name__),
+            (self.log_t % self.subscribe.__name__),
         )
         return queue
 
@@ -52,27 +46,32 @@ class SSEManager:
                     del self._connections[ticker]
             log.info(
                 "%s The subscribe was removed successfully!",
-                (self.log_t, self.unsubscribe.__name__),
+                (self.log_t % self.unsubscribe.__name__),
             )
 
-    async def broadcast(self, ticker: str, data: dict):
-        """Here we broadcast a message to all subscribers by ticker"""
+    async def broadcast(self, client_id: str, ticker: str, data: dict):
+        """
+        Here we broadcast a message to all subscribers by ticker. Template: 'queue.put(json.dumps({client_id: data}))'
+        :param client_id: (str) Client ID This is the index of the deribit's account/client
+        :param ticker: (str) The attribute that the user subscribed to and the response will be sent by SSE.
+        """
         async with self.lock:
             if ticker not in self._connections:
                 log.warning(
                     "%s The ticker: '%s' not defined!",
-                    (self.log_t, self.broadcast, ticker),
+                    (self.log_t % self.broadcast, ticker),
                 )
                 return
 
-            message_data = json.dumps({"detail": data})
+            message_data = json.dumps({client_id: data})
             dead_queues = []
 
             for queue in self._connections[ticker]:
                 try:
                     queue.put_nowait(message_data)
                 except asyncio.QueueFull:
-                    queue.put(message_data)
+                    await queue.put(message_data)
+
                 except Exception as e:
                     log.error(
                         "%s ERROR on the sending in the queue: %s  => %s. The data: %s not to be added!",
@@ -90,13 +89,11 @@ class SSEManager:
                 self._connections[ticker].remove(queue)
                 log.warning(
                     "%s The bad queue: %s was removed successfully!",
-                    (self.log_t, self.broadcast, queue),
+                    (self.log_t % self.broadcast, queue),
                 )
 
     @contextmanager
-    def _extract_ticker_from_message(
-        self, data: dict, *args: list[str], **kwargs: dict
-    ):
+    def _extract_ticker_from_message(self, *args: list[str], **kwargs: dict):
         """
         :param data: (dict)
         :param args: (list[str]) Example "['connection', ]"
@@ -106,15 +103,24 @@ class SSEManager:
         if args is None and kwargs is None:
             raise ValueError(
                 "%s The parameter 'args' or 'kwargs' is required!",
-                (self.log_t, self._extract_ticker_from_message),
+                (self.log_t % self._extract_ticker_from_message),
             )
 
         data_keys: list = []
         if kwargs is not None:
-            keys_total = list(kwargs.values())
-            data_keys = [key for key in keys_total if key in json.dumps(data).lower()]
+            # keys_total = list(kwargs.values())
+            data_keys.extend([key for key in args if key in json.dumps(kwargs).lower()])
         else:
             data_keys = [*args]
 
-        for key in data_keys:
-            yield key
+        try:
+            for key in data_keys:
+                yield key
+        except Exception as e:
+            raise ValueError(
+                "%s ERROR => %s",
+                (
+                    self.log_t % self._extract_ticker_from_message,
+                    e.args[0] if e.args else str(e),
+                ),
+            )

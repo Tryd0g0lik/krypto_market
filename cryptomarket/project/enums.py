@@ -14,3 +14,7 @@ class RadisKeysEnum(Enum):
     DERBIT_STRIPE_RATELIMIT_TASK = (
         "deribit:ratelimit:%s:%s"  # stripe:ratelimit:<USER_ID>:<TASK_ID>>
     )
+    AES_REDIS_KEY = (
+        "aserediskey:%s"  # This key a dictionary type value to the cache server.
+    )
+    # The '%s' is 'client_id', it's the deribit account index
