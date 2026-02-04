@@ -158,7 +158,8 @@ class Signal:
         TODO: 1. Получаем ошибку когда пользователь открывает две вкладки/устройства.
             Как вариант, причина ошибки это два разных loop в одной очерели!!
             2. В строке " del self._tasks[user_id]" возможно можем потерять данные в случае не стандартном развитии.
-            ---
+            >>ERROR - cryptomarket.project.signals:180 - Signal User ID: 224e84ed-65f6-42ca-9f2a-c477d2a40ad7 Error
+                => 224e84ed-65f6-42ca-9f2a-c477d2a40ad7
             Ошибку (в логах) видно после получения данных пользователя об успешной авторизации.
         here the all list 'self.__tasks' of tasks is separated by patch.
         :param batch_size:  COmmom list we separate on a batch. Everything batch could be contain per 'batch_size' tasks.

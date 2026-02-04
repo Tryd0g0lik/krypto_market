@@ -20,6 +20,9 @@ class RadisKeysEnum(Enum):
         After we delete the used key. We don't saving the old keys.
         Every user have own unique key for the single request.
         Example; "{\"client_id\": \"_XcQ7xuV\", \"encrypt_key\": \"0YNfS0SSYWwCRTNrWxfioH3dkhP0YaCxrNqwpOA1HLI=\"}"
+    :param 'DERIBIT_USER_AUTHENTICATED' - The deribit data (it about a successful authentication)\
+           we send to the cache server/. This parameter is a key of cache/
+           Template "deribit:authenticated:< client_id >"
     """
 
     DERIBIT_STRIPE_RATELIMIT_TASK = "deribit:ratelimit:%s:%s"
