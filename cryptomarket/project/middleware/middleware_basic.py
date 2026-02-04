@@ -5,20 +5,14 @@ This the middleware mock is model of start for work by DERIBIT API.
 
 import asyncio
 import logging
-from contextvars import ContextVar
-from typing import Any
 from uuid import uuid4
 
-from fastapi import Request, Response, status
+from fastapi import Request
 from fastapi.responses import StreamingResponse
 
 #
 from cryptomarket.project.encrypt_manager import EncryptManager
-from cryptomarket.project.enums import ExternalAPIEnum, RadisKeysEnum
-from cryptomarket.project.settings.settings_env import (
-    DERIBIT_CLIENT_ID,
-    DERIBIT_SECRET_KEY,
-)
+from cryptomarket.project.enums import RadisKeysEnum
 from cryptomarket.project.signals import signal
 from cryptomarket.tasks.queues.task_user_data_to_cache import task_caching_user_data
 from cryptomarket.type import DeribitManageType
@@ -47,6 +41,9 @@ class DeribitMiddleware(DeribitMiddlewareType):
                     await self._process_encryption(
                         user_id, client_id, client_secret_key
                     )
+                    del user_id
+                    del client_id
+                    del client_secret_key
                     request.headers.__setattr__("X-Secret-key", "Null")
                     request.state.encrypt_done = True
         del request_Id
@@ -72,7 +69,7 @@ class DeribitMiddleware(DeribitMiddlewareType):
         args = [
             RadisKeysEnum.AES_REDIS_KEY.value % client_id,
         ]
-        # del result
+        del result
         # ===============================
         # ---- RAN SIGNAL The encrypt key we savinf
         # ===============================

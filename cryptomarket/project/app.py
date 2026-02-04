@@ -16,8 +16,6 @@ from cryptomarket.deribit_client import DeribitManage
 from cryptomarket.project.middleware.middleware_basic import DeribitMiddleware
 from cryptomarket.project.settings.core import DEBUG, settings
 
-# from cryptomarket.type import DeribitManageType
-
 manager = DeribitManage()
 
 log = logging.getLogger(__name__)

@@ -22,17 +22,9 @@ def run_async_worker(callback_, *args, **kwargs):
     """
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    # args = False if len(args) > 0 else args
-    # kwargs = False if len(kwargs) > 0 else kwargs
     try:
         # if args and kwargs:
         return loop.run_until_complete(callback_(*args, **kwargs))
-        # elif kwargs:
-        #     return loop.run_until_complete(callback_(**kwargs))
-        # elif args:
-        #     return loop.run_until_complete(callback_(*args))
-        # else:
-        #     return loop.run_until_complete(callback_())
     except Exception as e:
         log.error(e.args[0] if e.args else str(e))
     finally:
@@ -51,12 +43,6 @@ def run_sync_worker(callback_, *args, **kwargs):
     try:
         # if args and kwargs:
         return loop.run_in_executor(None, lambda: callback_(*args, **kwargs))
-        # elif kwargs:
-        #     return loop.run_in_executor(None, lambda: callback_(**kwargs))
-        # elif args:
-        #     return loop.run_in_executor(None, lambda: callback_(*args))
-        # else:
-        #     return loop.run_in_executor(None, lambda: callback_())
 
     except Exception as e:
         log.error(e.args[0] if e.args else str(e))
@@ -162,10 +148,6 @@ def connection_database():
 def obj_to_byte(odj) -> bytes:
 
     return pickle.dumps(odj)
-
-
-# def byte_to_obj(byte_odj):
-#     return pickle.loads(byte_odj)
 
 
 # ===============================

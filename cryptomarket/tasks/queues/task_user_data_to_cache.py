@@ -3,17 +3,10 @@ cryptomarket/tasks/queues/task_user_data_to_cache.py:1
 """
 
 import asyncio
-import base64
 import json
 import logging
 
-# from cryptomarket.project.enums import RadisKeysEnum
 from cryptomarket.project.sse_manager import setting
-
-#
-# import backoff
-# from celery.bin.result import result
-
 
 log = logging.getLogger(__name__)
 

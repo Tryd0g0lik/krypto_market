@@ -11,7 +11,7 @@ from aiohttp import WSMsgType
 
 from cryptomarket.project.encrypt_manager import EncryptManager
 from cryptomarket.project.enums import RadisKeysEnum
-from cryptomarket.project.functions import connection_database, str_to_json
+from cryptomarket.project.functions import str_to_json
 from cryptomarket.project.signals import signal
 from cryptomarket.type import DeribitClientType
 
