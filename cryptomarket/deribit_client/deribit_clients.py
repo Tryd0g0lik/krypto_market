@@ -24,7 +24,7 @@ from cryptomarket.project.settings.settings_env import (
     REDIS_PORT,
 )
 from cryptomarket.project.signals import signal
-from cryptomarket.project.sse_manager import SSEManager
+from cryptomarket.project.sse_manager import ServerSSEManager
 from cryptomarket.tasks.queues.task_account_user import task_account
 from cryptomarket.type import (
     DeribitClientType,
@@ -433,7 +433,7 @@ class DeribitManage(DeribitManageType):
         self.stripe_response_var = ContextVar("deribit_response", default=None)
         self.stripe_response_var_token = None
         args = ("btc_usd", "eth_usd", "connection")
-        self.sse_manager = SSEManager(*args)
+        self.sse_manager = ServerSSEManager(*args)
         self.person_manager = PersonManager()
 
     async def enqueue(self, cache_live: int, **kwargs) -> None:

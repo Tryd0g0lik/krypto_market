@@ -7,7 +7,8 @@ import base64
 import json
 import logging
 
-from cryptomarket.project.enums import RadisKeysEnum
+# from cryptomarket.project.enums import RadisKeysEnum
+from cryptomarket.project.sse_manager import setting
 
 #
 # import backoff
@@ -27,9 +28,13 @@ async def task_caching_user_data(
     :param kwargs[client_id]: (str) The client id of the user. This client index from the deribit account.
         That is the required variable!
     """
+    log.info(
+        "TEST DEBUG The type 'args': %s & 'args': %s and type 'kwargs': %s & 'kwargs': %s ",
+        (type(args), args, type(kwargs), kwargs),
+    )
     if (
         args is None
-        or not isinstance(args, list)
+        or not isinstance(args, list | tuple)
         or kwargs is None
         or not isinstance(kwargs, dict)
     ):
@@ -75,7 +80,12 @@ async def get_record(
 
         async with context_redis_connection() as redis_client:
             result_ = await asyncio.wait_for(
-                redis_client.setex(args[0], 97200, json.dumps(kwargs)), 10
+                redis_client.setex(
+                    args[0],
+                    setting.CACHE_AUTHENTICATION_DATA_LIVE,
+                    json.dumps(kwargs),
+                ),
+                10,
             )
             return result_
     except Exception as e:

@@ -3,13 +3,16 @@ cryptomarket/project/middleware/middleware_basic.py
 This the middleware mock is model of start for work by DERIBIT API.
 """
 
+import asyncio
 import logging
 from contextvars import ContextVar
 from typing import Any
 from uuid import uuid4
 
-from fastapi import Request, status
+from fastapi import Request, Response, status
+from fastapi.responses import StreamingResponse
 
+#
 from cryptomarket.project.encrypt_manager import EncryptManager
 from cryptomarket.project.enums import ExternalAPIEnum, RadisKeysEnum
 from cryptomarket.project.settings.settings_env import (
@@ -28,95 +31,56 @@ class DeribitMiddleware(DeribitMiddlewareType):
     def __init__(self, manager: DeribitManageType):
         super().__init__()
         self.manager: DeribitManageType = manager
+        self.encrypt_manager = EncryptManager()
 
     async def __call__(self, request: Request, call_next):
-        """
+        request.state.request_id = str(uuid4())
 
-        TODO:  Here add additional user identification.
-        """
+        request_Id = str(request.state.request_id)
+        user_id = (request_Id.split("-"))[0]
+        client_id = str(request.headers.get("X-Client-Id"))
+        client_secret_key = str(request.headers.get("X-Secret-key"))
+        is_sse_request = request.url.path.endswith("sse/auth-stream/")
+        if is_sse_request:
+            async with asyncio.Lock():
+                if not hasattr(request.state, "encrypt_done"):
+                    await self._process_encryption(
+                        user_id, client_id, client_secret_key
+                    )
+                    request.headers.__setattr__("X-Secret-key", "Null")
+                    request.state.encrypt_done = True
+        del request_Id
+        response = await call_next(request)
+        if not isinstance(response, StreamingResponse):
+            response.headers.__setitem__("X-Request-Id", request.state.request_id)
 
-        # ===============================
-        # CREATE REQUEST ID
-        # Get a request index and token for ContexVar
-        # This request id will be with us until user gets response.
-        # ===============================
-        request_id_var = ContextVar("request_id", default="")
-        request_id_var_token = request_id_var.set(str(uuid4()))
-        log.info("Start request id: %s", request_id_var.get())
-        # ===============================
-        # START THE DERIBIT MANAGE
-        # ===============================
-        encrypt_manager = EncryptManager()
-        # Note!! Now the "deribit_secret_encrypt" will get a dictionary type value.
-        #
-        kwargs = {
-            "index": request_id_var.get(),
-            "request_id": request_id_var.get(),
-            "api_key": ExternalAPIEnum.WS_COMMON_URL.value,
-            "client_id": (lambda: DERIBIT_CLIENT_ID)(),
-        }
+        return response
+
+    async def _process_encryption(
+        self, user_id: str, client_id: str, client_secret_key
+    ):
+        # # ===============================
+        # # START THE DERIBIT MANAGE
+        # # ===============================
+
         kwargs_new = {}
-        kwargs_new["client_id"] = kwargs.get("client_id")
-        result: dict = await encrypt_manager.str_to_encrypt(DERIBIT_SECRET_KEY)
-        # Get the encrypt key
-        kwargs_new["encrypt_key"] = list(result.keys()).pop()
-        kwargs["deribit_secret_encrypt"] = list(result.values()).pop()
-        args = [RadisKeysEnum.AES_REDIS_KEY.value % kwargs["client_id"]]
-        del result
+        kwargs_new.__setitem__("client_id", client_id)
+        result: dict = await self.encrypt_manager.str_to_encrypt(client_secret_key)
+
+        kwargs_new.__setitem__("encrypt_key", list(result.keys()).pop())
+        kwargs_new.__setitem__("deribit_secret_encrypt", list(result.values()).pop())
+        args = [
+            RadisKeysEnum.AES_REDIS_KEY.value % client_id,
+        ]
+        # del result
         # ===============================
         # ---- RAN SIGNAL The encrypt key we savinf
         # ===============================
         await signal.schedule_with_delay(
-            user_id=kwargs.get("client_id"),
-            callback_=None,
-            asynccallback_=task_caching_user_data,
+            user_id,
+            None,
+            task_caching_user_data,
+            0.2,
             *args,
-            **kwargs_new
+            **kwargs_new,
         )
-        del kwargs_new
-        del args
-
-        await self.manager.enqueue(43200, **kwargs)
-        del kwargs
-        # ===============================
-        # GET RESPONSE DATA
-        # ===============================
-        captured_data: dict[str, Any] = {
-            "headers": {},
-            "query_params": {},
-            "cookies": {},
-            "body": None,
-            "form_data": {},
-            "files": {},
-            "client": {},
-            "method": "",
-            "url": {},
-        }
-
-        captured_data["headers"] = dict(request.headers)
-        captured_data["cookies"] = request.cookies
-        captured_data["query_params"] = dict(request.query_params)
-        captured_data["client"] = {
-            "host": request.client.host if request.client else None,
-            "port": request.client.port if request.client else None,
-        }
-        body_data = await self._capture_body_and_form(request)
-        captured_data.update(body_data)
-
-        # Store in request state for use in endpoints
-        request.state.captured_data = captured_data
-
-        # Continue with the request
-        response = await call_next(request)
-
-        # Add captured data to response headers
-        response.headers["X-Request-Captured"] = "true"
-        response.status_code = status.HTTP_201_CREATED
-        request_id_var.reset(request_id_var_token)
-        return response
-
-    async def _capture_body_and_form(self, request: Request):
-        """
-        TODO: Here add additional logic by getting the request context data
-        """
-        return {"detail": "All successfully!"}

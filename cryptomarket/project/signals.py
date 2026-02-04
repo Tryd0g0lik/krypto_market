@@ -93,10 +93,12 @@ class Signal:
         :param kwargs:
         :return:
         """
+
         # ===============================
         # ---- CREATE THE ONE/TEMPLATE TASK
         # ===============================
         delayed_task = wrapper_delayed_task(callback_, asynccallback_, delay_seconds)
+
         try:
             # ===============================
             # ---- CLONE MORE OF TASK

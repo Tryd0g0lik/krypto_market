@@ -22,11 +22,17 @@ def run_async_worker(callback_, *args, **kwargs):
     """
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
+    # args = False if len(args) > 0 else args
+    # kwargs = False if len(kwargs) > 0 else kwargs
     try:
-        if kwargs:
-            return loop.run_until_complete(callback_(**kwargs))
-        else:
-            return loop.run_until_complete(callback_(*args))
+        # if args and kwargs:
+        return loop.run_until_complete(callback_(*args, **kwargs))
+        # elif kwargs:
+        #     return loop.run_until_complete(callback_(**kwargs))
+        # elif args:
+        #     return loop.run_until_complete(callback_(*args))
+        # else:
+        #     return loop.run_until_complete(callback_())
     except Exception as e:
         log.error(e.args[0] if e.args else str(e))
     finally:
@@ -43,10 +49,14 @@ def run_sync_worker(callback_, *args, **kwargs):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        if kwargs:
-            return loop.run_in_executor(None, lambda: callback_(**kwargs))
-        else:
-            return loop.run_in_executor(None, lambda: callback_(*args))
+        # if args and kwargs:
+        return loop.run_in_executor(None, lambda: callback_(*args, **kwargs))
+        # elif kwargs:
+        #     return loop.run_in_executor(None, lambda: callback_(**kwargs))
+        # elif args:
+        #     return loop.run_in_executor(None, lambda: callback_(*args))
+        # else:
+        #     return loop.run_in_executor(None, lambda: callback_())
 
     except Exception as e:
         log.error(e.args[0] if e.args else str(e))
@@ -76,54 +86,41 @@ def wrapper_delayed_task(
              the async ( or the sync) function on the entry-point and '**kwargs'.
             """
             if asynccallback_ is not None:
-
-                threading_result = threading.Thread(
-                    target=lambda: (
-                        run_async_worker(asynccallback_, *args, **kwargs)
-                        if args and kwargs
-                        else (
-                            run_async_worker(asynccallback_, *args)
-                            if args
-                            else run_async_worker(asynccallback_, **kwargs)
-                        )
-                    ),
-                    daemon=True,
-                )
-                threading_result.start()
-                threading_result.join(timeout=livetime_)
-
-                if not threading_result.daemon:
-                    log.error(
-                        """[%s]: Signal ThreadError => %s deos not found! """
-                        % (
-                            delayed_task.__name__,
-                            threading_result.name,
-                        )
+                async with asyncio.Lock():
+                    threading_result = threading.Thread(
+                        target=lambda: run_async_worker(
+                            asynccallback_, *args, **kwargs
+                        ),
+                        daemon=True,
                     )
-                pass
+                    threading_result.start()
+                    threading_result.join(timeout=livetime_)
+
+                    if not threading_result.daemon:
+                        log.error(
+                            """[%s]: Signal ThreadError => %s deos not found! """
+                            % (
+                                delayed_task.__name__,
+                                threading_result.name,
+                            )
+                        )
+                    pass
             elif callback_ is not None:
-                threading_result = threading.Thread(
-                    target=lambda: (
-                        run_sync_worker(callback_, *args, **kwargs)
-                        if args and kwargs
-                        else (
-                            run_sync_worker(callback_, *args)
-                            if args
-                            else run_sync_worker(callback_, **kwargs)
-                        )
-                    ),
-                    daemon=True,
-                )
-                threading_result.start()
-                threading_result.join(timeout=7)
-                if not threading_result.daemon:
-                    log.error(
-                        """[%s]: Signal ThreadError => %s deos not found! """
-                        % (
-                            delayed_task.__name__,
-                            threading_result.name,
-                        )
+                async with asyncio.Lock():
+                    threading_result = threading.Thread(
+                        target=lambda: run_sync_worker(callback_, *args, **kwargs),
+                        daemon=True,
                     )
+                    threading_result.start()
+                    threading_result.join(timeout=7)
+                    if not threading_result.daemon:
+                        log.error(
+                            """[%s]: Signal ThreadError => %s deos not found! """
+                            % (
+                                delayed_task.__name__,
+                                threading_result.name,
+                            )
+                        )
             else:
                 log_t = (
                     """[%s]: Signal ValueError => Callback deos not found! """

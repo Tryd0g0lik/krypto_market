@@ -95,6 +95,11 @@ class Settings(SettingsProps):
     POSTGRES_PASSWORD: str = POSTGRES_PASSWORD_
     POSTGRES_USER: str = POSTGRES_USER_
     POSTGRES_HOST: str = POSTGRES_HOST_
+    # ---------------------------------------
+    #  SSE
+    # ---------------------------------------
+    SSE_MAX_CONNECTION: int = 5000
+    SSE_MAX_PER_IP: int = 50
 
     __SQLITE_DB_PATH: str = (
         f"sqlite+aiosqlite:///{os.path.join(BASE_DIR, "%s.sqlit3" % POSTGRES_DB)}".replace(

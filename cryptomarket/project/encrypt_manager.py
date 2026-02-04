@@ -41,8 +41,8 @@ class EncryptManager:
 
         secret_text = plaintext.encode() if isinstance(plaintext, str) else plaintext
         encrypted_b = cipher.encrypt(secret_text)
-        encrypted = encrypted_b.decode()
-        encrypt_key = encrypt_key_b.decode()
+        encrypted = encrypted_b.decode("utf-8")
+        encrypt_key = encrypt_key_b.decode("utf-8")
         return {encrypt_key: encrypted}
 
     def descrypt_to_str(self, encrypted_dict: dict[bytes, bytes]) -> str:

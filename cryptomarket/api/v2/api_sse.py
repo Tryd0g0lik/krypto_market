@@ -99,47 +99,46 @@ async def sse_auth_endpoint(
     Returns:
         StreamingResponse: SSE поток с событиями аутентификации
     """
-    request_id = request.state.request_id
-    client_id = None
+    request_id = str(request.state.request_id)
+    client_id = request.headers.get("X-Client-Id")
+    # user_id = (request_id.split("-"))[0]
     from cryptomarket.project.app import manager
 
-    if client_id is None or not client_id:
-        # raise HTTPException(status_code=400, detail="client_id parameter is required")
-        request_id = request_id[:]
     # ===============================
     # START THE DERIBIT MANAGE
     # ===============================
-    encrypt_manager = EncryptManager()
+    # encrypt_manager = EncryptManager()
     # Note!! Now the "deribit_secret_encrypt" will get a dictionary type value.
     #
     kwargs = {
         "index": request_id[:],
         "request_id": request_id[:],
         "api_key": ExternalAPIEnum.WS_COMMON_URL.value,
-        "client_id": (lambda: client_id)(),
+        "client_id": client_id,
     }
     del request_id
-
-    kwargs_new = {}
-    kwargs_new.__setitem__("client_id", "client_id")
-    result: dict = await encrypt_manager.str_to_encrypt(DERIBIT_SECRET_KEY)
+    # kwargs_new = {}
+    # kwargs_new.__setitem__("client_id", client_id)
+    # result: dict = await encrypt_manager.str_to_encrypt(DERIBIT_SECRET_KEY)
     # Get the encrypt key
-    kwargs_new.__setitem__("encrypt_key", list(result.keys()).pop())
-    kwargs.__setitem__("deribit_secret_encrypt", list(result.values()).pop())
-    args = [RadisKeysEnum.AES_REDIS_KEY.value % kwargs.get("client_id")]
-    del result
+    # kwargs_new.__setitem__("encrypt_key", list(result.keys()).pop())
+    # kwargs.__setitem__("deribit_secret_encrypt", list(result.values()).pop())
+    # args = [RadisKeysEnum.AES_REDIS_KEY.value % kwargs.get("client_id")]
+    # del result
     # ===============================
     # ---- RAN SIGNAL The encrypt key we savinf
     # ===============================
-    await signal.schedule_with_delay(
-        user_id=kwargs.get("client_id"),
-        callback_=None,
-        asynccallback_=task_caching_user_data,
-        *args,
-        **kwargs_new,
-    )
-    del kwargs_new
-    del args
+
+    # await signal.schedule_with_delay(
+    #     user_id,
+    #     None,
+    #     task_caching_user_data,
+    #     0.2,
+    #     *args,
+    #     **kwargs_new,
+    # )
+    # del kwargs_new
+    # del args
 
     await manager.enqueue(43200, **kwargs)
     del kwargs
@@ -152,7 +151,7 @@ async def sse_auth_endpoint(
         # ===============================
         # ---- SUBSCRIBE
         # ===============================
-        queue = await sse_manager.subscribe("connection")
+        queue = await sse_manager.subscribe(client_id, "connection")
 
         try:
             # ===============================

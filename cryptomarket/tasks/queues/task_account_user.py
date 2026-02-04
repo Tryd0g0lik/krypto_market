@@ -18,7 +18,7 @@ from cryptomarket.type import DeribitClientType
 log = logging.getLogger(__name__)
 
 
-async def task_account() -> bool:
+async def task_account(*args, **kwargs) -> bool:
     """
     TODO Пользователь получает токены . Внести данные в базу данных в момент удачного соединения.
     Check cache on the cache server and record data in connection_database
@@ -33,8 +33,6 @@ async def task_account() -> bool:
         __name__.split(".")[-1],
         task_account.__name__,
     )
-
-    connection_db = connection_database()
     dataVar = ContextVar("data_srt", default="")
     dataVar_token = None
     _deque_coroutines = manager._deque_coroutines
@@ -46,7 +44,7 @@ async def task_account() -> bool:
     context_redis_connection = (
         manager.rate_limit.context_redis_connection
     )  # coroutine of the redis asynccontextmanager
-    # ============= 1 ==================
+    # ============= 1/2 ==================
     # ---- CACHE - RECEIVE THE USER DATA (classic a user data)
     # ===============================
 
@@ -70,7 +68,7 @@ async def task_account() -> bool:
     api_key = user_meta_json.get("api_key")
     index = user_meta_json.get("index")
 
-    # ============ 2 ===================
+    # ============ 2/2 ===================
     # ---- CACHE - RECEIVE THE USER DATA (user key of cipher)
     #  "{ 'client_id': < deribit_account_index >, 'encrypt_key': < key_cipher > }"
     #  Get keys: 'client_id' & 'encrypt_key' and delete the old data cache.
@@ -99,9 +97,7 @@ async def task_account() -> bool:
     # DECRYPT MANAGER 'EncryptManager'
     # ===============================
     key_cipher_b = (data_json.get("encrypt_key")).encode()  # Key/cipher
-    deribit_user_secret_encrypt_b = (
-        user_meta_json.get("deribit_secret_encrypt")
-    ).encode()
+    deribit_user_secret_encrypt_b = (data_json.get("deribit_secret_encrypt")).encode()
 
     # ===============================
     # ---- DECRYPTION TO STR
@@ -113,138 +109,147 @@ async def task_account() -> bool:
     client_id = data_json.get("client_id")
     del data_json
     try:
-        connection_db.init_engine()  # Connection to the database
-        async with connection_db.asyncsession_scope() as session:
-            # ===============================
-            # ---- USER CONNECTION WITH THE DERIBIT SERVER
-            # ===============================
-            with client.initialize(_url=api_key) as session:
+        # ===============================
+        # ---- USER CONNECTION WITH THE DERIBIT SERVER
+        # ===============================
+        with client.initialize(_url=api_key) as session:
 
-                try:
+            try:
 
-                    async with semaphore:
-                        async with client.ws_send(session) as ws:
-                            user_meta_json = client._get_autantication_data(
-                                index, client_id, deribit_user_secret_encrypt
-                            )
-                            from cryptomarket.tasks.queues.task_user_data_to_cache import (
-                                task_caching_user_data,
-                            )
+                async with semaphore:
+                    async with client.ws_send(session) as ws:
+                        user_meta_json = client._get_autantication_data(
+                            index, client_id, deribit_user_secret_encrypt
+                        )
+                        from cryptomarket.tasks.queues.task_user_data_to_cache import (
+                            task_caching_user_data,
+                        )
 
-                            try:
-                                # WSS REQUEST
-                                await asyncio.wait_for(ws.send_json(user_meta_json), 10)
-                                async for msg in ws:
-                                    # WSS RESPONSE
-                                    if msg.type == WSMsgType.TEXT:
-                                        # ============ 3 ===================
-                                        # ---- CACHE - THE USER DATA (user data after authenticate)
-                                        # ===============================
+                        try:
+                            # WSS REQUEST
+                            await asyncio.wait_for(ws.send_json(user_meta_json), 10)
+                            async for msg in ws:
+                                # WSS RESPONSE
+                                if msg.type == WSMsgType.TEXT:
+                                    # ===============================
+                                    # ---- RAN SIGNAL - THE USER DATA (
+                                    # user data (after authenticate) send to the cache server)
+                                    # ===============================
+                                    data_json = json.loads(msg.data)
+                                    client_id = user_meta_json.get("client_id")
+                                    args = [
+                                        RadisKeysEnum.DERIBIT_USER_AUTHENTICATED.value
+                                        % client_id
+                                    ]
+
+                                    if "error" not in data_json:
+                                        kwargs_new: dict = {
+                                            "client_id": client_id,
+                                            "access_token": data_json.get("result").get(
+                                                "access_token"
+                                            ),
+                                            "expires_in": data_json.get("result").get(
+                                                "expires_in"
+                                            ),
+                                            "refresh_token": data_json.get(
+                                                "result"
+                                            ).get("refresh_token"),
+                                            "scope": data_json.get("result").get(
+                                                "scope"
+                                            ),
+                                            "token_type": data_json.get("result").get(
+                                                "token_type"
+                                            ),
+                                        }
                                         try:
-                                            data_json = json.loads(msg.data)
-                                            client_id = user_meta_json.get("client_id")
-                                            args = [
-                                                RadisKeysEnum.DERIBIT_USER_AUTHENTICATED.value
-                                                % client_id
-                                            ]
-                                            kwargs_new = {
-                                                "client_id": client_id,
-                                                "access_token": data_json[
-                                                    "access_token"
-                                                ],
-                                                "expires_in": data_json["expires_in"],
-                                                "refresh_token": data_json[
-                                                    "refresh_token"
-                                                ],
-                                                "scope": data_json["scope"],
-                                                "token_type": data_json["token_type"],
-                                            }
-                                            # ===============================
-                                            # ---- RAN SIGNAL The user authenticate datas sent to cache on the
-                                            # ===============================
                                             await signal.schedule_with_delay(
-                                                user_id=client_id[:],
-                                                callback_=None,
-                                                asynccallback_=task_caching_user_data,
+                                                client_id[:],
+                                                None,
+                                                task_caching_user_data,
+                                                0.2,
                                                 *args,
                                                 **kwargs_new
                                             )
-                                            del client_id
-                                            dataVar_token = dataVar.set(data_str)
-
                                         except Exception as e:
                                             log.error(
-                                                "%s RedisError => %s"
-                                                % (
-                                                    log_t,
-                                                    e.args[0] if e.args else str(e),
-                                                )
+                                                "[task_account]: 'signal' ERROR => %s"
+                                                % e.args[0]
+                                                if e.args
+                                                else str(e)
                                             )
 
-                                        kwargs = json.loads(msg.data)
-                                        _extract_ticker_from_message = (
-                                            sse_manager._extract_ticker_from_message
+                                    # ===============================
+                                    # ---- RUN THE SSE
+                                    # ===============================
+                                    kwargs = json.loads(msg.data)
+                                    _extract_ticker_from_message = (
+                                        sse_manager._extract_ticker_from_message
+                                    )
+                                    args = ["connection"]
+
+                                    with _extract_ticker_from_message(
+                                        *args, **kwargs
+                                    ) as ticker:
+                                        kwargs_new.__setitem__("state" "auth_result")
+                                        sse_manager.broadcast(
+                                            client_id, ticker, kwargs_new
                                         )
-                                        args = ["connection"]
-                                        with _extract_ticker_from_message(
-                                            *args, **kwargs
-                                        ) as ticker:
-                                            sse_manager.broadcast(ticker)
-                                            """
-                                            Полбховтелю надо сообщить об удачном подключении.
-                                            Нужен ключ пользователя.
-                                            Ключ пользователя - нужен шифр.
+                                        del client_id
+                                        """
+                                        Полбховтелю надо сообщить об удачном подключении.
+                                        Нужен ключ пользователя.
+                                        Ключ пользователя - нужен шифр.
 
-                                            После создать endpoint для отправления connection.
-                                            """
-                                            """
-                                                add the new user line in db.
+                                        После создать endpoint для отправления connection.
+                                        """
+                                        """
+                                            add the new user line in db.
 
 
-                                            """
-                                    elif msg.type == WSMsgType.ERROR:
-                                        log_err = "%s ERROR connection. Code: %s" % (
-                                            log_t,
-                                            msg.value,
-                                        )
-                                        log.error(str(log_err))
-                                        pass
+                                        """
+                                elif msg.type == WSMsgType.ERROR:
+                                    log_err = "%s ERROR connection. Code: %s" % (
+                                        log_t,
+                                        msg.value,
+                                    )
+                                    log.error(str(log_err))
+                                    pass
 
-                                    elif msg.type == WSMsgType.CLOSED:
-                                        log.warning(
-                                            "%s Closing connection. Code: %s"
-                                            % (log_t, msg.data)
-                                        )
-                                        pass
+                                elif msg.type == WSMsgType.CLOSED:
+                                    log.warning(
+                                        "%s Closing connection. Code: %s"
+                                        % (log_t, msg.data)
+                                    )
+                                    pass
 
-                            except RuntimeError as e:
-                                log_err = (
-                                    "%s RuntimeError Connection is not started or closing => %s"
-                                    % (log_t, e.args[0] if e.args else str(e))
-                                )
-                                log.error(str(log_err))
-                                raise RuntimeError(str(log_err))
-                            except ValueError as e:
-                                log_err = (
-                                    "%s ValueError Data is not serializable object => %s"
-                                    % (log_t, e.args[0] if e.args else str(e))
-                                )
-                                log.error(str(log_err))
-                                raise ValueError(str(log_err))
-                            except TypeError as e:
-                                log_err = (
-                                    "%s Value returned by dumps(data) is not str => %s"
-                                    % (log_t, e.args[0] if e.args else str(e))
-                                )
-                                log.error(str(log_err))
-                                raise TypeError(str(log_err))
+                        except RuntimeError as e:
+                            log_err = (
+                                "%s RuntimeError Connection is not started or closing => %s"
+                                % (log_t, e.args[0] if e.args else str(e))
+                            )
+                            log.error(str(log_err))
+                            raise RuntimeError(str(log_err))
+                        except ValueError as e:
+                            log_err = (
+                                "%s ValueError Data is not serializable object => %s"
+                                % (log_t, e.args[0] if e.args else str(e))
+                            )
+                            log.error(str(log_err))
+                            raise ValueError(str(log_err))
+                        except TypeError as e:
+                            log_err = (
+                                "%s Value returned by dumps(data) is not str => %s"
+                                % (log_t, e.args[0] if e.args else str(e))
+                            )
+                            log.error(str(log_err))
+                            raise TypeError(str(log_err))
 
-                finally:
-                    pass
-                    # await session.close()
+            finally:
+                pass
+                # await session.close()
 
-            # if connection_db.engine is None:
-            #     connection_db.init_engine()
+                # if connection_db.engine is None:
+                #     connection_db.init_engine()
     except Exception as e:
         log.error("%s ERROR => %s" % (log_t, e.args[0] if e.args else str(e)))
         return False
