@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 class Signal:
 
-    def __init__(self, max_concurrent_batches=20, batch_size=10) -> None:
+    def __init__(self, max_concurrent_batches=1, batch_size=10) -> None:
         """
         :param max_task: int. Max quantity of tasks will run parallel.
         # :param max_patch: int. Max quantity of tasks will run parallel.
@@ -32,6 +32,7 @@ class Signal:
         self.semaphore = asyncio.Semaphore(max_concurrent_batches)
         self._batch_size = batch_size
         self.controller = False
+        self.lock = asyncio.Lock()
 
     class UserSignalHandler:
         def __init__(
@@ -154,7 +155,11 @@ class Signal:
 
     async def __schedule_at_interval(self):
         """
-        TODO:user_id переименовать в task_id
+        TODO: 1. Получаем ошибку когда пользователь открывает две вкладки/устройства.
+            Как вариант, причина ошибки это два разных loop в одной очерели!!
+            2. В строке " del self._tasks[user_id]" возможно можем потерять данные в случае не стандартном развитии.
+            ---
+            Ошибку (в логах) видно после получения данных пользователя об успешной авторизации.
         here the all list 'self.__tasks' of tasks is separated by patch.
         :param batch_size:  COmmom list we separate on a batch. Everything batch could be contain per 'batch_size' tasks.
 
@@ -168,9 +173,10 @@ class Signal:
                 continue
             try:
                 async with self._get_user_handler(user_id, user) as tasks:
-                    for task in tasks:
-                        await self.__get_one_task(task)
-                        if task.done():
+                    async with self.lock:
+                        for task in tasks:
+                            await self.__get_one_task(task)
+
                             del self._tasks[user_id]
             except Exception as e:
                 log_t = "Signal User ID: %s Error => %s" % (

@@ -122,7 +122,7 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
                         "%s ERROR => %s" % (log_t, e.args[0] if e.args else str(e))
                     )
                 finally:
-                    _client_session.close()
+
                     pass
                 # __connection = self.__client_session(_url)
                 # try:
@@ -188,7 +188,7 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
             )
             async with ws_connect as ws:
                 try:
-                    log.info("%s %s" % (log_t, "WebSocket connection is closed!"))
+                    log.info("%s %s" % (log_t, "WebSocket connection is open!"))
                     yield ws
                 except Exception as e:
                     log.error(

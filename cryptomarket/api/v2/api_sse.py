@@ -160,7 +160,9 @@ async def sse_auth_endpoint(
                     }} CH-E-CK
                     """
                     message = await asyncio.wait_for(queue.get(), timeout=30.0)
-                    yield message
+
+                    message_str = json.dumps(list(json.loads(message).values())[0])
+                    yield f'event: message: "client_id": "{client_id}", "message": {message_str}\n\n'
 
                     # Then we wait for  the moment when the need is update the access-token
                     # Don't remove connection

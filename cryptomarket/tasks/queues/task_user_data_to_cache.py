@@ -21,10 +21,7 @@ async def task_caching_user_data(
     :param kwargs[client_id]: (str) The client id of the user. This client index from the deribit account.
         That is the required variable!
     """
-    log.info(
-        "TEST DEBUG The type 'args': %s & 'args': %s and type 'kwargs': %s & 'kwargs': %s ",
-        (type(args), args, type(kwargs), kwargs),
-    )
+
     if (
         args is None
         or not isinstance(args, list | tuple)

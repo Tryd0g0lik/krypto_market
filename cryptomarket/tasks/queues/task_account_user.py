@@ -16,6 +16,7 @@ from cryptomarket.project.signals import signal
 from cryptomarket.type import DeribitClientType
 
 log = logging.getLogger(__name__)
+lock = asyncio.Lock()
 
 
 async def task_account(*args, **kwargs) -> bool:
@@ -27,6 +28,7 @@ async def task_account(*args, **kwargs) -> bool:
     :param kwargs:dictionary. Template '{"task_id": [< key >] }' The < key > this is list of keys on the cache server.
     :return:
     """
+    global client_id
     from cryptomarket.project.app import manager
 
     log_t = "[%s.%s]:" % (
@@ -106,7 +108,8 @@ async def task_account(*args, **kwargs) -> bool:
     deribit_user_secret_encrypt = decrypt_manager.descrypt_to_str(
         {key_cipher_b: deribit_user_secret_encrypt_b}
     )
-    client_id = data_json.get("client_id")
+    client_id = data_json.get("client_id")[:]
+    del user_meta_json
     del data_json
     try:
         # ===============================
@@ -136,13 +139,17 @@ async def task_account(*args, **kwargs) -> bool:
                                     # user data (after authenticate) send to the cache server)
                                     # ===============================
                                     data_json = json.loads(msg.data)
-                                    client_id = user_meta_json.get("client_id")
+                                    # client_id = user_meta_json.get("client_id")
+
                                     args = [
                                         RadisKeysEnum.DERIBIT_USER_AUTHENTICATED.value
-                                        % client_id
+                                        % str(client_id)
                                     ]
 
                                     if "error" not in data_json:
+
+                                        # async with lock:
+                                        # try:
                                         kwargs_new: dict = {
                                             "client_id": client_id,
                                             "access_token": data_json.get("result").get(
@@ -170,6 +177,7 @@ async def task_account(*args, **kwargs) -> bool:
                                                 *args,
                                                 **kwargs_new
                                             )
+
                                         except Exception as e:
                                             log.error(
                                                 "[task_account]: 'signal' ERROR => %s"
@@ -177,36 +185,39 @@ async def task_account(*args, **kwargs) -> bool:
                                                 if e.args
                                                 else str(e)
                                             )
-
-                                    # ===============================
-                                    # ---- RUN THE SSE
-                                    # ===============================
-                                    kwargs = json.loads(msg.data)
-                                    _extract_ticker_from_message = (
-                                        sse_manager._extract_ticker_from_message
-                                    )
-                                    args = ["connection"]
-
-                                    with _extract_ticker_from_message(
-                                        *args, **kwargs
-                                    ) as ticker:
-                                        kwargs_new.__setitem__("state" "auth_result")
-                                        sse_manager.broadcast(
-                                            client_id, ticker, kwargs_new
+                                            # finally:
+                                            #     pass
+                                        # ===============================
+                                        # ---- RUN THE SSE
+                                        # ===============================
+                                        # kwargs = json.loads(msg.data)
+                                        _extract_ticker_from_message = (
+                                            sse_manager._extract_ticker_from_message
                                         )
-                                        del client_id
-                                        """
-                                        Полбховтелю надо сообщить об удачном подключении.
-                                        Нужен ключ пользователя.
-                                        Ключ пользователя - нужен шифр.
+                                        args = ["connection"]
 
-                                        После создать endpoint для отправления connection.
-                                        """
-                                        """
-                                            add the new user line in db.
+                                        with _extract_ticker_from_message(
+                                            *args, **data_json
+                                        ) as ticker:
+                                            kwargs_new.__setitem__(
+                                                "state", "auth_result"
+                                            )
+                                            await sse_manager.broadcast(
+                                                client_id, ticker, kwargs_new
+                                            )
+                                            del client_id
+                                            """
+                                            Полбховтелю надо сообщить об удачном подключении.
+                                            Нужен ключ пользователя.
+                                            Ключ пользователя - нужен шифр.
+
+                                            После создать endpoint для отправления connection.
+                                            """
+                                            """
+                                                add the new user line in db.
 
 
-                                        """
+                                            """
                                 elif msg.type == WSMsgType.ERROR:
                                     log_err = "%s ERROR connection. Code: %s" % (
                                         log_t,

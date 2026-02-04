@@ -9,7 +9,6 @@ import json
 import logging
 from collections import defaultdict
 from contextlib import contextmanager
-from pyexpat.errors import messages
 from typing import Set
 
 from cryptomarket.project.settings.core import settings
@@ -55,7 +54,6 @@ class SSEConnectionLimiter:
             )
 
 
-# Продолжить написать ConnectionManager
 class ServerSSEManager:
     _connections: dict[str, Set[asyncio.Queue]] = {}
     lock: asyncio.Lock = asyncio.Lock()
