@@ -3,7 +3,9 @@ cryptomarket/project/functions.py
 """
 
 import asyncio
+import json
 import logging
+import pickle
 import threading
 
 from cryptomarket.project.settings.core import DEBUG, settings
@@ -21,10 +23,8 @@ def run_async_worker(callback_, *args, **kwargs):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        if kwargs:
-            return loop.run_until_complete(callback_(**kwargs))
-        else:
-            return loop.run_until_complete(callback_(*args))
+        # if args and kwargs:
+        return loop.run_until_complete(callback_(*args, **kwargs))
     except Exception as e:
         log.error(e.args[0] if e.args else str(e))
     finally:
@@ -41,10 +41,8 @@ def run_sync_worker(callback_, *args, **kwargs):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        if kwargs:
-            return loop.run_in_executor(None, lambda: callback_(**kwargs))
-        else:
-            return loop.run_in_executor(None, lambda: callback_(*args))
+        # if args and kwargs:
+        return loop.run_in_executor(None, lambda: callback_(*args, **kwargs))
 
     except Exception as e:
         log.error(e.args[0] if e.args else str(e))
@@ -74,54 +72,41 @@ def wrapper_delayed_task(
              the async ( or the sync) function on the entry-point and '**kwargs'.
             """
             if asynccallback_ is not None:
-
-                threading_result = threading.Thread(
-                    target=lambda: (
-                        run_async_worker(asynccallback_, *args, **kwargs)
-                        if args and kwargs
-                        else (
-                            run_async_worker(asynccallback_, *args)
-                            if args
-                            else run_async_worker(asynccallback_, **kwargs)
-                        )
-                    ),
-                    daemon=True,
-                )
-                threading_result.start()
-                threading_result.join(timeout=livetime_)
-
-                if not threading_result.daemon:
-                    log.error(
-                        """[%s]: Signal ThreadError => %s deos not found! """
-                        % (
-                            delayed_task.__name__,
-                            threading_result.name,
-                        )
+                async with asyncio.Lock():
+                    threading_result = threading.Thread(
+                        target=lambda: run_async_worker(
+                            asynccallback_, *args, **kwargs
+                        ),
+                        daemon=True,
                     )
-                pass
+                    threading_result.start()
+                    threading_result.join(timeout=livetime_)
+
+                    if not threading_result.daemon:
+                        log.error(
+                            """[%s]: Signal ThreadError => %s deos not found! """
+                            % (
+                                delayed_task.__name__,
+                                threading_result.name,
+                            )
+                        )
+                    pass
             elif callback_ is not None:
-                threading_result = threading.Thread(
-                    target=lambda: (
-                        run_sync_worker(callback_, *args, **kwargs)
-                        if args and kwargs
-                        else (
-                            run_sync_worker(callback_, *args)
-                            if args
-                            else run_sync_worker(callback_, **kwargs)
-                        )
-                    ),
-                    daemon=True,
-                )
-                threading_result.start()
-                threading_result.join(timeout=7)
-                if not threading_result.daemon:
-                    log.error(
-                        """[%s]: Signal ThreadError => %s deos not found! """
-                        % (
-                            delayed_task.__name__,
-                            threading_result.name,
-                        )
+                async with asyncio.Lock():
+                    threading_result = threading.Thread(
+                        target=lambda: run_sync_worker(callback_, *args, **kwargs),
+                        daemon=True,
                     )
+                    threading_result.start()
+                    threading_result.join(timeout=7)
+                    if not threading_result.daemon:
+                        log.error(
+                            """[%s]: Signal ThreadError => %s deos not found! """
+                            % (
+                                delayed_task.__name__,
+                                threading_result.name,
+                            )
+                        )
             else:
                 log_t = (
                     """[%s]: Signal ValueError => Callback deos not found! """
@@ -158,3 +143,32 @@ def connection_database():
     from cryptomarket.database.connection import DatabaseConnection
 
     return DatabaseConnection(url_str)
+
+
+def obj_to_byte(odj) -> bytes:
+
+    return pickle.dumps(odj)
+
+
+# ===============================
+# ---- STR TO JSON
+# ===============================
+
+
+def str_to_json(data_str: str) -> dict:
+    """
+    :param data_str: str the type json data
+    :return:
+    """
+    user_meta_json = {}
+    if isinstance(data_str, bytes):
+        user_meta_json.update(json.loads(data_str.decode("utf-8")))
+    else:
+        try:
+            user_meta_json.update(json.loads(data_str))
+        except json.decoder.JSONDecodeError as e:
+            log.error(
+                "%s JSONDecodeError => %s"
+                % ("[str_to_json]:", e.args[0] if e.args else str(e))
+            )
+    return user_meta_json

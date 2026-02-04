@@ -10,7 +10,21 @@ class ExternalAPIEnum(Enum):
 
 
 class RadisKeysEnum(Enum):
-    REDIS_KEY_REQUESTiD_DATA = "%s:working_request"  # "< REQUEST_ID >:working_request"
-    DERBIT_STRIPE_RATELIMIT_TASK = (
-        "deribit:ratelimit:%s:%s"  # stripe:ratelimit:<USER_ID>:<TASK_ID>>
-    )
+    """
+    :param 'DERBIT_STRIPE_RATELIMIT_TASK' - used for
+        the controller ('deribit_client.deribit_clients.DeribitLimited.acquire').
+    :param 'AES_REDIS_KEY' This key a dictionary type value to the cache server.
+        The '%s' is 'client_id' (example: "aserediskey:_XcQ7xuV") , it's the deribit account index.
+        Note: We have created the cache.
+        When we use this key.
+        After we delete the used key. We don't saving the old keys.
+        Every user have own unique key for the single request.
+        Example; "{\"client_id\": \"_XcQ7xuV\", \"encrypt_key\": \"0YNfS0SSYWwCRTNrWxfioH3dkhP0YaCxrNqwpOA1HLI=\"}"
+    :param 'DERIBIT_USER_AUTHENTICATED' - The deribit data (it about a successful authentication)\
+           we send to the cache server/. This parameter is a key of cache/
+           Template "deribit:authenticated:< client_id >"
+    """
+
+    DERIBIT_STRIPE_RATELIMIT_TASK = "deribit:ratelimit:%s:%s"
+    AES_REDIS_KEY = "aserediskey:%s"
+    DERIBIT_USER_AUTHENTICATED = "deribit:authenticated:%s"

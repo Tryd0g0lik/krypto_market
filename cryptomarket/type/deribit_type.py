@@ -93,6 +93,23 @@ class DeribitClientType:
     def _get_autantication_data(
         index: int, client_id: int | str, client_secret_key: str
     ):
+        """
+        :param index:
+        :param client_id:
+        :param client_secret_key:
+        :return: Example ```text
+        {
+            "jsonrpc": "2.0",
+            "id": index,
+            "method": "public/auth",
+            "params": {
+                "grant_type": "client_credentials",
+                "client_id": < client_id_account_of_deribit_client >, > ,
+                "client_secret": < DECRYPTIN_secret_key_of_deribit_client >,
+            },
+        }
+        ```
+        """
         pass
 
     @property

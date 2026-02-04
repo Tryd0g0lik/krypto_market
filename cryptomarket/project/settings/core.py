@@ -59,6 +59,12 @@ class Settings(SettingsProps):
             a unlimited flow of requests. You can chang the max number.
         'DERIBIT_MAX_CONCURRENT' = The Deribit lock a work protection and API stability (it is tate limiting for \
             the concurrent requests)
+        'DERIBIT_QUEUE_SIZE' This use to the 'collections.deque' for the additional attribute 'maxlen' and
+            for 'asyncio.Queue' (in project logic) - additional attribute 'maxsize', The deque and Queue using
+                for limited the lists,
+        'CACHE_AUTHENTICATION_DATA_LIVE' This is a time live of data on the cache server.
+            The name of the key by cache data is 'DERIBIT_USER_AUTHENTICATED' (
+            look to the 'cryptomarket/project/enums.py' file).
     """
 
     # ---------------------------------------
@@ -67,11 +73,12 @@ class Settings(SettingsProps):
     DERIBIT_MAX_QUANTITY_WORKERS = 10
     DERIBIT_MAX_CONCURRENT = 40
     DERIBIT_QUEUE_SIZE = 5000
+    CACHE_AUTHENTICATION_DATA_LIVE = 97200
     # ---------------------------------------
     #  COMMON
     # ---------------------------------------
     PROJECT_NAME: str = "KryptoMarket"
-    PROJECT_VERSION: str = "0.1.0"
+    PROJECT_VERSION: str = "0.1.1"
     PROJECT_MODE: str = PROJECT_MODE_
     DEFAULT_LANGUAGE: str = "en"
     # ---------------------------------------
@@ -79,7 +86,7 @@ class Settings(SettingsProps):
     # ---------------------------------------
     APP_HOST: str = APP_HOST_
     APP_PORT: str = APP_PORT_
-    APP_SECRET_KEY: str = os.getenv("APP_SECRET_KEY", "")
+
     # ---------------------------------------
     #  POSTGRES
     # ---------------------------------------
@@ -88,6 +95,11 @@ class Settings(SettingsProps):
     POSTGRES_PASSWORD: str = POSTGRES_PASSWORD_
     POSTGRES_USER: str = POSTGRES_USER_
     POSTGRES_HOST: str = POSTGRES_HOST_
+    # ---------------------------------------
+    #  SSE
+    # ---------------------------------------
+    SSE_MAX_CONNECTION: int = 5000
+    SSE_MAX_PER_IP: int = 50
 
     __SQLITE_DB_PATH: str = (
         f"sqlite+aiosqlite:///{os.path.join(BASE_DIR, "%s.sqlit3" % POSTGRES_DB)}".replace(

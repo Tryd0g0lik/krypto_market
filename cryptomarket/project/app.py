@@ -10,12 +10,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 
 from cryptomarket.api.v1.api_users import router_v1
+from cryptomarket.api.v2.api_sse import router_v2
 from cryptomarket.database.handler_create_db import checkOrCreateTables
 from cryptomarket.deribit_client import DeribitManage
 from cryptomarket.project.middleware.middleware_basic import DeribitMiddleware
 from cryptomarket.project.settings.core import DEBUG, settings
-
-# from cryptomarket.type import DeribitManageType
 
 manager = DeribitManage()
 
@@ -112,6 +111,7 @@ def app_cryptomarket():
     # ---- ROUTER OPENAPI
     # ===============================
     app_.include_router(router_v1, prefix="/api/v1")
+    app_.include_router(router_v2, prefix="/api/v2")
 
     # root endpoint
     @app_.get("/")

@@ -45,7 +45,7 @@ class TestDeribitLimited:
         :return:
         """
         # Параллельные запросы на оду задачу
-        key = RadisKeysEnum.DERBIT_STRIPE_RATELIMIT_TASK.value % (
+        key = RadisKeysEnum.DERIBIT_STRIPE_RATELIMIT_TASK.value % (
             user_id,
             task_id,
         )

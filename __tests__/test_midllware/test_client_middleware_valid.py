@@ -7,7 +7,7 @@ import pytest
 from requests import Response
 
 log = logging.getLogger(__name__)
-@pytest.mark.skip
+# @pytest.mark.skip
 @pytest.mark.parametrize("pathname, expect", [
     ("/create", {
                "email": "example@example.com",
@@ -44,8 +44,7 @@ async def test_enqueue_account_ofMiddleware(pathname, expect) -> None:
             )
             log.info(log_t)
             assert response is not None
-            assert response.status != 500
-            assert response.status == 200
+            assert response.status == 201
             data_json = await response.json()
             assert isinstance(data_json, dict)
 

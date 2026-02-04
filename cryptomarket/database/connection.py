@@ -205,8 +205,8 @@ class DatabaseConnection(Database):
         if not self.is_async:
             raise ValueError("Cannot get async session from sync engine")
 
+        session = self.session_factory()
         try:
-            session = await self.session_factory()
             log.info(
                 str(
                     "[%s.%s]: Sync session open!"
