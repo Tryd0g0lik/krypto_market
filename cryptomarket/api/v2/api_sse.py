@@ -35,10 +35,16 @@ router_v2 = APIRouter(
 
 @router_v2.get(
     "/auth-stream/",
-    summary="SSE stream for authentication results",
+    summary="SSE stream for the user authentication ",
     description="""Server-Sent Events эндпоинт для получения результатов аутентификации.
 
-    Клиент должен передать уникальный client_id в query параметрах.
+    **Required parameters of Headers**
+    |HEADER|TYPE|REQUIRED|DESCRIPTION|
+    |------|----|--------|-----------|
+    |X-Secret-key|string|True|'pc4e....-PKQY'|
+    |X-Client-Id|string|False|'_XcQ7xuV'|
+
+    Клиент должен передать уникальный 'client_id' в query параметрах.
     После успешной аутентификации через другой эндпоинт, результат будет отправлен через этот SSE поток.
 
     Формат событий:
@@ -58,7 +64,10 @@ router_v2 = APIRouter(
         "token_type": "Bearer"
     }
     ```
+    После успешной аутентификации, канал остается открытым для обновления токена.
     """,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[],
     responses={
         200: {
             "description": "SSE stream established successfully",
