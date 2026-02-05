@@ -22,13 +22,14 @@ lock = asyncio.Lock()
 async def task_account(*args, **kwargs) -> bool:
     """
     TODO Пользователь получает токены . Внести данные в базу данных в момент удачного соединения.
+        Везде где встречается 'client_id' в качестве (уникальнного ориентируа ,например на кеш) убрать/заменить
     Check cache on the cache server and record data in connection_database
     Running in 'cryptomarket.deribit_client.deribit_clients.DeribitCreationQueue.enqueue'
     :param args: list[str] This is list of keys for the data. They were caching on the cache server.
     :param kwargs:dictionary. Template '{"task_id": [< key >] }' The < key > this is list of keys on the cache server.
     :return:
     """
-    global client_id
+
     from cryptomarket.project.app import manager
 
     log_t = "[%s.%s]:" % (
@@ -52,38 +53,46 @@ async def task_account(*args, **kwargs) -> bool:
 
     try:
         async with context_redis_connection() as redis:
-            task_id = await queue_keys.get()
-            data_str: str = await redis.get(task_id)
+            key_of_queue = await queue_keys.get()
+            data_str: str = await redis.get(key_of_queue)
             dataVar_token = dataVar.set(data_str)
     except Exception as e:
         log.error("%s RedisError => %s" % (log_t, e.args[0] if e.args else str(e)))
     # ===============================
     # ---- STR TO JSON
-    # {'index': < index_for_request_to_deribit_copy_of_index_of_request>,
-    # 'request_id': < index_of_request >, 'api_key': 'wss://....', 'client_id': < deribit_account_index >,
-    # 'deribit_secret_encrypt': < secret_key_of_account_from_deribit >}
     # ===============================
     data_str = dataVar.get()
     user_meta_json = str_to_json(data_str)
-    del data_str
+
     dataVar.reset(dataVar_token)
     api_key = user_meta_json.get("api_key")
     index = user_meta_json.get("index")
 
     # ============ 2/2 ===================
-    # ---- CACHE - RECEIVE THE USER DATA (user key of cipher)
-    #  "{ 'client_id': < deribit_account_index >, 'encrypt_key': < key_cipher > }"
-    #  Get keys: 'client_id' & 'encrypt_key' and delete the old data cache.
+    # ---- CACHE - RECEIVE THE USER DATA (user key )
     # ===============================
     try:
         async with context_redis_connection() as redis:
-            data_str: str = await redis.get(
-                RadisKeysEnum.AES_REDIS_KEY.value % user_meta_json.get("client_id")
-            )
-            await redis.delete(
-                RadisKeysEnum.AES_REDIS_KEY.value % user_meta_json.get("client_id")
-            )
-            dataVar_token = dataVar.set(data_str)
+            # ROUTER
+            method_name = user_meta_json.get("method")
+            key_of_cache = ""
+            if method_name == "public/auth":
+                # Get the key of cipher
+                # 'user_id' is mapping between the SSE and the cache server
+                # key_of_cache += RadisKeysEnum.AES_REDIS_KEY.value % user_meta_json.get("client_id")
+                key_of_cache += RadisKeysEnum.AES_REDIS_KEY.value % user_meta_json.get(
+                    "user_id"
+                )
+                data_str: str = await redis.get(key_of_cache)
+                await redis.delete(
+                    RadisKeysEnum.AES_REDIS_KEY.value % user_meta_json.get("user_id")
+                )
+
+                dataVar.set(data_str)
+            elif method_name == "private/get_subaccounts":
+                # Get the access token
+                data_str = user_meta_json.get("access_token")
+                dataVar.set(data_str)
 
     except Exception as e:
         log.error("%s RedisError => %s" % (log_t, e.args[0] if e.args else str(e)))
@@ -91,26 +100,13 @@ async def task_account(*args, **kwargs) -> bool:
     # ===============================
     # ---- STR TO JSON
     # ===============================
+    # if method_name == "public/auth":
     data_str = dataVar.get()
     data_json = str_to_json(data_str)
+    # elif method_name == "private/get_subaccounts"
     del data_str
-    dataVar.reset(dataVar_token)
-    # ===============================
-    # DECRYPT MANAGER 'EncryptManager'
-    # ===============================
-    key_cipher_b = (data_json.get("encrypt_key")).encode()  # Key/cipher
-    deribit_user_secret_encrypt_b = (data_json.get("deribit_secret_encrypt")).encode()
+    del dataVar
 
-    # ===============================
-    # ---- DECRYPTION TO STR
-    # ===============================
-    decrypt_manager = EncryptManager()
-    deribit_user_secret_encrypt = decrypt_manager.descrypt_to_str(
-        {key_cipher_b: deribit_user_secret_encrypt_b}
-    )
-    client_id = data_json.get("client_id")[:]
-    del user_meta_json
-    del data_json
     try:
         # ===============================
         # ---- USER CONNECTION WITH THE DERIBIT SERVER
@@ -121,103 +117,163 @@ async def task_account(*args, **kwargs) -> bool:
 
                 async with semaphore:
                     async with client.ws_send(session) as ws:
-                        user_meta_json = client._get_autantication_data(
-                            index, client_id, deribit_user_secret_encrypt
-                        )
                         from cryptomarket.tasks.queues.task_user_data_to_cache import (
                             task_caching_user_data,
                         )
 
+                        user_auth_json: dict = {}
+                        if method_name == "public/auth":  # Authenticate
+                            # ===============================
+                            # DECRYPT MANAGER 'EncryptManager'
+                            # ===============================
+                            #
+                            key_cipher_b = (
+                                data_json.get("encrypt_key")
+                            ).encode()  # Key/cipher
+                            deribit_user_secret_encrypt_b = (
+                                data_json.get("deribit_secret_encrypt")
+                            ).encode()
+
+                            # ===============================
+                            # ---- DECRYPTION TO STR
+                            # ===============================
+                            decrypt_manager = EncryptManager()
+                            deribit_user_secret_encrypt = (
+                                decrypt_manager.descrypt_to_str(
+                                    {key_cipher_b[:]: deribit_user_secret_encrypt_b[:]}
+                                )
+                            )
+                            client_id = data_json.get("client_id")[:]
+                            del deribit_user_secret_encrypt_b
+                            del key_cipher_b
+                            del data_json
+                            user_auth_json = client._get_autantication_data(
+                                index, client_id, deribit_user_secret_encrypt[:]
+                            )
+                            del index
+                            del deribit_user_secret_encrypt
+                        elif (
+                            method_name == "private/get_subaccounts"
+                        ):  # Get subaccounts
+                            user_auth_json = data_json.copy()
+                            del data_json
+
                         try:
                             # WSS REQUEST
-                            await asyncio.wait_for(ws.send_json(user_meta_json), 10)
+                            await asyncio.wait_for(ws.send_json(user_auth_json), 10)
+                            del user_auth_json
                             async for msg in ws:
                                 # WSS RESPONSE
                                 if msg.type == WSMsgType.TEXT:
+
                                     # ===============================
                                     # ---- RAN SIGNAL - THE USER DATA (
                                     # user data (after authenticate) send to the cache server)
                                     # ===============================
                                     data_json = json.loads(msg.data)
-                                    # client_id = user_meta_json.get("client_id")
+                                    # client_id = user_auth_json.get("client_id")
 
                                     args = [
-                                        RadisKeysEnum.DERIBIT_USER_AUTHENTICATED.value
-                                        % str(client_id)
+                                        (
+                                            RadisKeysEnum.DERIBIT_USER_RESULT.value
+                                            % str(
+                                                user_meta_json.get("mapped_key").split(
+                                                    "sse_connection:"[-1]
+                                                )
+                                            )
+                                            if method_name == "public/auth"
+                                            else (
+                                                RadisKeysEnum.DERIBIT_GET_SUBACCOUNTS.value
+                                            )
+                                        )
                                     ]
 
                                     if "error" not in data_json:
-
-                                        # async with lock:
+                                        result_kwargs_new: dict = {}
+                                        if method_name == "public/auth":  # Authenticate
+                                            # async with lock:
+                                            # try:
+                                            del user_meta_json["client_id"]
+                                            del user_meta_json["api_key"]
+                                            del user_meta_json["method"]
+                                            result_kwargs_new: dict = {
+                                                "client_id": client_id,
+                                                "access_token": data_json.get(
+                                                    "result"
+                                                ).get("access_token"),
+                                                "expires_in": data_json.get(
+                                                    "result"
+                                                ).get("expires_in"),
+                                                "refresh_token": data_json.get(
+                                                    "result"
+                                                ).get("refresh_token"),
+                                                "scope": data_json.get("result").get(
+                                                    "scope"
+                                                ),
+                                                "token_type": data_json.get(
+                                                    "result"
+                                                ).get("token_type"),
+                                                "user_meta": user_meta_json,
+                                            }
+                                        elif (
+                                            method_name == "private/get_subaccounts"
+                                        ):  # Get subaccounts
+                                            result_kwargs_new: dict = {**data_json}
+                                            args = [
+                                                args[0]
+                                                % data_json.get("result").get("id")
+                                            ]
                                         # try:
-                                        kwargs_new: dict = {
-                                            "client_id": client_id,
-                                            "access_token": data_json.get("result").get(
-                                                "access_token"
-                                            ),
-                                            "expires_in": data_json.get("result").get(
-                                                "expires_in"
-                                            ),
-                                            "refresh_token": data_json.get(
-                                                "result"
-                                            ).get("refresh_token"),
-                                            "scope": data_json.get("result").get(
-                                                "scope"
-                                            ),
-                                            "token_type": data_json.get("result").get(
-                                                "token_type"
-                                            ),
-                                        }
-                                        try:
-                                            await signal.schedule_with_delay(
-                                                client_id[:],
-                                                None,
-                                                task_caching_user_data,
-                                                0.2,
-                                                *args,
-                                                **kwargs_new
-                                            )
-
-                                        except Exception as e:
-                                            log.error(
-                                                "[task_account]: 'signal' ERROR => %s"
-                                                % e.args[0]
-                                                if e.args
-                                                else str(e)
-                                            )
-                                            # finally:
-                                            #     pass
+                                        #     await signal.schedule_with_delay(
+                                        #         client_id[:],
+                                        #         None,
+                                        #         task_caching_user_data,
+                                        #         0.2,
+                                        #         *args,
+                                        #         **result_kwargs_new
+                                        #     )
+                                        #
+                                        # except Exception as e:
+                                        #     log.error(
+                                        #         "[task_account]: 'signal' ERROR => %s"
+                                        #         % e.args[0]
+                                        #         if e.args
+                                        #         else str(e)
+                                        #     )
+                                        # finally:
+                                        #     pass
                                         # ===============================
                                         # ---- RUN THE SSE
                                         # ===============================
                                         # kwargs = json.loads(msg.data)
-                                        _extract_ticker_from_message = (
-                                            sse_manager._extract_ticker_from_message
+                                        # _extract_ticker_from_message = (
+                                        #     sse_manager._extract_ticker_from_message
+                                        # )
+                                        # args = ["connection"]
+
+                                        # with _extract_ticker_from_message(
+                                        #     *args, **data_json
+                                        # ) as ticker:
+                                        result_kwargs_new.__setitem__(
+                                            "state", "auth_result"
                                         )
-                                        args = ["connection"]
+                                        # await sse_manager.broadcast(
+                                        #     client_id, ticker, kwargs_new
+                                        # )
+                                        await sse_manager.broadcast(result_kwargs_new)
+                                        del client_id
+                                        """
+                                        Полбховтелю надо сообщить об удачном подключении.
+                                        Нужен ключ пользователя.
+                                        Ключ пользователя - нужен шифр.
 
-                                        with _extract_ticker_from_message(
-                                            *args, **data_json
-                                        ) as ticker:
-                                            kwargs_new.__setitem__(
-                                                "state", "auth_result"
-                                            )
-                                            await sse_manager.broadcast(
-                                                client_id, ticker, kwargs_new
-                                            )
-                                            del client_id
-                                            """
-                                            Полбховтелю надо сообщить об удачном подключении.
-                                            Нужен ключ пользователя.
-                                            Ключ пользователя - нужен шифр.
-
-                                            После создать endpoint для отправления connection.
-                                            """
-                                            """
-                                                add the new user line in db.
+                                        После создать endpoint для отправления connection.
+                                        """
+                                        """
+                                            add the new user line in db.
 
 
-                                            """
+                                        """
                                 elif msg.type == WSMsgType.ERROR:
                                     log_err = "%s ERROR connection. Code: %s" % (
                                         log_t,

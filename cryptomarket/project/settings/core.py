@@ -136,6 +136,9 @@ class Settings(SettingsProps):
         "Content-Language",
         "X-Language",
         "X-Request-ID",
+        "X-Client-Id",
+        "X-Secret-key",
+        "access_token",
     ]
 
     def get_allowed_hosts(self, allowed_hosts: str) -> list[str]:

@@ -13,6 +13,9 @@ from cryptomarket.project.settings.core import DEBUG, settings
 log = logging.getLogger(__name__)
 
 
+# ===============================
+# ---- CREATE THE ONE/TEMPLATE TASK
+# ===============================
 def run_async_worker(callback_, *args, **kwargs):
     """
     :param callback_: This is your function is handler of data.
@@ -51,9 +54,6 @@ def run_sync_worker(callback_, *args, **kwargs):
         loop.close()
 
 
-# ===============================
-# ---- CREATE THE ONE/TEMPLATE TASK
-# ===============================
 def wrapper_delayed_task(
     callback_=None,
     asynccallback_=None,
@@ -153,8 +153,6 @@ def obj_to_byte(odj) -> bytes:
 # ===============================
 # ---- STR TO JSON
 # ===============================
-
-
 def str_to_json(data_str: str) -> dict:
     """
     :param data_str: str the type json data
