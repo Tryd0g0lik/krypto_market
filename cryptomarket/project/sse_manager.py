@@ -62,13 +62,13 @@ class ServerSSEManager:
         self.log_t = f"[{self.__class__.__name__}.%s]:"
         self._connections.update({title: set() for title in args if args is not None})
 
-    async def subscribe(self, client_id: str, ticker: str):
+    async def subscribe(self, key_of_queue: str):
         """Here we create a new queue for subscribe"""
         queue = asyncio.Queue(maxsize=setting.DERIBIT_QUEUE_SIZE)
         async with self.lock:
-            if ticker not in self._connections:
-                self._connections[ticker] = set()
-            self._connections[ticker].add(queue)
+            if key_of_queue not in self._connections:
+                self._connections[key_of_queue] = set()
+            self._connections[key_of_queue].add(queue)
         log.info(
             "%s The new subscribe was created successfully!",
             (self.log_t % self.subscribe.__name__),
@@ -86,24 +86,29 @@ class ServerSSEManager:
                 (self.log_t % self.unsubscribe.__name__),
             )
 
-    async def broadcast(self, client_id: str, ticker: str, data: dict):
+    async def broadcast(self, data: dict):
+        # async def broadcast(self, client_id: str, ticker: str, data: dict):
         """
         Here we broadcast a message to all subscribers by ticker. Template: 'queue.put(json.dumps({client_id: data}))'
-        :param client_id: (str) Client ID This is the index of the deribit's account/client
+        :param client_id: (str) Client ID This is the index for the deribit's api key
         :param ticker: (str) The attribute that the user subscribed to and the response will be sent by SSE.
         """
+        user_meta = data.get("user_meta")
+        mapped_key = user_meta.get("mapped_key")
+        del data["user_meta"]
+
         async with self.lock:
-            if ticker not in self._connections:
+            if mapped_key not in self._connections:
                 log.warning(
                     "%s The ticker: '%s' not defined!",
-                    (self.log_t % self.broadcast, ticker),
+                    (self.log_t % self.broadcast, mapped_key),
                 )
                 return
 
-            message_data = json.dumps({client_id: data})
+            message_data = json.dumps(data)
             dead_queues = []
 
-            for queue in self._connections[ticker]:
+            for queue in self._connections[mapped_key]:
                 try:
                     queue.put_nowait(message_data)
                 except asyncio.QueueFull:
@@ -123,7 +128,7 @@ class ServerSSEManager:
                     dead_queues.append(queue)
 
             for queue in dead_queues:
-                self._connections[ticker].remove(queue)
+                self._connections[mapped_key].remove(queue)
                 log.warning(
                     "%s The bad queue: %s was removed successfully!",
                     (self.log_t % self.broadcast, queue),

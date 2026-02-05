@@ -87,8 +87,8 @@ def app_cryptomarket():
     # ===============================
     # ---- MIDDLEWARE ZERO
     # ===============================
-    middleware = DeribitMiddleware(manager)
-    app_.middleware("http")(middleware)
+    # middleware = DeribitMiddleware(manager)
+    # app_.middleware("http")(middleware)
 
     # ===============================
     # ---- CORS MIDDLEWARE

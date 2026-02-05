@@ -78,7 +78,6 @@ class Signal:
 
     async def schedule_with_delay(
         self,
-        user_id=None,
         callback_=None,
         asynccallback_=None,
         delay_seconds: int = 0.2,
@@ -101,6 +100,7 @@ class Signal:
         delayed_task = wrapper_delayed_task(callback_, asynccallback_, delay_seconds)
 
         try:
+            user_id = kwargs.get("user_id", None)
             # ===============================
             # ---- CLONE MORE OF TASK
             # ===============================
