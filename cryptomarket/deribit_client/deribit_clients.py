@@ -452,25 +452,11 @@ class DeribitManage(DeribitManageType):
             )
             if kwargs is not None:
                 # Remove an aPI key from kwargs and we leave the kwargs without url
-                # api_key = kwargs.get("api_key")
-                # This is key for queue and task
-                # task_id = "%s:%s:%s" % (
-                #     (
-                #         (api_key.split("://"))[0]
-                #         if api_key is not None
-                #         else ValueError(str(loog_err))
-                #     ),
-                #     str(datetime.now().strftime("%Y%m%d%H%M%S")),
-                #     kwargs.get
-                # )
                 key_of_queue = kwargs.get("mapped_key")
-                # The general key from a user data and the user data add in joint/general list
                 self._deque_postman.append({key_of_queue: kwargs})
 
         except ValueError as err:
             raise err.args[0] if err.args else str(err)
-        # (lambda: "%s" % kwargs["client_id"])(),
-        # (lambda: "%s" % kwargs["deribit_secret_encrypt"])(),
         try:
             self.client_pool = DeribitWebsocketPool(
                 _heartbeat=30,

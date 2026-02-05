@@ -18,7 +18,9 @@ from fastapi import (
     status,
 )
 from fastapi.responses import StreamingResponse
+from watchfiles import awatch
 
+from cryptomarket.api.v2.api_sse_monitoring import sse_monitoring_child
 from cryptomarket.project.encrypt_manager import EncryptManager
 from cryptomarket.project.enums import ExternalAPIEnum, RadisKeysEnum
 from cryptomarket.project.signals import signal
@@ -262,3 +264,14 @@ async def sse_auth_endpoint(
             "Access-Control-Expose-Headers": "Content-Type",
         },
     )
+
+
+# ======================
+# ---- CRYPTO EXCHANGE RATE MONITORING
+# ======================
+@router_v2.get(
+    path="/monitoring/{ticker}",
+    summary="SSE Crypto exchange rate monitoring",
+)
+async def sse_monitoring(ticker: str, request: Request) -> StreamingResponse:
+    return await sse_monitoring_child(ticker, request)

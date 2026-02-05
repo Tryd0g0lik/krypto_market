@@ -76,10 +76,11 @@ async def task_account(*args, **kwargs) -> bool:
             # ROUTER
             method_name = user_meta_json.get("method")
             key_of_cache = ""
+            data_str = ""
+            # Get the key of cipher
+            # 'user_id' is mapping between the SSE and the cache server
+            # key_of_cache += RadisKeysEnum.AES_REDIS_KEY.value % user_meta_json.get("client_id")
             if method_name == "public/auth":
-                # Get the key of cipher
-                # 'user_id' is mapping between the SSE and the cache server
-                # key_of_cache += RadisKeysEnum.AES_REDIS_KEY.value % user_meta_json.get("client_id")
                 key_of_cache += RadisKeysEnum.AES_REDIS_KEY.value % user_meta_json.get(
                     "user_id"
                 )
@@ -87,12 +88,17 @@ async def task_account(*args, **kwargs) -> bool:
                 await redis.delete(
                     RadisKeysEnum.AES_REDIS_KEY.value % user_meta_json.get("user_id")
                 )
-
-                dataVar.set(data_str)
             elif method_name == "private/get_subaccounts":
-                # Get the access token
-                data_str = user_meta_json.get("access_token")
-                dataVar.set(data_str)
+                key_of_cache += (
+                    RadisKeysEnum.DERIBIT_GET_SUBACCOUNTS.value
+                    % user_meta_json.get("user_id")
+                )
+                data_str: str = await redis.get(key_of_cache)
+                await redis.delete(
+                    RadisKeysEnum.DERIBIT_GET_SUBACCOUNTS.value
+                    % user_meta_json.get("user_id")
+                )
+            dataVar.set(data_str)
 
     except Exception as e:
         log.error("%s RedisError => %s" % (log_t, e.args[0] if e.args else str(e)))
@@ -156,12 +162,31 @@ async def task_account(*args, **kwargs) -> bool:
                             method_name == "private/get_subaccounts"
                         ):  # Get subaccounts
                             user_auth_json = data_json.copy()
+                            del user_auth_json["client_id"]
+                            del user_auth_json["user_id"]
+                            user_auth_json.__setitem__(
+                                "method", user_meta_json.get("method")
+                            )
+                            user_auth_json.__setitem__("jsonrpc", "2.0")
+                            user_auth_json.__setitem__(
+                                "id", user_meta_json.get("index")
+                            )
+                            user_auth_json.__setitem__(
+                                "params",
+                                {
+                                    "with_portfolio": False,
+                                    "access_token": user_auth_json.get("access_token"),
+                                },
+                            )
+                            del user_auth_json["access_token"]
+
                             del data_json
 
                         try:
+                            log.warning("DEBUG REQUEST => %s " % str(user_auth_json))
                             # WSS REQUEST
                             await asyncio.wait_for(ws.send_json(user_auth_json), 10)
-                            del user_auth_json
+
                             async for msg in ws:
                                 # WSS RESPONSE
                                 if msg.type == WSMsgType.TEXT:
@@ -171,24 +196,12 @@ async def task_account(*args, **kwargs) -> bool:
                                     # user data (after authenticate) send to the cache server)
                                     # ===============================
                                     data_json = json.loads(msg.data)
-                                    # client_id = user_auth_json.get("client_id")
-
-                                    args = [
-                                        (
-                                            RadisKeysEnum.DERIBIT_USER_RESULT.value
-                                            % str(
-                                                user_meta_json.get("mapped_key").split(
-                                                    "sse_connection:"[-1]
-                                                )
-                                            )
-                                            if method_name == "public/auth"
-                                            else (
-                                                RadisKeysEnum.DERIBIT_GET_SUBACCOUNTS.value
-                                            )
-                                        )
-                                    ]
 
                                     if "error" not in data_json:
+                                        log.warning(
+                                            "DEBUG RESPONSE NOT ERROR => %s "
+                                            % str(data_json)
+                                        )
                                         result_kwargs_new: dict = {}
                                         if method_name == "public/auth":  # Authenticate
                                             # async with lock:
@@ -213,53 +226,31 @@ async def task_account(*args, **kwargs) -> bool:
                                                 "token_type": data_json.get(
                                                     "result"
                                                 ).get("token_type"),
-                                                "user_meta": user_meta_json,
                                             }
+
                                         elif (
                                             method_name == "private/get_subaccounts"
                                         ):  # Get subaccounts
                                             result_kwargs_new: dict = {**data_json}
-                                            args = [
-                                                args[0]
-                                                % data_json.get("result").get("id")
-                                            ]
-                                        # try:
-                                        #     await signal.schedule_with_delay(
-                                        #         client_id[:],
-                                        #         None,
-                                        #         task_caching_user_data,
-                                        #         0.2,
-                                        #         *args,
-                                        #         **result_kwargs_new
-                                        #     )
-                                        #
-                                        # except Exception as e:
-                                        #     log.error(
-                                        #         "[task_account]: 'signal' ERROR => %s"
-                                        #         % e.args[0]
-                                        #         if e.args
-                                        #         else str(e)
-                                        #     )
-                                        # finally:
-                                        #     pass
-                                        # ===============================
-                                        # ---- RUN THE SSE
-                                        # ===============================
-                                        # kwargs = json.loads(msg.data)
-                                        # _extract_ticker_from_message = (
-                                        #     sse_manager._extract_ticker_from_message
-                                        # )
-                                        # args = ["connection"]
+                                            # args = [
+                                            #     args[0]
+                                            #     % data_json.get("result").get("id")
+                                            # ]
+                                        else:
+                                            log.warning(
+                                                "DEBUG RESPONSE ERROR => %s "
+                                                % str(data_json)
+                                            )
+                                            result_kwargs_new: dict = {**data_json}
 
-                                        # with _extract_ticker_from_message(
-                                        #     *args, **data_json
-                                        # ) as ticker:
+                                        result_kwargs_new.__setitem__(
+                                            "user_meta", user_meta_json
+                                        )
+
                                         result_kwargs_new.__setitem__(
                                             "state", "auth_result"
                                         )
-                                        # await sse_manager.broadcast(
-                                        #     client_id, ticker, kwargs_new
-                                        # )
+
                                         await sse_manager.broadcast(result_kwargs_new)
                                         del client_id
                                         """
@@ -274,6 +265,12 @@ async def task_account(*args, **kwargs) -> bool:
 
 
                                         """
+                                    else:
+                                        log.warning(
+                                            "DEBUG RESPONSE ERROR => %s "
+                                            % str(data_json)
+                                        )
+
                                 elif msg.type == WSMsgType.ERROR:
                                     log_err = "%s ERROR connection. Code: %s" % (
                                         log_t,
@@ -288,7 +285,12 @@ async def task_account(*args, **kwargs) -> bool:
                                         % (log_t, msg.data)
                                     )
                                     pass
-
+                                else:
+                                    log.warning(
+                                        "DEBUG RESPONSE ERROR => %s " % str(data_json)
+                                    )
+                                    result_kwargs_new: dict = {**data_json}
+                                await ws.close()
                         except RuntimeError as e:
                             log_err = (
                                 "%s RuntimeError Connection is not started or closing => %s"
