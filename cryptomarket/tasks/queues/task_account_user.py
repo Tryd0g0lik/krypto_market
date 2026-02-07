@@ -122,196 +122,200 @@ async def task_account(*args, **kwargs) -> bool:
             try:
 
                 async with semaphore:
-                    async with client.ws_send(session) as ws:
-                        from cryptomarket.tasks.queues.task_user_data_to_cache import (
-                            task_caching_user_data,
+                    ws = None
+
+                    if manager.client_pool.is_ws:
+                        ws = await manager.client_pool.ws_session.clear()
+                    else:
+                        async with client.ws_send(session) as ws_new:
+                            manager.client_pool.ws_session = ws_new
+                            manager.client_pool.is_ws = True
+                            ws = ws_new
+
+                    from cryptomarket.tasks.queues.task_user_data_to_cache import (
+                        task_caching_user_data,
+                    )
+
+                    user_auth_json: dict = {}
+                    if method_name == "public/auth":  # Authenticate
+                        # ===============================
+                        # DECRYPT MANAGER 'EncryptManager'
+                        # ===============================
+                        #
+                        key_cipher_b = (
+                            data_json.get("encrypt_key")
+                        ).encode()  # Key/cipher
+                        deribit_user_secret_encrypt_b = (
+                            data_json.get("deribit_secret_encrypt")
+                        ).encode()
+
+                        # ===============================
+                        # ---- DECRYPTION TO STR
+                        # ===============================
+                        decrypt_manager = EncryptManager()
+                        deribit_user_secret_encrypt = decrypt_manager.descrypt_to_str(
+                            {key_cipher_b[:]: deribit_user_secret_encrypt_b[:]}
                         )
+                        client_id = data_json.get("client_id")[:]
+                        del deribit_user_secret_encrypt_b
+                        del key_cipher_b
+                        del data_json
+                        user_auth_json = client._get_autantication_data(
+                            index, client_id, deribit_user_secret_encrypt[:]
+                        )
+                        del index
+                        del deribit_user_secret_encrypt
+                    elif method_name == "private/get_subaccounts":  # Get subaccounts
+                        user_auth_json = data_json.copy()
+                        del user_auth_json["client_id"]
+                        del user_auth_json["user_id"]
+                        user_auth_json.__setitem__(
+                            "method", user_meta_json.get("method")
+                        )
+                        user_auth_json.__setitem__("jsonrpc", "2.0")
+                        user_auth_json.__setitem__("id", user_meta_json.get("index"))
+                        user_auth_json.__setitem__(
+                            "params",
+                            {
+                                "with_portfolio": False,
+                                "access_token": user_auth_json.get("access_token"),
+                            },
+                        )
+                        del user_auth_json["access_token"]
 
-                        user_auth_json: dict = {}
-                        if method_name == "public/auth":  # Authenticate
-                            # ===============================
-                            # DECRYPT MANAGER 'EncryptManager'
-                            # ===============================
-                            #
-                            key_cipher_b = (
-                                data_json.get("encrypt_key")
-                            ).encode()  # Key/cipher
-                            deribit_user_secret_encrypt_b = (
-                                data_json.get("deribit_secret_encrypt")
-                            ).encode()
+                        del data_json
 
-                            # ===============================
-                            # ---- DECRYPTION TO STR
-                            # ===============================
-                            decrypt_manager = EncryptManager()
-                            deribit_user_secret_encrypt = (
-                                decrypt_manager.descrypt_to_str(
-                                    {key_cipher_b[:]: deribit_user_secret_encrypt_b[:]}
-                                )
-                            )
-                            client_id = data_json.get("client_id")[:]
-                            del deribit_user_secret_encrypt_b
-                            del key_cipher_b
-                            del data_json
-                            user_auth_json = client._get_autantication_data(
-                                index, client_id, deribit_user_secret_encrypt[:]
-                            )
-                            del index
-                            del deribit_user_secret_encrypt
-                        elif (
-                            method_name == "private/get_subaccounts"
-                        ):  # Get subaccounts
-                            user_auth_json = data_json.copy()
-                            del user_auth_json["client_id"]
-                            del user_auth_json["user_id"]
-                            user_auth_json.__setitem__(
-                                "method", user_meta_json.get("method")
-                            )
-                            user_auth_json.__setitem__("jsonrpc", "2.0")
-                            user_auth_json.__setitem__(
-                                "id", user_meta_json.get("index")
-                            )
-                            user_auth_json.__setitem__(
-                                "params",
-                                {
-                                    "with_portfolio": False,
-                                    "access_token": user_auth_json.get("access_token"),
-                                },
-                            )
-                            del user_auth_json["access_token"]
+                    try:
+                        log.warning("DEBUG REQUEST => %s " % str(user_auth_json))
+                        # WSS REQUEST
+                        await asyncio.wait_for(ws.send_json(user_auth_json), 10)
 
-                            del data_json
+                        async for msg in ws:
+                            # WSS RESPONSE
+                            if msg.type == WSMsgType.TEXT:
 
-                        try:
-                            log.warning("DEBUG REQUEST => %s " % str(user_auth_json))
-                            # WSS REQUEST
-                            await asyncio.wait_for(ws.send_json(user_auth_json), 10)
+                                # ===============================
+                                # ---- RAN SIGNAL - THE USER DATA (
+                                # user data (after authenticate) send to the cache server)
+                                # ===============================
+                                data_json = json.loads(msg.data)
 
-                            async for msg in ws:
-                                # WSS RESPONSE
-                                if msg.type == WSMsgType.TEXT:
+                                if "error" not in data_json:
+                                    log.warning(
+                                        "DEBUG RESPONSE NOT ERROR => %s "
+                                        % str(data_json)
+                                    )
+                                    result_kwargs_new: dict = {}
+                                    if method_name == "public/auth":  # Authenticate
+                                        # async with lock:
+                                        # try:
+                                        del user_meta_json["client_id"]
+                                        del user_meta_json["api_key"]
+                                        del user_meta_json["method"]
+                                        result_kwargs_new: dict = {
+                                            "client_id": client_id,
+                                            "access_token": data_json.get("result").get(
+                                                "access_token"
+                                            ),
+                                            "expires_in": data_json.get("result").get(
+                                                "expires_in"
+                                            ),
+                                            "refresh_token": data_json.get(
+                                                "result"
+                                            ).get("refresh_token"),
+                                            "scope": data_json.get("result").get(
+                                                "scope"
+                                            ),
+                                            "token_type": data_json.get("result").get(
+                                                "token_type"
+                                            ),
+                                        }
 
-                                    # ===============================
-                                    # ---- RAN SIGNAL - THE USER DATA (
-                                    # user data (after authenticate) send to the cache server)
-                                    # ===============================
-                                    data_json = json.loads(msg.data)
-
-                                    if "error" not in data_json:
-                                        log.warning(
-                                            "DEBUG RESPONSE NOT ERROR => %s "
-                                            % str(data_json)
-                                        )
-                                        result_kwargs_new: dict = {}
-                                        if method_name == "public/auth":  # Authenticate
-                                            # async with lock:
-                                            # try:
-                                            del user_meta_json["client_id"]
-                                            del user_meta_json["api_key"]
-                                            del user_meta_json["method"]
-                                            result_kwargs_new: dict = {
-                                                "client_id": client_id,
-                                                "access_token": data_json.get(
-                                                    "result"
-                                                ).get("access_token"),
-                                                "expires_in": data_json.get(
-                                                    "result"
-                                                ).get("expires_in"),
-                                                "refresh_token": data_json.get(
-                                                    "result"
-                                                ).get("refresh_token"),
-                                                "scope": data_json.get("result").get(
-                                                    "scope"
-                                                ),
-                                                "token_type": data_json.get(
-                                                    "result"
-                                                ).get("token_type"),
-                                            }
-
-                                        elif (
-                                            method_name == "private/get_subaccounts"
-                                        ):  # Get subaccounts
-                                            result_kwargs_new: dict = {**data_json}
-                                            # args = [
-                                            #     args[0]
-                                            #     % data_json.get("result").get("id")
-                                            # ]
-                                        else:
-                                            log.warning(
-                                                "DEBUG RESPONSE ERROR => %s "
-                                                % str(data_json)
-                                            )
-                                            result_kwargs_new: dict = {**data_json}
-
-                                        result_kwargs_new.__setitem__(
-                                            "user_meta", user_meta_json
-                                        )
-
-                                        result_kwargs_new.__setitem__(
-                                            "state", "auth_result"
-                                        )
-
-                                        await sse_manager.broadcast(result_kwargs_new)
-                                        del client_id
-                                        """
-                                        Полбховтелю надо сообщить об удачном подключении.
-                                        Нужен ключ пользователя.
-                                        Ключ пользователя - нужен шифр.
-
-                                        После создать endpoint для отправления connection.
-                                        """
-                                        """
-                                            add the new user line in db.
-
-
-                                        """
+                                    elif (
+                                        method_name == "private/get_subaccounts"
+                                    ):  # Get subaccounts
+                                        result_kwargs_new: dict = {**data_json}
+                                        # args = [
+                                        #     args[0]
+                                        #     % data_json.get("result").get("id")
+                                        # ]
                                     else:
                                         log.warning(
                                             "DEBUG RESPONSE ERROR => %s "
                                             % str(data_json)
                                         )
+                                        result_kwargs_new: dict = {**data_json}
 
-                                elif msg.type == WSMsgType.ERROR:
-                                    log_err = "%s ERROR connection. Code: %s" % (
-                                        log_t,
-                                        msg.value,
+                                    result_kwargs_new.__setitem__(
+                                        "user_meta", user_meta_json
                                     )
-                                    log.error(str(log_err))
-                                    pass
 
-                                elif msg.type == WSMsgType.CLOSED:
-                                    log.warning(
-                                        "%s Closing connection. Code: %s"
-                                        % (log_t, msg.data)
+                                    result_kwargs_new.__setitem__(
+                                        "state", "auth_result"
                                     )
-                                    pass
+
+                                    await sse_manager.broadcast(result_kwargs_new)
+                                    del client_id
+                                    """
+                                    Полбховтелю надо сообщить об удачном подключении.
+                                    Нужен ключ пользователя.
+                                    Ключ пользователя - нужен шифр.
+
+                                    После создать endpoint для отправления connection.
+                                    """
+                                    """
+                                        add the new user line in db.
+
+
+                                    """
                                 else:
                                     log.warning(
                                         "DEBUG RESPONSE ERROR => %s " % str(data_json)
                                     )
-                                    result_kwargs_new: dict = {**data_json}
-                                await ws.close()
-                        except RuntimeError as e:
-                            log_err = (
-                                "%s RuntimeError Connection is not started or closing => %s"
-                                % (log_t, e.args[0] if e.args else str(e))
-                            )
-                            log.error(str(log_err))
-                            raise RuntimeError(str(log_err))
-                        except ValueError as e:
-                            log_err = (
-                                "%s ValueError Data is not serializable object => %s"
-                                % (log_t, e.args[0] if e.args else str(e))
-                            )
-                            log.error(str(log_err))
-                            raise ValueError(str(log_err))
-                        except TypeError as e:
-                            log_err = (
-                                "%s Value returned by dumps(data) is not str => %s"
-                                % (log_t, e.args[0] if e.args else str(e))
-                            )
-                            log.error(str(log_err))
-                            raise TypeError(str(log_err))
+
+                            elif msg.type == WSMsgType.ERROR:
+                                log_err = "%s ERROR connection. Code: %s" % (
+                                    log_t,
+                                    msg.value,
+                                )
+                                log.error(str(log_err))
+                                pass
+
+                            elif msg.type == WSMsgType.CLOSED:
+                                log.warning(
+                                    "%s Closing connection. Code: %s"
+                                    % (log_t, msg.data)
+                                )
+                                pass
+                            else:
+                                log.warning(
+                                    "DEBUG RESPONSE ERROR => %s " % str(data_json)
+                                )
+                                result_kwargs_new: dict = {**data_json}
+                            # await ws.close()
+                    except RuntimeError as e:
+                        log_err = (
+                            "%s RuntimeError Connection is not started or closing => %s"
+                            % (log_t, e.args[0] if e.args else str(e))
+                        )
+                        log.error(str(log_err))
+                        raise RuntimeError(str(log_err))
+                    except ValueError as e:
+                        await ws.close()
+                        log_err = (
+                            "%s ValueError Data is not serializable object => %s \n Session is closed!"
+                            % (log_t, e.args[0] if e.args else str(e))
+                        )
+                        log.error(str(log_err))
+                        raise ValueError(str(log_err))
+                    except TypeError as e:
+                        await ws.close()
+                        log_err = (
+                            "%s Value returned by dumps(data) is not str => %s \n Session is closed!"
+                            % (log_t, e.args[0] if e.args else str(e))
+                        )
+                        log.error(str(log_err))
+                        raise TypeError(str(log_err))
 
             finally:
                 pass

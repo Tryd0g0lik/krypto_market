@@ -8,14 +8,21 @@ import logging
 from collections import deque
 from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
-from datetime import datetime
 
 from aiohttp import (
+    ClientConnectionResetError,
     ClientSession,
 )
+from aiohttp.client_ws import ClientWebSocketResponse
 from redis.asyncio import Redis
+from starlette.websockets import WebSocketDisconnect
 
-from cryptomarket.deribit_client.deribit_person import PersonManager
+from cryptomarket.deribit_client.deribit_errors import (
+    DeribitError,
+    DeribitGetError,
+    DeribitSaveError,
+    DeribitSessionActiveError,
+)
 from cryptomarket.project.enums import ExternalAPIEnum, RadisKeysEnum
 from cryptomarket.project.settings.core import settings
 from cryptomarket.project.settings.settings_env import (
@@ -32,10 +39,128 @@ from cryptomarket.type import (
     DeribitManageType,
     DeribitWebsocketPoolType,
 )
+from cryptomarket.type.deribit_type import DequeSessionWSSProp
 
 log = logging.getLogger(__name__)
 
 setting = settings()
+
+
+class DeribitWSSConnectionManager:
+    deque_session_wss: deque[DequeSessionWSSProp] = deque(
+        maxlen=setting.DERIBIT_MAX_QUANTITY_WORKERS
+    )
+    log_t = "DeribitWSSConnectionManager.%s"
+
+    def __init__(self):
+        """
+        TODO: self.queue_session_wss максимальное количество равное 'setting.DERIBIT_MAX_QUANTITY_WORKERS'.
+        The ran app is creating the queue from 10 coroutines for the wss connection.
+        But. The Deribit is giving you an access token for the single connection.
+        The 'access_token' not be the your account. It's only singl connection.
+
+        When we received the request for connection, us need the check connection
+            in 'deque_session_wss' list or us need creating new connection with the external wss server.
+
+        """
+
+        self.is_ws = False
+        self.ws_session: ClientWebSocketResponse | None = None
+
+    def save(self, key: str) -> None:
+        """
+        :param key: This is session key. It's substring from the access token.
+        :return: None
+        """
+        if not self.is_ws or self.ws_session is None or key is None:
+            log_t = """%s Chek 'is_ws',  'ws_session' and 'key'.
+            is the required variable.""" % (
+                self.log_t % self.save.__name__,
+            )
+            log.error(str(log_t))
+            raise ValueError(str(log_t))
+
+        try:
+            v: DequeSessionWSSProp = {
+                "session_key": key,
+                "ws_session": self.ws_session,
+                "is_ws": self.is_ws,
+            }
+            self.deque_session_wss.extend(v)
+
+        except DeribitSaveError as e:
+            log_t = e.args[0] if e.args else str(e)
+            log.error(str(log_t))
+            raise
+        except DeribitSessionActiveError as e:
+            log_t = e.args[0] if e.args else str(e)
+            log.error(str(log_t))
+            raise ValueError(str(log_t))
+
+        except Exception as e:
+            log_t = "%s ERROR => %s" % (
+                self.log_t % self.save.__name__,
+                e.args[0] if e.args else str(e),
+            )
+            log.error(str(log_t))
+            raise ValueError(str(log_t))
+
+    def get(self, key: str) -> ClientWebSocketResponse | bool:
+
+        try:
+            for one_session in self.deque_session_wss:
+                one_session: DequeSessionWSSProp = one_session
+                one_session_key = one_session.get("session_key")
+                if key == one_session_key:
+                    ws_sesion: ClientWebSocketResponse | None = one_session.get(
+                        "ws_session"
+                    )
+                    if ws_sesion is None:
+                        raise
+                    return ws_sesion
+            return False
+        except DeribitGetError as e:
+            log_t = "%s 'key':%s  ERROR => %s" % (
+                self.log_t % self.close.__name__,
+                key,
+                e.args[0] if e.args else str(e),
+            )
+            log.error(str(log_t))
+            raise ValueError(str(log_t))
+
+        except Exception as e:
+            log_t = "%s ERROR => %s" % (
+                self.log_t % self.get.__name__,
+                e.args[0] if e.args else str(e),
+            )
+            log.error(str(log_t))
+            raise ValueError(str(log_t))
+
+        #
+        # def close(self, key: str) -> None:
+        #     """
+        #     When we closed the
+        #     :param key: This is substring from the acces token.
+        #     :return: None
+        #     """
+        #     if key is None or not isinstance(key, str):
+        #         log_t = "%s 'key' (is %s)  ERROR => the variable 'key' is invalid!" % (self.log_t % self.close.__name__, key)
+        #         log.error(str(log_t))
+        #         raise ValueError(str(log_t))
+        #     try:
+        #         for one_session in self.deque_session_wss:
+        #            if key in one_session:
+        #                s = one_session.pop(key)
+        #                s.close()
+
+        except Exception as e:
+            log_t = "%s 'key':%s  ERROR => %s" % (
+                self.log_t % self.close.__name__,
+                key,
+                e.args[0] if e.args else str(e),
+            )
+            log.error(str(log_t))
+            raise ValueError(str(log_t))
 
 
 # ==============================
@@ -157,7 +282,28 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
             _autoping: bool = True,
         ):
             """
-            WebvSocket connection on the Deribit server.
+                **Note**: This is the context manager that close yourself!!
+                    Why?
+                    Respnse: The access token you could get only one connection (by wss). You don't  get
+                        the access token for the all your account and connections.
+                        That is a reason - why you will be yourself the close it.
+                        Example:
+                        ```py
+
+                        async with client.ws_send(session) as ws:
+                            try:
+                                # ...
+                            expect ... :
+                                wail ws.close()
+
+                        # or
+                        # Note: Не проверено!!
+                        await self.client_pool.client.ws_session.close()
+                        await self.client_pool.client.is_ws = False
+                        ```
+
+
+                WebvSocket connection on the Deribit server.
                 :param index: This is the 'index' of connection.
                 :param _heartbeat (float) – Send ping message every heartbeat seconds and wait pong response, if pong response\
                      is not received then close connection. The timer is reset on any data reception.(optional).\
@@ -195,8 +341,12 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
                         "%s ERROR => %s" % (log_t, e.args[0] if e.args else str(e))
                     )
                 finally:
-                    await ws.close()
-                    log.info("%s %s" % (log_t, "WebSocket connection is closed!"))
+
+                    # await ws .close()
+                    log.info(
+                        "%s %s"
+                        % (log_t, "WebSocket connection is and but NOT is closed!")
+                    )
 
         @staticmethod
         def _get_autantication_data(
@@ -243,6 +393,31 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
         _timeout=10,
     ):
         """
+        TODO: Перед запуском приложения создаётся 10 рабочих(workers/clients). До момента использованя онни в asyncio.Queue
+            На момент использования они в asyncio.Queue удаляются и в очереди появляется новый корутин.
+            Проблема в том, что Deribit выдаёт assecc токен только для одного соединения/подключения.
+            Вуше (в DeribitClient), само полючение к Deribit реализовано через asynccontextmanager. и главное. В этом asynccontextmanager,
+            авто- закрытие соединения закомментировано. Закрывать (соединение) вручную.
+        **Note**: This is the context manager that close yourself!!
+                    Why?
+                    Respnse: The access token you could get only one connection (by wss). You don't  get
+                        the access token for the all your account and connections.
+                        That is a reason - why you will be yourself the close it.
+                        Example:
+                        ```py
+
+                        async with client.ws_send(session) as ws:
+                            try:
+                                # ...
+                            expect ... :
+                                wail ws.close()
+
+                        # or
+                        # Note: Не проверено!!
+                        await self.client_pool.client.ws_session.close()
+                        await self.client_pool.client.is_ws = False
+                        ```
+
         Here we generate of the clients for connection with the Deribit server.
         https://docs.aiohttp.org/en/stable/client_reference.html#aiohttp.ClientSession.request
         https://docs.deribit.com/articles/deribit-quickstart#websocket-recommended
@@ -270,6 +445,9 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
                 cls._clients.append(client_)
         return cls._instance
 
+    # def __init__(self):
+    #     super().__init__()
+    #
     def get_clients(self) -> DeribitClient.initialize:
         """
         HEre we received the one coroutine for connection to the Deribit server.
@@ -432,7 +610,7 @@ class DeribitManage(DeribitManageType):
         self.stripe_response_var_token = None
         args = ("btc_usd", "eth_usd", "connection")
         self.sse_manager = ServerSSEManager(*args)
-        self.person_manager = PersonManager()
+        self.connection_mannager = DeribitWSSConnectionManager()
 
     async def enqueue(self, cache_live: int, **kwargs) -> None:
         """
@@ -443,20 +621,20 @@ class DeribitManage(DeribitManageType):
         :return:
         """
         log_t = "[%s.%s]:" % (self.__class__.__name__, self.enqueue.__name__)
-        register_id = kwargs.get("request_id")
+        # register_id = kwargs.get("request_id")
         try:
-            loog_err = "%s RequestID %s ERROR => %s" % (
-                log_t,
-                register_id,
-                "API URL did not find!",
-            )
+            # loog_err = "%s RequestID %s ERROR => %s" % (
+            #     log_t,
+            #     register_id,
+            #     "API URL did not find!",
+            # )
             if kwargs is not None:
                 # Remove an aPI key from kwargs and we leave the kwargs without url
                 key_of_queue = kwargs.get("mapped_key")
                 self._deque_postman.append({key_of_queue: kwargs})
 
-        except ValueError as err:
-            raise err.args[0] if err.args else str(err)
+        except Exception as err:
+            raise ValueError(err.args[0] if err.args else str(err))
         try:
             self.client_pool = DeribitWebsocketPool(
                 _heartbeat=30,
