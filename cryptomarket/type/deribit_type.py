@@ -6,14 +6,17 @@ import asyncio
 from collections import deque
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
-from typing import Protocol
+from typing import Any, Protocol, TypedDict
 
+from aiohttp.client_ws import ClientWebSocketResponse
 from fastapi import Request
 from pydantic import BaseModel, Field
+from websockets import ClientConnection
 
 from cryptomarket.project.enums import ExternalAPIEnum
 
 
+# ----
 class OAuthAutenticationParamsType:
 
     grant_type: str
@@ -58,6 +61,7 @@ class OAuthAutenticationType(BaseModel):
         from_attributes = True
 
 
+# ----
 class DeribitClientType:
 
     _semaphore: asyncio.Semaphore
@@ -177,3 +181,11 @@ request_user_data = {
     "client_secret": int,
     "client_id": "< insert client_id >",
 }
+
+
+# ----
+# From DeribitSessionManager
+class DequeSessionWSSProp(TypedDict):
+    session_key: str
+    ws_session: ClientWebSocketResponse | None
+    is_ws: bool
