@@ -23,6 +23,7 @@ from fastapi.responses import StreamingResponse
 
 from cryptomarket.project.enums import ExternalAPIEnum, RadisKeysEnum
 from cryptomarket.project.signals import signal
+from cryptomarket.tasks.queues.task_account_user import task_account
 from cryptomarket.tasks.queues.task_user_data_to_cache import task_caching_user_data
 
 
@@ -80,7 +81,7 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
     # }
     kwargs = {
         "user_id": user_id,
-        "index": request_id,
+        "index": 4947,  # request_id.replace("-", ""),
         "method": "private/get_subaccounts",
         "request_id": request_id[:],
         "api_key": ExternalAPIEnum.WS_COMMON_URL.value,
@@ -101,6 +102,14 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
     await manager.enqueue(3600, **kwargs)
     del kwargs
 
+    # ===============================
+    # ---- RAN SIGNAL
+    # ==============================
+    # Note: The 'task_account' was relocated from 'self.enqueue'.
+    # await  task_account([], {})
+    # await signal.schedule_with_delay(
+    #     callback_=None, asynccallback_=task_account
+    # )
     async def event_generator(mapped_key: str, client_ticker_: str, timeout=60):
         import time
         from datetime import datetime, timedelta

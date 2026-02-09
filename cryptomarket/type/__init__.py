@@ -1,6 +1,6 @@
 from cryptomarket.type.db import BaseSession, Database
 from cryptomarket.type.deribit_type import (
-    DeribitClientType,
+    DeribitClient,
     DeribitLimitedType,
     DeribitManageType,
     DeribitMiddlewareType,
@@ -21,5 +21,5 @@ __all__ = [
     "DeribitMiddlewareType",
     "DeribitLimitedType",
     "DeribitWebsocketPoolType",
-    "DeribitClientType",
+    "DeribitClient",
 ]

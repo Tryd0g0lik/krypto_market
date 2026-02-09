@@ -62,7 +62,7 @@ class OAuthAutenticationType(BaseModel):
 
 
 # ----
-class DeribitClientType:
+class DeribitClient:
 
     _semaphore: asyncio.Semaphore
 
@@ -184,8 +184,3 @@ request_user_data = {
 
 
 # ----
-# From DeribitSessionManager
-class DequeSessionWSSProp(TypedDict):
-    session_key: str
-    ws_session: ClientWebSocketResponse | None
-    is_ws: bool

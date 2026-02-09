@@ -10,20 +10,21 @@ from uuid import uuid4
 
 from fastapi import (
     APIRouter,
-    Depends,
-    HTTPException,
     Request,
-    Response,
-    openapi,
     status,
 )
 from fastapi.responses import StreamingResponse
-from watchfiles import awatch
 
 from cryptomarket.api.v2.api_sse_monitoring import sse_monitoring_child
 from cryptomarket.project.encrypt_manager import EncryptManager
 from cryptomarket.project.enums import ExternalAPIEnum, RadisKeysEnum
 from cryptomarket.project.signals import signal
+from cryptomarket.tasks.queues.task_account_user import task_account
+from cryptomarket.tasks.queues.task_connection_maintenance import (
+    connection_maintenance_task,
+)
+
+# from cryptomarket.tasks.queues.task_connection_maintenance import connection_maintenance_task
 from cryptomarket.tasks.queues.task_user_data_to_cache import task_caching_user_data
 
 log = logging.getLogger(__name__)
@@ -139,7 +140,7 @@ async def sse_auth_endpoint(
         **kwargs_new,
     )
 
-    ticker = ticker[:]
+    # ticker = ticker[:]
     # ===============================
     # START THE DERIBIT MANAGE
     # ===============================
@@ -164,6 +165,13 @@ async def sse_auth_endpoint(
 
     await manager.enqueue(43200, **kwargs)
     del kwargs
+
+    # ===============================
+    # ---- RAN SIGNAL
+    # ==============================
+    # Note: The 'task_account' was relocated from 'self.enqueue'.
+    # await  task_account([], {})
+    await signal.schedule_with_delay(callback_=None, asynccallback_=task_account)
 
     async def event_generator(mapped_key):
         """Генератор событий для SSE потока"""
