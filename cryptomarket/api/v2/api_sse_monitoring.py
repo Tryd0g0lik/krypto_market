@@ -4,27 +4,19 @@ cryptomarket/api/v2/api_sse_monitoring.py:
 
 import asyncio
 import json
-import logging
 import re
 from datetime import datetime
-from random import random
 from uuid import uuid4
 
 from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
     Request,
-    Response,
-    openapi,
-    status,
 )
 from fastapi.responses import StreamingResponse
 
-from cryptomarket.project.enums import ExternalAPIEnum, RadisKeysEnum
+from cryptomarket.project.enums import ExternalAPIEnum
 from cryptomarket.project.signals import signal
 from cryptomarket.tasks.queues.task_account_user import task_account
-from cryptomarket.tasks.queues.task_user_data_to_cache import task_caching_user_data
+from cryptomarket.type.deribit_type import Person
 
 
 async def sse_monitoring_child(ticker: str, request: Request) -> StreamingResponse:
@@ -41,27 +33,13 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
 
     timer = request.query_params.get("timer")
     request_id = str(uuid4())
-    user_id = (request_id.split("-"))[0]
-    client_id = request_id.replace("-", "")
-
-    client__auth = request.headers.get("Authorization")
-    access_token = client__auth[7:] if client__auth is not None else ""
-
-    args = [
-        RadisKeysEnum.DERIBIT_GET_SUBACCOUNTS.value % user_id,
-    ]
-    kwargs_new = {}
-    kwargs_new.__setitem__("client_id", client_id)
-    kwargs_new.__setitem__("user_id", user_id)
-    kwargs_new.__setitem__("access_token", access_token)
-
-    await signal.schedule_with_delay(
-        None,
-        task_caching_user_data,
-        0.2,
-        *args,
-        **kwargs_new,
+    headers_client_id = request.headers.get("X-User-id")
+    user_id = (
+        (request_id.split("-"))[0] if headers_client_id is None else headers_client_id
     )
+    client_id = request.headers.get("X-Client-Id")
+    client_secret = str(request.headers.get("X-Secret-key"))
+    client__auth = request.headers.get("Authorization")
 
     key_of_queue = "sse_connection:%s:%s" % (
         user_id,
@@ -70,15 +48,6 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
     # =====================
     # ---- User Meta DATA
     # =====================
-    # kwargs = {
-    #     "user_id": user_id,
-    #     "index": 10,
-    #     "method": "private/get_subaccounts",
-    #     "request_id": request_id[:],
-    #     "api_key": ExternalAPIEnum.WS_COMMON_URL.value,
-    #     "client_id": client_id,
-    #     "mapped_key": key_of_queue,
-    # }
     kwargs = {
         "user_id": user_id,
         "index": 4947,  # request_id.replace("-", ""),
@@ -88,7 +57,16 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
         "client_id": client_id,
         "mapped_key": key_of_queue,
     }
-
+    # =====================
+    # ---- PERSON
+    # =====================
+    person_manager = manager.person_manager
+    if user_id not in person_manager.person_dict:
+        person_manager.add(person_id=user_id, client_id=client_id)
+        p_dict = person_manager.person_dict
+        p: Person = p_dict.get(user_id)
+        p.client_secret_encrypt = client_secret
+        p_dict.__setitem__(user_id, p)
     # REGULAR EXPRESSION
     user_interval: int = (
         (int(timer) if re.search(r"^(\d+)$", str(timer)) else 60)
@@ -107,9 +85,8 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
     # ==============================
     # Note: The 'task_account' was relocated from 'self.enqueue'.
     # await  task_account([], {})
-    # await signal.schedule_with_delay(
-    #     callback_=None, asynccallback_=task_account
-    # )
+    await signal.schedule_with_delay(callback_=None, asynccallback_=task_account)
+
     async def event_generator(mapped_key: str, client_ticker_: str, timeout=60):
         import time
         from datetime import datetime, timedelta

@@ -15,9 +15,10 @@ from cryptomarket.database.handler_create_db import checkOrCreateTables
 from cryptomarket.deribit_client import DeribitManage
 from cryptomarket.project.middleware.middleware_basic import DeribitMiddleware
 from cryptomarket.project.settings.core import DEBUG, settings
-from cryptomarket.tasks.queues.task_connection_maintenance import (
-    connection_maintenance_task,
-)
+
+# from cryptomarket.tasks.queues.task_connection_maintenance import (
+#     connection_maintenance_task,
+# )
 
 manager = DeribitManage()
 
@@ -41,7 +42,8 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        await connection_maintenance_task()
+        # await connection_maintenance_task()
+        pass
 
 
 def app_cryptomarket():

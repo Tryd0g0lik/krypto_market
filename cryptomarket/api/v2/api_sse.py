@@ -20,12 +20,14 @@ from cryptomarket.project.encrypt_manager import EncryptManager
 from cryptomarket.project.enums import ExternalAPIEnum, RadisKeysEnum
 from cryptomarket.project.signals import signal
 from cryptomarket.tasks.queues.task_account_user import task_account
-from cryptomarket.tasks.queues.task_connection_maintenance import (
-    connection_maintenance_task,
-)
 
 # from cryptomarket.tasks.queues.task_connection_maintenance import connection_maintenance_task
 from cryptomarket.tasks.queues.task_user_data_to_cache import task_caching_user_data
+
+# from cryptomarket.tasks.queues.task_connection_maintenance import (
+#     connection_maintenance_task,
+# )
+
 
 log = logging.getLogger(__name__)
 

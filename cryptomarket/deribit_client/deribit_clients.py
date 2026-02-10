@@ -88,7 +88,7 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
         # self.client_id: str|None = None
         # self.__client_secret: str| None = None
 
-        # @contextmanager
+        @contextmanager
         def initialize(
             self,
             _heartbeat: int = 30,
@@ -156,12 +156,12 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
         #         _client_session.close()
         #         pass
 
-        # @asynccontextmanager
+        @asynccontextmanager
         async def ws_send(
             self,
             _client_session: ClientSession,
             _heartbeat: int = 30,
-            _timeout: int = 10,
+            _timeout: int = 300,
             _url: str = ExternalAPIEnum.WS_COMMON_URL.value,
             _method: str = "GET",
             _autoping: bool = True,
@@ -235,72 +235,72 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
                         % (log_t, "WebSocket connection is and but NOT is closed!")
                     )
 
-        @staticmethod
-        def _get_autantication_data(
-            index: int, client_id: int | str, client_secret_key: str
-        ) -> dict:
-            """
+        # @staticmethod
+        # def _get_autantication_data(
+        #     index: int, client_id: int | str, client_secret_key: str
+        # ) -> dict:
+        #     """
+        #
+        #     :param index:
+        #     :param client_id:
+        #     :param client_secret_key:
+        #     :return: Example ```text
+        #     {
+        #         "jsonrpc": "2.0",
+        #         "id": index,
+        #         "method": "public/auth",
+        #         "params": {
+        #             "grant_type": "client_credentials",
+        #             "client_id": < client_id_account_of_deribit_client >, > ,
+        #             "client_secret": < DECRYPTIN_secret_key_of_deribit_client >,
+        #         },
+        #     }
+        #     ```
+        #     """
+        #     if client_id is None or client_secret_key is None:
+        #         raise ValueError(
+        #             "[%s]: ERROR => Client id and secret key are required variables!",
+        #             (DeribitWebsocketPool.__class__.__name__,),
+        #         )
+        #
+        #     return {
+        #         "jsonrpc": "2.0",
+        #         "id": index,
+        #         "method": "public/auth",
+        #         "params": {
+        #             "grant_type": "client_credentials",
+        #             "client_id": client_id,
+        #             "client_secret": client_secret_key,
+        #         },
+        #     }
 
-            :param index:
-            :param client_id:
-            :param client_secret_key:
-            :return: Example ```text
-            {
-                "jsonrpc": "2.0",
-                "id": index,
-                "method": "public/auth",
-                "params": {
-                    "grant_type": "client_credentials",
-                    "client_id": < client_id_account_of_deribit_client >, > ,
-                    "client_secret": < DECRYPTIN_secret_key_of_deribit_client >,
-                },
-            }
-            ```
-            """
-            if client_id is None or client_secret_key is None:
-                raise ValueError(
-                    "[%s]: ERROR => Client id and secret key are required variables!",
-                    (DeribitWebsocketPool.__class__.__name__,),
-                )
-
-            return {
-                "jsonrpc": "2.0",
-                "id": index,
-                "method": "public/auth",
-                "params": {
-                    "grant_type": "client_credentials",
-                    "client_id": client_id,
-                    "client_secret": client_secret_key,
-                },
-            }
-
-        async def _safe_receive_json(self, ws, timeout: float = 5.0):
-            """
-            Безопасное получение JSON с защитой от конкурентного доступа.
-
-            ВАЖНО: В системе должен быть только ОДИН получатель сообщений на WebSocket!
-            """
-            try:
-                # Используем wait_for с обработкой таймаута
-                msg = await ws.receive_json()
-
-                if msg.type == WSMsgType.TEXT:
-                    return json.loads(msg.data)
-                elif msg.type == WSMsgType.ERROR:
-                    log.error(f"WebSocket error: {msg.data}")
-                    return None
-                elif msg.type == WSMsgType.CLOSED:
-                    log.warning("WebSocket connection closed")
-                    return None
-                else:
-                    # Пинг/понг или бинарные сообщения
-                    return None
-
-            except asyncio.TimeoutError:
-                return None
-            except Exception as e:
-                log.error(f"Error receiving message: {e}")
-                return None
+        # async def _safe_receive_json(self, ws, timeout: float = 5.0):
+        #     """
+        #     Безопасное получение JSON с защитой от конкурентного доступа.
+        #
+        #     ВАЖНО: В системе должен быть только ОДИН получатель сообщений на WebSocket!
+        #     """
+        #     try:
+        #         # Используем wait_for с обработкой таймаута
+        #         msg = await ws.receive_json()
+        #
+        #         if msg.type == WSMsgType.TEXT:
+        #             return json.loads(msg.data)
+        #         elif msg.type == WSMsgType.ERROR:
+        #             log.error(f"WebSocket error: {msg.data}")
+        #             return None
+        #         elif msg.type == WSMsgType.CLOSED:
+        #             log.warning("WebSocket connection closed")
+        #             return None
+        #         else:
+        #             # Пинг/понг или бинарные сообщения
+        #             return None
+        #
+        #     except asyncio.TimeoutError:
+        #         return None
+        #     except Exception as e:
+        #         log.error(f"Error receiving message: {e}")
+        #         return None
 
     def __new__(
         cls,
@@ -525,7 +525,7 @@ class DeribitManage(DeribitManageType):
         self.stripe_response_var_token = None
         args = ("btc_usd", "eth_usd", "connection")
         self.sse_manager = ServerSSEManager(*args)
-        self.person = Person()
+        self.person_manager = PersonManager()
         # self.ws_connection_manager = DeribitWSSConnectionManager()
 
     async def enqueue(self, cache_live: int, **kwargs) -> None:

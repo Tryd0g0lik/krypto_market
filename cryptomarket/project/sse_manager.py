@@ -17,41 +17,41 @@ log = logging.getLogger(__name__)
 setting = settings()
 
 
-class SSEConnectionLimiter:
-    def __init__(
-        self,
-        max_connections: int = setting.SSE_MAX_CONNECTION,
-        max_per_ip: int = setting.SSE_MAX_PER_IP,
-    ):
-        self.max_connections = max_connections
-        self.max_per_api = max_per_ip
-        self.active_connections: int = 0
-        self.connections_per_api = defaultdict(int)
-        self.lock = asyncio.Lock()
-
-    async def limiter(self, client_id: str) -> bool:
-        async with self.lock:
-            # Quantity of every connection
-            if self.active_connections >= self.max_connections:
-                raise ValueError(
-                    "Max connections reached: %s" % self.active_connections
-                )
-            # Quantity connection per IP
-            if self.connections_per_api[client_id] >= self.max_per_api:
-                raise ValueError(
-                    "Max connections per IP '%s' reached: %s",
-                    (client_id, self.connections_per_api[client_id]),
-                )
-            self.active_connections += 1
-            self.connections_per_api[client_id] += 1
-            return True
-
-    async def release(self, client_id: str):
-        async with self.lock:
-            self.active_connections = max(0, self.active_connections - 1)
-            self.connections_per_api[client_id] -= max(
-                0, self.connections_per_api[client_id] - 1
-            )
+# class SSEConnectionLimiter:
+#     def __init__(
+#         self,
+#         max_connections: int = setting.SSE_MAX_CONNECTION,
+#         max_per_ip: int = setting.SSE_MAX_PER_IP,
+#     ):
+#         self.max_connections = max_connections
+#         self.max_per_api = max_per_ip
+#         self.active_connections: int = 0
+#         self.connections_per_api = defaultdict(int)
+#         self.lock = asyncio.Lock()
+#
+#     async def limiter(self, client_id: str) -> bool:
+#         async with self.lock:
+#             # Quantity of every connection
+#             if self.active_connections >= self.max_connections:
+#                 raise ValueError(
+#                     "Max connections reached: %s" % self.active_connections
+#                 )
+#             # Quantity connection per IP
+#             if self.connections_per_api[client_id] >= self.max_per_api:
+#                 raise ValueError(
+#                     "Max connections per IP '%s' reached: %s",
+#                     (client_id, self.connections_per_api[client_id]),
+#                 )
+#             self.active_connections += 1
+#             self.connections_per_api[client_id] += 1
+#             return True
+#
+#     async def release(self, client_id: str):
+#         async with self.lock:
+#             self.active_connections = max(0, self.active_connections - 1)
+#             self.connections_per_api[client_id] -= max(
+#                 0, self.connections_per_api[client_id] - 1
+#             )
 
 
 class ServerSSEManager:
@@ -87,10 +87,10 @@ class ServerSSEManager:
             )
 
     async def broadcast(self, data: dict):
-        # async def broadcast(self, client_id: str, ticker: str, data: dict):
+        # async def broadcast(self, user_id: str, ticker: str, data: dict):
         """
-        Here we broadcast a message to all subscribers by ticker. Template: 'queue.put(json.dumps({client_id: data}))'
-        :param client_id: (str) Client ID This is the index for the deribit's api key
+        Here we broadcast a message to all subscribers by ticker. Template: 'queue.put(json.dumps({user_id: data}))'
+        :param user_id: (str) Client ID This is the index for the deribit's api key
         :param ticker: (str) The attribute that the user subscribed to and the response will be sent by SSE.
         """
         user_meta = data.get("user_meta")
@@ -131,7 +131,7 @@ class ServerSSEManager:
                 self._connections[mapped_key].remove(queue)
                 log.warning(
                     "%s The bad queue: %s was removed successfully!",
-                    (self.log_t % self.broadcast, queue),
+                    (self.log_t % self.broadcast.__name__, queue),
                 )
 
     @contextmanager
