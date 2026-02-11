@@ -214,7 +214,7 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
                 url=_url,
                 heartbeat=_heartbeat,
                 timeout=_timeout,
-                method=_method,
+                # method=_method,
                 autoping=_autoping,
             )
             async with ws_connect as ws:
@@ -232,7 +232,7 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
                     #
                     log.info(
                         "%s %s"
-                        % (log_t, "WebSocket connection is and but NOT is closed!")
+                        % (log_t, "WebSocket connection the end, but NOT is closed!")
                     )
 
         # @staticmethod

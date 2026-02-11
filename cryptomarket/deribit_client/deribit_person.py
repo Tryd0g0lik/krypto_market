@@ -33,6 +33,7 @@ from cryptomarket.errors.person_errors import (
     PersonDictionaryError,
     PersonNotFoundAccessError,
 )
+
 from cryptomarket.project.encrypt_manager import EncryptManager
 from cryptomarket.project.enums import ExternalAPIEnum
 from cryptomarket.project.functions import obj_to_byte
@@ -143,16 +144,6 @@ class PersonManager:
             self.log_t = f"{self.__class__.__name__}.%s"
             super().__init__(client_id, person_id, last_activity)
 
-        # @asynccontextmanager
-        # async def ws_send(self, client: DeribitClient):
-        #     session = client.initialize()
-        #     async with client.ws_send(session) as ws:
-        #         try:
-        #             yield ws
-        #         except Exception as e:
-        #             pass
-        #         finally:
-        #             pass
 
         @property
         def access_token(self) -> str | None:
@@ -234,7 +225,7 @@ class PersonManager:
             self.__refresh_token = refresh_token
 
         async def ws_json(
-            self, _json: dict | None = None, timinterval: float = 15.0
+            self, _json: dict = {}, timinterval: float = 15.0
         ) -> None:
             """
             :param _json: (dict) {"method": < deribit private or public >
@@ -246,21 +237,20 @@ class PersonManager:
                 with client_ws.initialize() as session:
                     async with client_ws.ws_send(session) as ws:
                         while self.active:
+                            log.info("DEBUG WS CONNECTION %s => %s ", self.__class__.__name__, self.ws_json.__name__)
                             pool_pool: float = (
                                 datetime.now().timestamp() - self.last_activity
                             )
-                            if _json is None and pool_pool >= timinterval:
-                                await ws.ping()
-                                continue
-
                             access_t = self.access_token
                             refresh_t = self.refresh_token
+                            auth_data = {}
                             if (
                                 access_t is None
                                 and refresh_t is None
                                 and self.__client_secret_encrypt is not None
                                 and self.__key_encrypt is not None
                             ):
+                                from cryptomarket.project.app import manager
                                 # ===============================
                                 # ---- AUTHENTICATE
                                 # ===============================
@@ -270,14 +260,31 @@ class PersonManager:
                                 auth_data = self._get_autantication_data(
                                     self.client_id, user_secret
                                 )
-                                await asyncio.wait_for(
-                                    ws.send_json(auth_data), timeout=10
-                                )
-                                msg_data = await self._safe_receive_json(ws)
+                            elif access_t:
                                 if (
-                                    msg_data is not None
-                                    and "error" not in msg_data.keys()
+                                    self.__access_token is None
+                                    or len(self.__access_token) < 10
                                 ):
+                                    log.info("DEBUG WS 1 ERROR %s.%s  ", self.__class__.__name__, self.ws_json.__name__)
+                                    raise PersonNotFoundAccessError()
+                                _json.__setitem__("access_token", access_t)
+                                auth_data = _json.copy()
+
+                                pass
+                            await asyncio.wait_for(
+                                ws.send_json(auth_data), timeout=10
+                            )
+                            msg_data = await self._safe_receive_json(ws)
+                            if (
+                                msg_data is not None
+                                and "error" not in msg_data.keys()
+                            ):
+                                log.info("DEBUG MESSAGE %s.%s ", (self.__class__.__name__, self.ws_json.__name__))
+                                method = msg_data.get("method")
+                                # ===============================
+                                # ---- SENDING DATA
+                                # ===============================
+                                if method == "public/auth":
                                     self.access_token = msg_data["result"][
                                         "access_token"
                                     ]
@@ -287,25 +294,33 @@ class PersonManager:
                                     self.expires_in = msg_data["result"]["expires_in"]
                                     self.scope = msg_data["result"]["scope"]
                                     self.token_type = msg_data["result"]["token_type"]
-                            elif access_t is not None:
-                                # ===============================
-                                # ---- GENERATES A NEW ACCESS TOKEN
-                                # ===============================
-                                pass
+                                    self.msg = msg_data.copy()
+                                    continue
+                                else:
+                                    self.msg = msg_data.copy()
+                                # elif method == "private/get_subaccounts":
+                                # elif method == "public/get_index_price":
+                                #     pass
+
+                            # elif refresh_t is not None:
+                            #     # ===============================
+                            #     # ---- GENERATES A NEW ACCESS TOKEN
+                            #     # ===============================
+                            #     pass
+                            #     continue
+
+
+
+                            if _json is None and pool_pool >= timinterval:
+                                log.info("DEBUG WS PING %s.%s ", self.__class__.__name__, self.ws_json.__name__)
+                                await ws.ping()
                                 continue
-                            if (
-                                self.__access_token is None
-                                or len(self.__access_token) < 10
-                            ):
-                                raise PersonNotFoundAccessError()
-                            access_t = self.access_token
-                            _json.__setitem__("access_token", access_t)
-                            await asyncio.wait_for(ws.send_json(_json), timeout=10)
-                            self.msg = await self._safe_receive_json(ws)
-                            _json = None
+                            msg_data.clear()
+                            _json.clear()
                             # elif json['method'].startswith("public/auth"):
             except Exception as e:
                 self.active = False
+                log.info("DEBUG WS 2 ERROR %s.%s  ", self.__class__.__name__, self.ws_json.__name__)
                 log_err = "[%s]: ERROR => %s" % (
                     self.log_t % self.ws_json.__name__,
                     e.args[0] if e.args else str(e),
@@ -355,30 +370,7 @@ class PersonManager:
                 res.__setitem__("id", index)
             return res
 
-        async def _safe_receive(self, ws) -> None | dict:
-            """
-            Безопасное получение JSON с защитой от конкурентного доступа.
 
-            ВАЖНО: В системе должен быть только ОДИН получатель сообщений на WebSocket!
-            """
-            try:
-                # Используем wait_for с обработкой таймаута
-                msg = await ws.receive_json()
-
-                if msg.type == WSMsgType.TEXT:
-                    return json.loads(msg.data)
-                elif msg.type == WSMsgType.ERROR:
-                    log.error(f"WebSocket error: {msg.data}")
-                    return None
-                elif msg.type == WSMsgType.CLOSED:
-                    log.warning("WebSocket connection closed")
-                    return None
-                else:
-                    # Пинг/понг или бинарные сообщения
-                    return None
-            except Exception as e:
-                log.error(f"Error receiving message: {e}")
-                return None
 
         def get_subaccount_data(
             self, request_id: str | int | None = None, with_portfolio=False

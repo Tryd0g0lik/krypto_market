@@ -4,6 +4,7 @@ cryptomarket/api/v2/api_sse_monitoring.py:
 
 import asyncio
 import json
+import logging
 import re
 from datetime import datetime
 from uuid import uuid4
@@ -18,8 +19,9 @@ from cryptomarket.project.signals import signal
 from cryptomarket.tasks.queues.task_account_user import task_account
 from cryptomarket.type.deribit_type import Person
 
+log = logging.getLogger(__name__)
 
-async def sse_monitoring_child(ticker: str, request: Request) -> StreamingResponse:
+async def sse_monitoring_child(request: Request) -> StreamingResponse:
     """
     ticker: ДАННЫЕ КОТОРЫЕ ПОЛУЧИТЬ
     request: Объект запроса FastAPI для проверки разрыва соединения
@@ -56,7 +58,7 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
     # =====================
     # ---- User Meta DATA
     # =====================
-    kwargs = {
+    user_meta_data = {
         "user_id": user_id,
         "index": 4947,  # request_id.replace("-", ""),
         "method": "private/get_subaccounts",
@@ -79,11 +81,11 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
     # REGULAR EXPRESSION
 
     del timer
-    kwargs.__setitem__("user_interval", str(user_interval))
-    ticke_r = ticker if ticker else "btc_usd"
-    kwargs.setdefault("ticker", ticke_r)
-    await manager.enqueue(3600, **kwargs)
-    del kwargs
+    user_meta_data.__setitem__("user_interval", str(user_interval))
+    # ticke_r = ticker if ticker else "btc_usd"
+    # user_meta_data.setdefault("ticker", ticke_r)
+    await manager.enqueue(3600, **user_meta_data)
+    del user_meta_data
 
     # ===============================
     # ---- RAN SIGNAL
@@ -92,7 +94,7 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
     # await  task_account([], {})
     await signal.schedule_with_delay(callback_=None, asynccallback_=task_account)
 
-    async def event_generator(mapped_key: str, client_ticker_: str, timeout=60):
+    async def event_generator(mapped_key: str,  timeout=60):
         import time
         from datetime import datetime, timedelta
 
@@ -113,7 +115,6 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
             initial_event = {
                 "event": "connected",
                 "detail": {
-                    "client_ticker": client_ticker_,
                     "status": "waiting_for_exchange",
                     "message": "Waiting for the exchange rate ...",
                     "timestamp": str(asyncio.get_event_loop().time()),
@@ -133,9 +134,14 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
                 # TO WAIT NEW EVENT/MESSAGE OF QUEUE
                 # ===============================
                 try:
-                    message_str = await asyncio.wait_for(
-                        queue.get(), timeout=timeout_lest
-                    )
+                    try:
+                        message_str = await asyncio.wait_for(
+                            queue.get_nowait(), timeout=timeout_lest
+                        )
+                    except Exception:
+                        message_str = await asyncio.wait_for(
+                            queue.get(), timeout=timeout_lest
+                        )
 
                     # message_str = json.dumps(list(json.loads(message).values())[0])
                     yield f'event: message: "client_id": "{headers_client_id}", "message": {message_str}\n\n'
@@ -144,13 +150,15 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
                     # Don't remove connection
                 except asyncio.TimeoutError:
                     # Отправляем keep-alive сообщение
+                    log.info("DEBUG 1 BEFORE __setitem__ ")
                     keep_alive_event = {}
                     keep_alive_event.__setitem__("event", "keep_alive")
                     keep_alive_event.__setitem__("detail", {})
-                    keep_alive_event["detail"].__setitem__(
-                        "client_ticker", client_ticker_
-                    )
-                    keep_alive_event["detail"].__setitem__("status", "connected")
+                    # keep_alive_event["detail"].__setitem__(
+                    #     "client_ticker", client_ticker_
+                    # )
+                    # keep_alive_event["detail"].__setitem__("status", "connected")
+                    keep_alive_event["detail"]["status"] = "connected"
                     keep_alive_event["detail"].__setitem__(
                         "timestamp", str(asyncio.get_event_loop().time())
                     )
@@ -162,10 +170,11 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
             # Клиент отключился remove of client !!!
             pass
         except Exception as e:
+            log.info("DEBUG 2 BEFORE __setitem__ ")
             error_event = {}
             error_event.__setitem__("event", "error")
             error_event.__setitem__("detail", {})
-            error_event["detail"].__setitem__("client_ticker", client_ticker_)
+            # error_event["detail"].__setitem__("client_ticker", client_ticker_)
             error_event["detail"].__setitem__("error", e.args[0] if e.args else str(e))
             error_event["detail"].__setitem__(
                 "timestamp", str(asyncio.get_event_loop().time())
@@ -175,11 +184,12 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
             # ===============================
             # ---- DELETE THE CLIENT WHEN DISCONNECTING CLIENT
             # ===============================
-            await sse_manager.unsubscribe(client_ticker_, queue)
-            yield f'event: closed\ndetail: {{"client_ticker": "{client_ticker_}", "message": "Connection closed"}}\n\n'
+            # await sse_manager.unsubscribe(client_ticker_, queue)
+            # yield f'event: closed\ndetail: {{"client_ticker": "{client_ticker_}", "message": "Connection closed"}}\n\n'
+            yield f'event: closed\ndetail: "message": "Connection closed"\n\n'
 
     return StreamingResponse(
-        event_generator(key_of_queue, ticke_r, user_interval),
+        event_generator(key_of_queue, user_interval),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache, no-transform",

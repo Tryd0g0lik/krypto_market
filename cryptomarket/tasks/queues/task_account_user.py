@@ -74,7 +74,9 @@ async def task_account(*args, **kwargs) -> bool:
         person_dict = person_manager.person_dict
         if not person_dict.__has__(user_id):
             return False
-
+        # ===============================
+        # ---- PERSON GET
+        # ===============================
         person: Person = person_dict.get(user_id)
         person.last_activity = datetime.now().timestamp()
         if not person:
@@ -94,7 +96,8 @@ async def task_account(*args, **kwargs) -> bool:
             await person.ws_json(data_json)
             if person.msg is None:
                 return False
-            msg = person.msg
+            msg = person.msg.copy()
+            person.msg.clear()
             result_kwargs_new: dict = {**msg}
             result_kwargs_new.__setitem__("user_meta", user_meta_json)
 
