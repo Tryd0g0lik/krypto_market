@@ -38,14 +38,10 @@ router_v1 = APIRouter(
 )
 async def get_index_price(request: Request):
     """Create a new Stripe's account
-        :param headers.user_id: (str|int)ю Required. This is the user index from app. FOr test, you can inter any number.
-        :param tickers: (str) Required. This is the on title or some titles for monitoring.
-            Example: One it is "btc_usd" or some "btc_usd%&eth_usd&ada_usdc&algo_usdc"
+    :param headers.user_id: (str|int)ю Required. This is the user index from app. FOr test, you can inter any number.
+    :param tickers: (str) Required. This is the on title or some titles for monitoring.
+        Example: One it is "btc_usd" or some "btc_usd%&eth_usd&ada_usdc&algo_usdc"
 
     """
     response = await get_index_price_child(request)
-    # if "data" in list(request.__dict__.keys()):
-    #     response = Response(status_code=status.HTTP_201_CREATED)
-    #     response.content = request.body()
-    #     return response
     return response

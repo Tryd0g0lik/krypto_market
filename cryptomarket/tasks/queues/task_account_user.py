@@ -3,9 +3,7 @@ cryptomarket/tasks/queues/task_account_user.py
 """
 
 import asyncio
-import json
 import logging
-import threading
 from contextvars import ContextVar
 from datetime import datetime
 
@@ -97,16 +95,9 @@ async def task_account(*args, **kwargs) -> bool:
         person.client = client if person.client is None else person.client
         try:
             # ===============================
-            # RESPONSE / MASSAGE
+            # RESPONSE / MASSAGE / LOOP / THREADING.THREAD
             # ===============================
             ws_json = person.ws_json
-            # def func():
-            #     loop = asyncio.new_event_loop()
-            #     asyncio.set_event_loop(loop)
-            #
-            #
-            #     return loop.run_until_complete(person.ws_json(user_meta_json))
-            # threading.Thread(target=func, daemon=True).start()
             user_meta_json.__setitem__("request_data", data_json)
             wrapper_delayed = wrapper_delayed_task(
                 callback_=None, asynccallback_=ws_json

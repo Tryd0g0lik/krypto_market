@@ -35,14 +35,10 @@ async def get_index_price_child(
     from cryptomarket.project.app import manager
     from cryptomarket.type import Person
 
-    # sse_manager = manager.sse_manager
     person_manager = manager.person_manager
     response = Response(
         status_code=status.HTTP_200_OK,
     )
-    # =====================
-    # ---- BASIS SETTING
-    # =====================
     headers_user_id = request.headers.get("X-User-ID")
     headers_request_id = request.headers.get("X-Request-ID")
     tickers = request.query_params.get("tickers")
@@ -98,24 +94,17 @@ async def get_index_price_child(
         "drbfix-eth_usdc",
     ]
     if tickers not in list_for_choosing:
+        # ===============================
+        # ---- RESPONSE HTTP
+        # ==============================
         response.detail = json.dumps({"detail": "Ticker not found!"})
         response.status_code = status.HTTP_404_NOT_FOUND
         return response
-    # not_foound = [view for view in tickers_list if  view not in list_for_choosing]
-    # list_for_choosing = [view.strip() for view in list_for_choosing]
-    # str_for_choosing = ", ".join(list_for_choosing)
-    # timer = request.query_params.get("timer")
 
     try:
         request_id = (
             str(uuid4()) if headers_request_id is None else str(headers_request_id)
         )
-
-        # key_of_queue = "sse_tickers:%s:%s" % (
-        #     headers_user_id,
-        #     datetime.now().strftime("%Y%m%d%H%M%S"),
-        # )
-        # await sse_manager.subscribe(p.key_of_queue)
         # =====================
         # ---- User Meta DATA
         # =====================
@@ -127,34 +116,12 @@ async def get_index_price_child(
             "mapped_key": p.key_of_queue,  # Key for the cache server
             "tickers": tickers,
         }
-        # =====================
-        # ---- PERSON
-        # =====================
-        # person_manager = manager.person_manager
-        # if user_id not in person_manager.person_dict:
-        #     person_manager.add(person_id=user_id, client_id=client_id)
-        #     p_dict = person_manager.person_dict
-        #     p: Person = p_dict.get(user_id)
-        #     p.client_secret_encrypt = client_secret
-        #     p_dict.__setitem__(user_id, p)
-        # REGULAR EXPRESSION
-        # user_interval: int = (
-        #     (int(timer) if re.search(r"^(\d+)$", str(timer)) else 60)
-        #     if timer is not None
-        #     else 60
-        # )
-        # del timer
-        # user_meta_data.__setitem__("user_interval", str(user_interval))
-        # ticke_r = ticker if ticker else "btc_usd"
-        # user_meta_data.setdefault("ticker", ticke_r)
         await manager.enqueue(3600, **user_meta_data)
         del user_meta_data
 
         # ===============================
         # ---- RAN SIGNAL
         # ==============================
-        # Note: The 'task_account' was relocated from 'self.enqueue'.
-        # await  task_account([], {})
         await signal.schedule_with_delay(callback_=None, asynccallback_=task_account)
         # ===============================
         # ---- RESPONSE HTTP
@@ -169,6 +136,9 @@ async def get_index_price_child(
         response.detail = json.dumps(detail_dict)
         return response
     except Exception as e:
+        # ===============================
+        # ---- RESPONSE HTTP
+        # ==============================
         response.detail = str(e)
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return response

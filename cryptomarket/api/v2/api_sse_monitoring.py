@@ -35,7 +35,7 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
     :return:
     """
     # =====================
-    # ---- BASIS SETTING
+    # ---- BASIS OPTIONS
     # =====================
     from cryptomarket.project.app import manager
 
@@ -46,12 +46,12 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
         if timer is not None
         else 60
     )
-    request_id = str(uuid4())
+    headers_request_id = request.headers.get("X-Request-ID")
+    request_id = str(uuid4()) if headers_request_id is None else str(headers_request_id)
     headers_user_id = request.headers.get("X-User-id")
     user_id = (request_id.split("-"))[0] if headers_user_id is None else headers_user_id
     headers_client_id = request.headers.get("X-Client-Id")
     headers_client_secret = str(request.headers.get("X-Secret-key"))
-    # headers_client_auth = request.headers.get("Authorization")
 
     key_of_queue = "sse_connection:%s:%s" % (
         user_id,
@@ -72,7 +72,7 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
     }
 
     # =====================
-    # ---- PERSON
+    # ---- CREATE PERSON
     # =====================
     person_manager = manager.person_manager
     if user_id not in person_manager.person_dict:
@@ -83,31 +83,25 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
         p.client_secret_encrypt = headers_client_secret
         p_dict.__setitem__(user_id, p)
     # REGULAR EXPRESSION
-
     del timer
+    # =====================
+    # ---- CREATE QUEUE
+    # =====================
     user_meta_data.__setitem__("user_interval", str(user_interval))
-    # ticke_r = ticker if ticker else "btc_usd"
-    # user_meta_data.setdefault("ticker", ticke_r)
     await manager.enqueue(3600, **user_meta_data)
     del user_meta_data
 
     # ===============================
     # ---- RAN SIGNAL
     # ==============================
-    # Note: The 'task_account' was relocated from 'self.enqueue'.
-    # await  task_account([], {})
     await signal.schedule_with_delay(callback_=None, asynccallback_=task_account)
 
     async def event_generator(mapped_key: str, timeout=60):
         import time
-        from datetime import datetime, timedelta
 
         # Timer
         start_time = time.time()
         next_timeout_at = start_time + timeout
-        # ===============================
-        # ---- SUBSCRIBE
-        # ===============================
 
         try:
             # ===============================
@@ -136,8 +130,6 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
                 # TO WAIT NEW EVENT/MESSAGE OF QUEUE
                 # ===============================
                 try:
-                    # if queue.qsize() > 0:
-                    message_str = None
                     try:
                         message_str = await asyncio.wait_for(
                             queue.get_nowait(), timeout=timeout_lest
@@ -149,8 +141,6 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
                         )
                         yield f'event: message: "client_id": "{headers_client_id}", "message": {message_str}\n\n'
 
-                        # message_str = json.dumps(list(json.loads(message).values())[0])
-
                     # Then we wait for  the moment when the need is update the access-token
                     # Don't remove connection
                 except asyncio.TimeoutError:
@@ -159,10 +149,7 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
                     keep_alive_event = {}
                     keep_alive_event.__setitem__("event", "keep_alive")
                     keep_alive_event.__setitem__("detail", {})
-                    # keep_alive_event["detail"].__setitem__(
-                    #     "client_ticker", client_ticker_
-                    # )
-                    # keep_alive_event["detail"].__setitem__("status", "connected")
+                    keep_alive_event["detail"].__setitem__("status", "connected")
                     keep_alive_event["detail"]["status"] = "connected"
                     keep_alive_event["detail"].__setitem__(
                         "timestamp", str(asyncio.get_event_loop().time())
@@ -179,7 +166,6 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
             error_event = {}
             error_event.__setitem__("event", "error")
             error_event.__setitem__("detail", {})
-            # error_event["detail"].__setitem__("client_ticker", client_ticker_)
             error_event["detail"].__setitem__("error", e.args[0] if e.args else str(e))
             error_event["detail"].__setitem__(
                 "timestamp", str(asyncio.get_event_loop().time())
@@ -189,8 +175,6 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
             # ===============================
             # ---- DELETE THE CLIENT WHEN DISCONNECTING CLIENT
             # ===============================
-            # await sse_manager.unsubscribe(client_ticker_, queue)
-            # yield f'event: closed\ndetail: {{"client_ticker": "{client_ticker_}", "message": "Connection closed"}}\n\n'
             yield 'event: closed\ndetail: "message": "Connection closed"\n\n'
 
     return StreamingResponse(

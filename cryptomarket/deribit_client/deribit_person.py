@@ -20,13 +20,11 @@ import asyncio
 import json
 import logging
 import threading
-from collections import UserDict, deque
-from contextlib import asynccontextmanager
+from collections import UserDict
 from datetime import datetime
 from sys import maxsize
 
-from aiohttp import WSMsgType, client_ws
-from watchfiles import awatch
+from aiohttp import client_ws
 
 from cryptomarket.errors import DeribitValueError
 from cryptomarket.errors.person_errors import (
@@ -34,8 +32,7 @@ from cryptomarket.errors.person_errors import (
     PersonNotFoundAccessError,
 )
 from cryptomarket.project.encrypt_manager import EncryptManager
-from cryptomarket.project.enums import ExternalAPIEnum
-from cryptomarket.project.functions import obj_to_byte
+from cryptomarket.project.functions import wrapper_delayed_task
 from cryptomarket.project.settings.core import settings
 from cryptomarket.type import DeribitClient
 from cryptomarket.type.deribit_type import Person
@@ -119,9 +116,6 @@ class PersonManager:
 
         def __init__(
             self,
-            # _access_token,
-            # _refresh_token,
-            # expires_in,
             client_id,
             person_id,
             last_activity=datetime.now().timestamp(),
@@ -193,7 +187,6 @@ class PersonManager:
                                         )
                                     )
                                 ),
-                                daemon=True,
                             )
                         )
                         result.start()
@@ -203,6 +196,7 @@ class PersonManager:
                         raise e
 
                 func()
+
                 self.__key_encrypt = list(client_secret_encrypt.keys())[0].encode()
                 self.__client_secret_encrypt = list(client_secret_encrypt.values())[
                     0
@@ -315,9 +309,6 @@ class PersonManager:
                                 else:
                                     self.msg = msg_data.copy()
 
-                                # elif method == "private/get_subaccounts":
-                                # elif method == "public/get_index_price":
-                                #     pass
                             elif msg_data is not None and "error" in msg_data.keys():
                                 self.msg = msg_data.copy()
                             else:
@@ -331,17 +322,9 @@ class PersonManager:
 
                                 await sse_manager.broadcast(result_kwargs_new)
                                 self.msg.clear()
-                            # elif refresh_t is not None:
-                            #     # ===============================
-                            #     # ---- GENERATES A NEW ACCESS TOKEN
-                            #     # ===============================
-                            #     pass
-                            #     continue
-
                             del msg_data
                             _json = {}
 
-                            # elif json['method'].startswith("public/auth"):
             except Exception as e:
                 self.active = False
                 log.info(
@@ -442,9 +425,6 @@ class PersonManager:
                 elif isinstance(msg, dict) and "error" in msg:
                     log.error(f"WebSocket error: {json.dumps(msg)}")
                     return msg
-                # elif msg.type == WSMsgType.CLOSED:
-                #     log.warning("WebSocket connection closed")
-                #     return None
                 else:
                     # Пинг/понг или бинарные сообщения
                     return None
