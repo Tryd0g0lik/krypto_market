@@ -206,6 +206,7 @@ class Person:
         self.last_activity: float = last_activity
         self.ws: client_ws.ClientWebSocketResponse | None = None
         self.active: bool = True
+        self.key_of_queue: str | None = None
         self.__client_secret_encrypt: bytes | None = None
         self.__key_encrypt: bytes | None = None
         self.scope: str | None = None

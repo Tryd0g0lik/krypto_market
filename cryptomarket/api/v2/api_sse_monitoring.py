@@ -21,6 +21,7 @@ from cryptomarket.type.deribit_type import Person
 
 log = logging.getLogger(__name__)
 
+
 async def sse_monitoring_child(request: Request) -> StreamingResponse:
     """
     ticker: ДАННЫЕ КОТОРЫЕ ПОЛУЧИТЬ
@@ -38,6 +39,7 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
     # =====================
     from cryptomarket.project.app import manager
 
+    sse_manager = manager.sse_manager
     timer = request.query_params.get("timer")
     user_interval: int = (
         (int(timer) if re.search(r"^(\d+)$", str(timer)) else 60)
@@ -55,6 +57,7 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
         user_id,
         datetime.now().strftime("%Y%m%d%H%M%S"),
     )
+    await sse_manager.subscribe(key_of_queue)
     # =====================
     # ---- User Meta DATA
     # =====================
@@ -76,6 +79,7 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
         person_manager.add(person_id=user_id, client_id=headers_client_id)
         p_dict = person_manager.person_dict
         p: Person = p_dict.get(user_id)
+        p.key_of_queue = key_of_queue
         p.client_secret_encrypt = headers_client_secret
         p_dict.__setitem__(user_id, p)
     # REGULAR EXPRESSION
@@ -94,20 +98,17 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
     # await  task_account([], {})
     await signal.schedule_with_delay(callback_=None, asynccallback_=task_account)
 
-    async def event_generator(mapped_key: str,  timeout=60):
+    async def event_generator(mapped_key: str, timeout=60):
         import time
         from datetime import datetime, timedelta
 
-        from cryptomarket.project.app import manager
-
-        sse_manager = manager.sse_manager
         # Timer
         start_time = time.time()
         next_timeout_at = start_time + timeout
         # ===============================
         # ---- SUBSCRIBE
         # ===============================
-        queue = await sse_manager.subscribe(mapped_key)
+
         try:
             # ===============================
             # FIRST MESSAGE ABOUT CONNECTION TO THE SSE
@@ -121,8 +122,9 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
                 },
             }
             yield f"event: {initial_event['event']}\n detail: {json.dumps(initial_event['detail'])}\n\n"
-
+            queue = await sse_manager.subscribe(mapped_key)
             while True:
+
                 now = time.time()
                 timeout_lest = next_timeout_at - now
                 # Check the connection with a client
@@ -134,23 +136,26 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
                 # TO WAIT NEW EVENT/MESSAGE OF QUEUE
                 # ===============================
                 try:
+                    # if queue.qsize() > 0:
+                    message_str = None
                     try:
                         message_str = await asyncio.wait_for(
                             queue.get_nowait(), timeout=timeout_lest
                         )
+                        yield f'event: message: "client_id": "{headers_client_id}", "message": {message_str}\n\n'
                     except Exception:
                         message_str = await asyncio.wait_for(
                             queue.get(), timeout=timeout_lest
                         )
+                        yield f'event: message: "client_id": "{headers_client_id}", "message": {message_str}\n\n'
 
-                    # message_str = json.dumps(list(json.loads(message).values())[0])
-                    yield f'event: message: "client_id": "{headers_client_id}", "message": {message_str}\n\n'
+                        # message_str = json.dumps(list(json.loads(message).values())[0])
 
                     # Then we wait for  the moment when the need is update the access-token
                     # Don't remove connection
                 except asyncio.TimeoutError:
                     # Отправляем keep-alive сообщение
-                    log.info("DEBUG 1 BEFORE __setitem__ ")
+                    # log.info("DEBUG 1 BEFORE __setitem__ ")
                     keep_alive_event = {}
                     keep_alive_event.__setitem__("event", "keep_alive")
                     keep_alive_event.__setitem__("detail", {})
@@ -186,7 +191,7 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
             # ===============================
             # await sse_manager.unsubscribe(client_ticker_, queue)
             # yield f'event: closed\ndetail: {{"client_ticker": "{client_ticker_}", "message": "Connection closed"}}\n\n'
-            yield f'event: closed\ndetail: "message": "Connection closed"\n\n'
+            yield 'event: closed\ndetail: "message": "Connection closed"\n\n'
 
     return StreamingResponse(
         event_generator(key_of_queue, user_interval),

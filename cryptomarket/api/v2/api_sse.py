@@ -2,15 +2,14 @@
 cryptomarket/api/v2/api_sse.py
 """
 
-
 import logging
+
 from fastapi import (
     APIRouter,
     Request,
     status,
 )
 from fastapi.responses import StreamingResponse
-
 
 from cryptomarket.api.v2.api_sse_monitoring import sse_monitoring_child
 
@@ -27,11 +26,12 @@ router_v2 = APIRouter(
     },
 )
 
+
 # ======================
 # ---- CRYPTO EXCHANGE RATE MONITORING
 # ======================
 @router_v2.get(
-    path="/connection/",
+    path="/connection",
     summary="SSE Crypto exchange rate monitoring",
 )
 async def sse_monitoring(request: Request) -> StreamingResponse:

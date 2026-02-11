@@ -33,7 +33,6 @@ from cryptomarket.errors.person_errors import (
     PersonDictionaryError,
     PersonNotFoundAccessError,
 )
-
 from cryptomarket.project.encrypt_manager import EncryptManager
 from cryptomarket.project.enums import ExternalAPIEnum
 from cryptomarket.project.functions import obj_to_byte
@@ -137,13 +136,13 @@ class PersonManager:
             self.active: bool = True
             self.__client_secret_encrypt: bytes | None = None
             self.__key_encrypt: bytes | None = None
+            self.key_of_queue: str | None = None
             self.scope: str | None = None
             self.token_type: str | None = None
             self.msg: dict | None = None
             self.client: DeribitClient | None = None
             self.log_t = f"{self.__class__.__name__}.%s"
             super().__init__(client_id, person_id, last_activity)
-
 
         @property
         def access_token(self) -> str | None:
@@ -224,23 +223,28 @@ class PersonManager:
         def refresh_token(self, refresh_token: str) -> str:
             self.__refresh_token = refresh_token
 
-        async def ws_json(
-            self, _json: dict = {}, timinterval: float = 15.0
-        ) -> None:
+        async def ws_json(self, timinterval: float = 15.0, **kwargs) -> None:
             """
             :param _json: (dict) {"method": < deribit private or public >
                 "params":{....}, "id": < request index >
             }
             """
+            from cryptomarket.project.app import manager
+
+            _json = kwargs.copy()
+            sse_manager = manager.sse_manager
             try:
                 client_ws = self.client
+                user_meta_json = _json.copy()
+                user_meta_json.pop("request_data")
+                _json = _json.pop("request_data")
                 with client_ws.initialize() as session:
                     async with client_ws.ws_send(session) as ws:
                         while self.active:
-                            log.info("DEBUG WS CONNECTION %s => %s ", self.__class__.__name__, self.ws_json.__name__)
                             pool_pool: float = (
                                 datetime.now().timestamp() - self.last_activity
                             )
+
                             access_t = self.access_token
                             refresh_t = self.refresh_token
                             auth_data = {}
@@ -250,7 +254,6 @@ class PersonManager:
                                 and self.__client_secret_encrypt is not None
                                 and self.__key_encrypt is not None
                             ):
-                                from cryptomarket.project.app import manager
                                 # ===============================
                                 # ---- AUTHENTICATE
                                 # ===============================
@@ -260,27 +263,39 @@ class PersonManager:
                                 auth_data = self._get_autantication_data(
                                     self.client_id, user_secret
                                 )
-                            elif access_t:
+                            elif access_t and _json is not None and "jsonrpc" in _json:
                                 if (
                                     self.__access_token is None
                                     or len(self.__access_token) < 10
                                 ):
-                                    log.info("DEBUG WS 1 ERROR %s.%s  ", self.__class__.__name__, self.ws_json.__name__)
+                                    log.info(
+                                        "DEBUG WS 1 ERROR %s.%s  ",
+                                        self.__class__.__name__,
+                                        self.ws_json.__name__,
+                                    )
                                     raise PersonNotFoundAccessError()
                                 _json.__setitem__("access_token", access_t)
                                 auth_data = _json.copy()
 
-                                pass
-                            await asyncio.wait_for(
-                                ws.send_json(auth_data), timeout=10
-                            )
+                            if len(_json) == 0 and pool_pool >= timinterval:
+                                log.info(
+                                    "DEBUG WS PING %s.%s ",
+                                    self.__class__.__name__,
+                                    self.ws_json.__name__,
+                                )
+                                await ws.ping()
+                                continue
+
+                            if "jsonrpc" not in _json:
+                                continue
+                            await asyncio.wait_for(ws.send_json(auth_data), timeout=10)
                             msg_data = await self._safe_receive_json(ws)
-                            if (
-                                msg_data is not None
-                                and "error" not in msg_data.keys()
-                            ):
-                                log.info("DEBUG MESSAGE %s.%s ", (self.__class__.__name__, self.ws_json.__name__))
-                                method = msg_data.get("method")
+                            if msg_data is not None and "error" not in msg_data.keys():
+                                log.info(
+                                    "DEBUG MESSAGE %s.%s ",
+                                    (self.__class__.__name__, self.ws_json.__name__),
+                                )
+                                method = auth_data.get("method")
                                 # ===============================
                                 # ---- SENDING DATA
                                 # ===============================
@@ -294,14 +309,28 @@ class PersonManager:
                                     self.expires_in = msg_data["result"]["expires_in"]
                                     self.scope = msg_data["result"]["scope"]
                                     self.token_type = msg_data["result"]["token_type"]
+
                                     self.msg = msg_data.copy()
-                                    continue
+
                                 else:
                                     self.msg = msg_data.copy()
+
                                 # elif method == "private/get_subaccounts":
                                 # elif method == "public/get_index_price":
                                 #     pass
+                            elif msg_data is not None and "error" in msg_data.keys():
+                                self.msg = msg_data.copy()
+                            else:
+                                pass
+                            if self.msg is not None and len(self.msg) > 0:
+                                msg = self.msg.copy()
+                                result_kwargs_new: dict = {**msg}
+                                result_kwargs_new.__setitem__(
+                                    "user_meta", user_meta_json
+                                )
 
+                                await sse_manager.broadcast(result_kwargs_new)
+                                self.msg.clear()
                             # elif refresh_t is not None:
                             #     # ===============================
                             #     # ---- GENERATES A NEW ACCESS TOKEN
@@ -309,18 +338,17 @@ class PersonManager:
                             #     pass
                             #     continue
 
+                            del msg_data
+                            _json = {}
 
-
-                            if _json is None and pool_pool >= timinterval:
-                                log.info("DEBUG WS PING %s.%s ", self.__class__.__name__, self.ws_json.__name__)
-                                await ws.ping()
-                                continue
-                            msg_data.clear()
-                            _json.clear()
                             # elif json['method'].startswith("public/auth"):
             except Exception as e:
                 self.active = False
-                log.info("DEBUG WS 2 ERROR %s.%s  ", self.__class__.__name__, self.ws_json.__name__)
+                log.info(
+                    "DEBUG WS 2 ERROR %s.%s  ",
+                    self.__class__.__name__,
+                    self.ws_json.__name__,
+                )
                 log_err = "[%s]: ERROR => %s" % (
                     self.log_t % self.ws_json.__name__,
                     e.args[0] if e.args else str(e),
@@ -370,8 +398,6 @@ class PersonManager:
                 res.__setitem__("id", index)
             return res
 
-
-
         def get_subaccount_data(
             self, request_id: str | int | None = None, with_portfolio=False
         ) -> dict:
@@ -415,7 +441,7 @@ class PersonManager:
                     return msg
                 elif isinstance(msg, dict) and "error" in msg:
                     log.error(f"WebSocket error: {json.dumps(msg)}")
-                    return None
+                    return msg
                 # elif msg.type == WSMsgType.CLOSED:
                 #     log.warning("WebSocket connection closed")
                 #     return None

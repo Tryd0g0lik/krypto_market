@@ -5,10 +5,11 @@ cryptomarket/tasks/queues/task_account_user.py
 import asyncio
 import json
 import logging
+import threading
 from contextvars import ContextVar
 from datetime import datetime
 
-from cryptomarket.project.functions import str_to_json
+from cryptomarket.project.functions import str_to_json, wrapper_delayed_task
 from cryptomarket.type import DeribitClient, Person
 
 log = logging.getLogger(__name__)
@@ -36,7 +37,7 @@ async def task_account(*args, **kwargs) -> bool:
     # ===============================
     queue_keys = manager.queue  # list of keys
     person_manager = manager.person_manager
-    sse_manager = manager.sse_manager
+    # sse_manager = manager.sse_manager
     context_redis_connection = (
         manager.rate_limit.context_redis_connection
     )  # coroutine of the redis asynccontextmanager
@@ -79,29 +80,38 @@ async def task_account(*args, **kwargs) -> bool:
         # ===============================
         person: Person = person_dict.get(user_id)
         person.last_activity = datetime.now().timestamp()
-        if not person:
-            pass
-        else:
-            request_id = user_meta_json.get("index")
-            data_json = person.get_subaccount_data(request_id)
-            dataVar.set(json.dumps(data_json))
 
-        data_json = json.loads(dataVar.get())
+        request_id = user_meta_json.get("index")
+        method = user_meta_json.get("method")
+        data_json = person.get_subaccount_data(request_id)
+        if method == "public/get_index_price":
+            tickers = user_meta_json.get("tickers")
+            data_json.__setitem__("method", "public/get_index_price")
+            data_json["params"] = {}
+            data_json["params"].__setitem__("index_name", tickers)
+
+        # dataVar.set(json.dumps(data_json))
+        #
+        # data_json = json.loads(dataVar.get())
         del dataVar
-        person.client = client
+        person.client = client if person.client is None else person.client
         try:
             # ===============================
             # RESPONSE / MASSAGE
             # ===============================
-            await person.ws_json(data_json)
-            if person.msg is None:
-                return False
-            msg = person.msg.copy()
-            person.msg.clear()
-            result_kwargs_new: dict = {**msg}
-            result_kwargs_new.__setitem__("user_meta", user_meta_json)
-
-            await sse_manager.broadcast(result_kwargs_new)
+            ws_json = person.ws_json
+            # def func():
+            #     loop = asyncio.new_event_loop()
+            #     asyncio.set_event_loop(loop)
+            #
+            #
+            #     return loop.run_until_complete(person.ws_json(user_meta_json))
+            # threading.Thread(target=func, daemon=True).start()
+            user_meta_json.__setitem__("request_data", data_json)
+            wrapper_delayed = wrapper_delayed_task(
+                callback_=None, asynccallback_=ws_json
+            )
+            await wrapper_delayed([], **user_meta_json)
             return True
         except Exception as e:
             log.error("%s Error => %s" % (log_t, e.args[0] if e.args else str(e)))
