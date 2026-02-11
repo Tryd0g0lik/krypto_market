@@ -40,3 +40,15 @@ class DeribitConnectionError(DeribitError):
         if log_message:
             message += f" => {log_message} \n"
         super().__init__(message)
+
+
+# ===============================
+# ---- DATE FILTER
+# ===============================
+class DeribitRangeDatetimeError(DeribitError):
+    def __init__(self, log_message=None) -> None:
+        self.log_message = log_message
+        message = f"""{self.__class__.__name__} => Check the filtering dates!"""
+        if log_message:
+            message += f" => {log_message} \n"
+        super().__init__(message)

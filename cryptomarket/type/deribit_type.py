@@ -192,6 +192,8 @@ class Person:
         Получить его через MIDDLEWARE и JWT токен
     """
 
+    SUPPORTED_CURRENCIES = {}
+
     def __init__(
         self,
         client_id,

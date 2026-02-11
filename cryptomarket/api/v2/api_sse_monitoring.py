@@ -69,6 +69,7 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
         "api_key": ExternalAPIEnum.WS_COMMON_URL.value,
         "client_id": headers_client_id,
         "mapped_key": key_of_queue,
+        "timeinterval_query": "0.0",
     }
 
     # =====================

@@ -7,6 +7,7 @@ import json
 import logging
 import pickle
 import threading
+from datetime import datetime
 
 from cryptomarket.project.settings.core import DEBUG, settings
 
@@ -170,3 +171,26 @@ def str_to_json(data_str: str) -> dict:
                 % ("[str_to_json]:", e.args[0] if e.args else str(e))
             )
     return user_meta_json
+
+
+# ===============================
+# ---- DATETIME CALENDAR
+# ===============================
+def datetime_to_seconds(dt: datetime, utc: bool = False) -> float:
+    if utc:
+        import calendar
+
+        return calendar.timegm(dt.utctimetuple())
+    return dt.timestamp()
+
+
+def string_to_seconds(
+    date_string: str, format_string: str = "%d.%m.%Y", utc: bool = False
+) -> float:
+    """Преобразовать строку с датой напрямую в секунды"""
+    dt = datetime.strptime(date_string, format_string)
+    return datetime_to_seconds(dt, utc)
+
+
+def time_now_to_seconds() -> float:
+    return datetime.now().timestamp()
