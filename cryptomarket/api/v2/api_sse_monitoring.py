@@ -25,21 +25,29 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
     request: Объект запроса FastAPI для проверки разрыва соединения
     parrameter: 'url/?timer=5' Пользователь устанавливает время в секундах. Время для \
         временного интервала (обновления данных). По умолчанию 60 секунд
+    :param headers["X-Client-Id"] (str) Required,
+    :param headers["X-User-id"] (str).
     :param ticker:
     :param request:
     :return:
     """
+    # =====================
+    # ---- BASIS SETTING
+    # =====================
     from cryptomarket.project.app import manager
 
     timer = request.query_params.get("timer")
-    request_id = str(uuid4())
-    headers_client_id = request.headers.get("X-User-id")
-    user_id = (
-        (request_id.split("-"))[0] if headers_client_id is None else headers_client_id
+    user_interval: int = (
+        (int(timer) if re.search(r"^(\d+)$", str(timer)) else 60)
+        if timer is not None
+        else 60
     )
-    client_id = request.headers.get("X-Client-Id")
-    client_secret = str(request.headers.get("X-Secret-key"))
-    client__auth = request.headers.get("Authorization")
+    request_id = str(uuid4())
+    headers_user_id = request.headers.get("X-User-id")
+    user_id = (request_id.split("-"))[0] if headers_user_id is None else headers_user_id
+    headers_client_id = request.headers.get("X-Client-Id")
+    headers_client_secret = str(request.headers.get("X-Secret-key"))
+    # headers_client_auth = request.headers.get("Authorization")
 
     key_of_queue = "sse_connection:%s:%s" % (
         user_id,
@@ -54,25 +62,22 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
         "method": "private/get_subaccounts",
         "request_id": request_id[:],
         "api_key": ExternalAPIEnum.WS_COMMON_URL.value,
-        "client_id": client_id,
+        "client_id": headers_client_id,
         "mapped_key": key_of_queue,
     }
+
     # =====================
     # ---- PERSON
     # =====================
     person_manager = manager.person_manager
     if user_id not in person_manager.person_dict:
-        person_manager.add(person_id=user_id, client_id=client_id)
+        person_manager.add(person_id=user_id, client_id=headers_client_id)
         p_dict = person_manager.person_dict
         p: Person = p_dict.get(user_id)
-        p.client_secret_encrypt = client_secret
+        p.client_secret_encrypt = headers_client_secret
         p_dict.__setitem__(user_id, p)
     # REGULAR EXPRESSION
-    user_interval: int = (
-        (int(timer) if re.search(r"^(\d+)$", str(timer)) else 60)
-        if timer is not None
-        else 60
-    )
+
     del timer
     kwargs.__setitem__("user_interval", str(user_interval))
     ticke_r = ticker if ticker else "btc_usd"
@@ -121,7 +126,7 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
                 timeout_lest = next_timeout_at - now
                 # Check the connection with a client
                 if await request.is_disconnected():
-                    yield f'event: disconnected\ndetail: {{"client_ticker": "{client_id}", "message": "Client disconnected"}}\n\n'
+                    yield f'event: disconnected\ndetail: {{"client_ticker": "{headers_client_id}", "message": "Client disconnected"}}\n\n'
                     break
 
                 # ===============================
@@ -133,7 +138,7 @@ async def sse_monitoring_child(ticker: str, request: Request) -> StreamingRespon
                     )
 
                     # message_str = json.dumps(list(json.loads(message).values())[0])
-                    yield f'event: message: "client_id": "{client_id}", "message": {message_str}\n\n'
+                    yield f'event: message: "client_id": "{headers_client_id}", "message": {message_str}\n\n'
 
                     # Then we wait for  the moment when the need is update the access-token
                     # Don't remove connection
