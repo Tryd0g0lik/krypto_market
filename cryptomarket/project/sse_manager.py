@@ -68,7 +68,8 @@ class ServerSSEManager:
         async with self.lock:
             if key_of_queue not in self._connections:
                 self._connections[key_of_queue] = set()
-            self._connections[key_of_queue].add(queue)
+            elif queue not in self._connections[key_of_queue]:
+                self._connections[key_of_queue].add(queue)
         log.info(
             "%s The new subscribe was created successfully!",
             (self.log_t % self.subscribe.__name__),

@@ -123,7 +123,8 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
                     self.__class__.__name__,
                     self.client_session.__name__,
                 )
-                _client_session = ClientSession(_url, loop=_loop)
+                # _client_session = ClientSession(_url, loop=_loop)
+                _client_session = ClientSession(_url)
                 log.info("%s %s" % (log_t, "Client session opening!"))
                 try:
                     yield _client_session
@@ -209,7 +210,6 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
                 )
 
             log_t = "[%s.%s]:" % (self.__class__.__name__, self.ws_send.__name__)
-            log.info("%s %s" % (log_t, "WebSocket connection is successfully!"))
             ws_connect = _client_session.ws_connect(
                 url=_url,
                 heartbeat=_heartbeat,
@@ -217,23 +217,20 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
                 # method=_method,
                 autoping=_autoping,
             )
-            async with ws_connect as ws:
-                try:
-                    log.info("%s %s" % (log_t, "WebSocket connection is open!"))
-                    yield ws
-                except Exception as e:
-                    log.error(
-                        "%s ERROR => %s" % (log_t, e.args[0] if e.args else str(e))
-                    )
-                    await ws.close()
-                finally:
-                    # await ws.close()
-                    pass
-                    #
-                    log.info(
-                        "%s %s"
-                        % (log_t, "WebSocket connection the end, but NOT is closed!")
-                    )
+            # async with ws_connect as ws:
+            try:
+                log.info("%s %s" % (log_t, "WebSocket connection is open!"))
+                yield ws_connect
+            except Exception as e:
+                log.error("%s ERROR => %s" % (log_t, e.args[0] if e.args else str(e)))
+
+            finally:
+                pass
+                #
+                log.info(
+                    "%s %s"
+                    % (log_t, "WebSocket connection the end, but NOT is closed!")
+                )
 
         # @staticmethod
         # def _get_autantication_data(

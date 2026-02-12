@@ -43,7 +43,6 @@ async def get_index_price_child(
 
     regex_date = r"^(\d{1,2}-\d{1,2}-\d{4})$"
     renge_time = r"^(\d+.?\d{0,2})$"
-
     person_manager = manager.person_manager
     response = Response(
         status_code=status.HTTP_200_OK,
@@ -114,7 +113,7 @@ async def get_index_price_child(
         # ===============================
         # ---- RESPONSE HTTP
         # ==============================
-        response.detail = json.dumps({"detail": "Ticker not found!"})
+        response.content = json.dumps({"detail": "Ticker not found!"})
         response.status_code = status.HTTP_404_NOT_FOUND
         return response
 
@@ -122,6 +121,7 @@ async def get_index_price_child(
         request_id = (
             str(uuid4()) if headers_request_id is None else str(headers_request_id)
         )
+
         # =====================
         # ---- User Meta DATA
         # =====================
@@ -138,6 +138,7 @@ async def get_index_price_child(
             "tickers": tickers,
             "timeinterval_query": user_interval,
         }
+        # task_0 = asyncio.create_task(sse_manager.subscribe(p.key_of_queue))
         # =====================
         # ---- CHECK DATES OF FILTERS & CREATE THE SECONDS
         # =====================
@@ -197,16 +198,16 @@ async def get_index_price_child(
         detail_dict = {
             "detail": (
                 "Ok. Data in proces!"
-                if headers_user_id[0] is None
+                if headers_user_id[0] is not None
                 else f"Ok. Data in proces! Data not found: {str(headers_user_id)}"
             )
         }
-        response.detail = json.dumps(detail_dict)
+        response.content = json.dumps(detail_dict)
         return response
     except Exception as e:
         # ===============================
         # ---- RESPONSE HTTP
         # ==============================
-        response.detail = str(e)
+        response.content = str(e)
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         return response
