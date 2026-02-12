@@ -17,7 +17,7 @@ from cryptomarket.project.settings.core import settings
 setting = settings()
 
 
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent
 
 sys.path.insert(0, str(BASE_DIR))
 
@@ -52,7 +52,7 @@ def get_url():
     # database_url_sqlite_list = database_url_sqlite.split("+aiosqlite:")
     # return database_url_sqlite_list[0] + ":" + database_url_sqlite_list[1]
     # return database_url_sqlite_list[0] + ":" + database_url_sqlite_list[1]
-    return BASE_DIR / "cryptomarket/cryptomarket_db.sqlit3"
+    return "sqlite:///cryptomarket/cryptomarket_db.sqlit3"
 
 
 def run_migrations_offline() -> None:

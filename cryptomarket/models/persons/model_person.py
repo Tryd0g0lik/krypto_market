@@ -20,13 +20,14 @@ url_str = (
 
 
 class PersonModel(BaseModel):
-    __table_args_some: list = (Index("email_index", "email", unique=True),)
-    __tablename__ = "cryptomarket_person"
-    __table_args__ = __table_args_some
-    if not DEBUG:
-        __tablename__ = "cryptomarket.person"
-        __table_args__ = __table_args_some.append({"schema": "cryptomarket"})
-    id = None
+
+    if DEBUG:
+        __tablename__ = "crypto_person"
+
+    else:
+        __tablename__ = "crypto.person"
+        __table_args__ = ({"schema": "crypto"},)
+
     primary_role: Mapped[str] = mapped_column(
         "person_role",
         default=PersoneRoles.PERSONE.value,
