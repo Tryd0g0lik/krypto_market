@@ -6,6 +6,7 @@ import logging
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -38,9 +39,9 @@ class PersonModel(BaseModel):
     else:
         __tablename__ = "crypto.person"
         __table_args__ = __table_args_some + ({"schema": "crypto"},)
-    index_app: Mapped[int] = mapped_column(
+    index_app: Mapped[str] = mapped_column(
         "index_app",
-        Integer,
+        String(50),
         doc="""The user index from the app database.""",
     )
     primary_role: Mapped[str] = mapped_column(

@@ -6,10 +6,12 @@ __all__ = [
     "DeribitKeyError",
     "DeribitConnectionError",
     "DeribitValueError",
+    "DeribitValidationError",
 ]
 
 from cryptomarket.errors.deribit_errors import (
     DeribitConnectionError,
     DeribitKeyError,
+    DeribitValidationError,
     DeribitValueError,
 )

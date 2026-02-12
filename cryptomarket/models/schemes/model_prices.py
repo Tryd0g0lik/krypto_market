@@ -3,9 +3,12 @@ cryptomarket/models/schemes/model_prices.py:
 """
 
 import logging
+import re
 
+from markdown_it.rules_inline.backticks import regex
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Float,
     ForeignKey,
     Index,
@@ -15,6 +18,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
+from cryptomarket.errors import DeribitValidationError
 from cryptomarket.models import BaseModel
 from cryptomarket.project.settings.core import DEBUG
 
@@ -28,6 +32,9 @@ class PriceTicker(BaseModel):
             name="instrument_name_unique",
         ),
         Index("ix_price_tickers_ticker", "ticker"),
+        CheckConstraint("price >= 0", name="price_check"),
+        CheckConstraint("timestamp >= 0", name="timestamp_check"),
+        CheckConstraint("stats_value >= 0", name="stats_value_check"),
     )
     if DEBUG:
         __tablename__ = "crypto_price_tickers"
@@ -143,4 +150,23 @@ class PriceTicker(BaseModel):
     last_price: Mapped[float] = mapped_column(Float, nullable=True)
 
     updated_at = None
-    created_at = None
+    # created_at = None
+
+    @validates("currency_size")
+    def validate_price(self):
+        regex_ = r"^(\d+\.\d+)$"
+        if self.max_price is None or self.min_price is None:
+            raise DeribitValidationError(
+                "The 'max_price' or 'min_price' is the 'None'!"
+            )
+        if (
+            re.search(regex_, str(self.max_price)) is None
+            or re.search(regex_, str(self.min_price)) is None
+        ):
+            raise DeribitValidationError(
+                "The 'max_price' or 'min_price' is invalid data!"
+            )
+        if self.min_price > self.max_price:
+            raise DeribitValidationError(
+                "The 'min_price' or 'max_price' is incorrect data!"
+            )
