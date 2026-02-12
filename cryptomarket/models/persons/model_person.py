@@ -5,7 +5,7 @@ cryptomarket/models/persons/model_person.py
 import logging
 
 from more_itertools.more import map_except
-from sqlalchemy import Index
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cryptomarket.models import BaseModel
@@ -30,18 +30,23 @@ class PersonModel(BaseModel):
 
     primary_role: Mapped[str] = mapped_column(
         "person_role",
+        String(25),
         default=PersoneRoles.PERSONE.value,
     )
     email: Mapped[str] = mapped_column(
         "email",
+        String(50),
         doc="""Email address of the account owner. The person’s email address.""",
     )
     client_id: Mapped[str] = mapped_column(
-        "client_id", doc="""This is attribute from the deribit service."""
+        "client_id",
+        String(50),
+        doc="""This is attribute from the deribit service.""",
     )
     client_secret: Mapped[str] = mapped_column(
         "client_secret",
+        String(150),
         doc="""This is attribute from the deribit service. Here the string is in encrypted state""",
     )
-    is_access: Mapped[bool] = mapped_column("is_access", default=False)
-    is_active: Mapped[bool] = mapped_column("is_active", default=False)
+    is_access: Mapped[bool] = mapped_column("is_access", Boolean, default=False)
+    is_active: Mapped[bool] = mapped_column("is_active", Boolean, default=False)
