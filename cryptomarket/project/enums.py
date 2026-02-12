@@ -9,7 +9,6 @@ class ExternalAPIEnum(Enum):
     WS_COMMON_URL = "wss://test.deribit.com/ws/api/v2/"
 
 
-
 class RadisKeysEnum(Enum):
     """
     :param 'DERBIT_STRIPE_RATELIMIT_TASK' - used for
@@ -32,3 +31,10 @@ class RadisKeysEnum(Enum):
     AES_REDIS_KEY = "aserediskey:%s"
     DERIBIT_USER_RESULT = "deribit:result:%s"
     DERIBIT_GET_SUBACCOUNTS = "deribit:get_subaccounts:%s"
+
+
+class PersoneRoles(Enum):
+    PERSONE = "person"
+    PERSONE_PRIVATE = "person_private"
+    PERSONE_ADMIN = "person_admin"
+    PERSONE_MANAGER = "person_manager"

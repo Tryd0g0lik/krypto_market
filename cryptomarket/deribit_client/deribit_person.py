@@ -147,7 +147,7 @@ class PersonManager:
             self.last_data_query: dict = {}
             self.ws: client_ws.ClientWebSocketResponse | None = None
             self.active: bool = True
-            self.__client_secret_encrypt: bytes | None = None
+            self.__deribit_client_secret_encrypt: bytes | None = None
             self.__key_encrypt: bytes | None = None
             self.key_of_queue: str | None = None
             self.scope: str | None = None
@@ -176,8 +176,8 @@ class PersonManager:
         @property
         def client_secret_encrypt(self) -> str | None:
             return (
-                self.__client_secret_encrypt.decode()
-                if self.__client_secret_encrypt
+                self.__deribit_client_secret_encrypt.decode()
+                if self.__deribit_client_secret_encrypt
                 else None
             )
 
@@ -194,9 +194,9 @@ class PersonManager:
                 self.func(client_secret, client_secret_encrypt)
 
                 self.__key_encrypt = list(client_secret_encrypt.keys())[0].encode()
-                self.__client_secret_encrypt = list(client_secret_encrypt.values())[
-                    0
-                ].encode()
+                self.__deribit_client_secret_encrypt = list(
+                    client_secret_encrypt.values()
+                )[0].encode()
             except Exception as e:
                 log_err = "%s ERROR => %s" % (
                     self.log_t % "sclient_secret_encrypt",
@@ -250,7 +250,8 @@ class PersonManager:
                                     if (
                                         self.access_token is None
                                         and self.refresh_token is None
-                                        and self.__client_secret_encrypt is not None
+                                        and self.__deribit_client_secret_encrypt
+                                        is not None
                                         and self.__key_encrypt is not None
                                     ):
                                         # ===============================
@@ -258,7 +259,7 @@ class PersonManager:
                                         # ===============================
                                         user_secret = self.encrypt_manager.descrypt_to_str(
                                             {
-                                                self.__key_encrypt: self.__client_secret_encrypt
+                                                self.__key_encrypt: self.__deribit_client_secret_encrypt
                                             }
                                         )
                                         auth_data = self._get_autantication_data(

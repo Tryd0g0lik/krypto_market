@@ -209,7 +209,7 @@ class Person:
         self.ws: client_ws.ClientWebSocketResponse | None = None
         self.active: bool = True
         self.key_of_queue: str | None = None
-        self.__client_secret_encrypt: bytes | None = None
+        self.__deribit_client_secret_encrypt: bytes | None = None
         self.__key_encrypt: bytes | None = None
         self.scope: str | None = None
         self.token_type: str | None = None
