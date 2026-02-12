@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 
 class Signal:
 
-    def __init__(self, max_concurrent_batches=1, batch_size=10) -> None:
+    def __init__(self, max_concurrent_batches=40, batch_size=10) -> None:
         """
         :param max_task: int. Max quantity of tasks will run parallel.
         # :param max_patch: int. Max quantity of tasks will run parallel.

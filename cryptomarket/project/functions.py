@@ -7,6 +7,11 @@ import json
 import logging
 import pickle
 import threading
+from datetime import datetime
+
+from fastapi import (
+    Request,
+)
 
 from cryptomarket.project.settings.core import DEBUG, settings
 
@@ -170,3 +175,126 @@ def str_to_json(data_str: str) -> dict:
                 % ("[str_to_json]:", e.args[0] if e.args else str(e))
             )
     return user_meta_json
+
+
+# ===============================
+# ---- DATETIME CALENDAR
+# ===============================
+def datetime_to_seconds(dt: datetime, utc: bool = False) -> float:
+    if utc:
+        import calendar
+
+        return calendar.timegm(dt.utctimetuple())
+    return dt.timestamp()
+
+
+def string_to_seconds(
+    date_string: str, format_string: str = "%d.%m.%Y", utc: bool = False
+) -> float:
+    """Преобразовать строку с датой напрямую в секунды"""
+    dt = datetime.strptime(date_string, format_string)
+    return datetime_to_seconds(dt, utc)
+
+
+# ===============================
+# ---- HANDLER SSE CONNECTION
+# ===============================
+
+
+def time_now_to_seconds() -> float:
+    return datetime.now().timestamp()
+
+
+async def event_generator(
+    mapped_key: str, user_id: str | int, request: Request, timeout=60
+):
+    import time
+
+    from cryptomarket.project.app import manager
+    from cryptomarket.type.deribit_type import Person
+
+    sse_manager = manager.sse_manager
+    person_manager = manager.person_manager
+    p_dict = person_manager.person_dict
+    p: Person = p_dict.get(user_id)
+
+    # Timer
+    start_time = time.time()
+    next_timeout_at = start_time + timeout
+
+    try:
+        # ===============================
+        # FIRST MESSAGE ABOUT CONNECTION TO THE SSE
+        # ===============================
+        initial_event = {
+            "event": "connected",
+            "detail": {
+                "status": "waiting_for_exchange",
+                "message": "Waiting for the exchange rate ...",
+                "timestamp": str(asyncio.get_event_loop().time()),
+            },
+        }
+        yield f"event: {initial_event['event']}\n detail: {json.dumps(initial_event['detail'])}\n\n"
+        queue = await sse_manager.subscribe(mapped_key)
+        # _connections = sse_manager._connections
+        while True:
+
+            now = time.time()
+            timeout_lest = next_timeout_at - now
+            # Check the connection with a client
+            if await request.is_disconnected():
+                yield f'event: disconnected\ndetail: {{"client_ticker": "{p.client_id}", "message": "Client disconnected"}}\n\n'
+                break
+
+            # ===============================
+            # TO WAIT NEW EVENT/MESSAGE OF QUEUE
+            # ===============================
+            try:
+
+                try:
+
+                    message_str = await asyncio.wait_for(
+                        queue.get_nowait(), timeout=timeout_lest
+                    )
+                    yield f'event: message: "client_id": "{p.client_id}", "message": {message_str}\n\n'
+                except Exception:
+                    message_str = await asyncio.wait_for(
+                        queue.get(), timeout=timeout_lest
+                    )
+                    yield f'event: message: "client_id": "{p.client_id}", "message": {message_str}\n\n'
+
+            # Then we wait for  the moment when the need is update the access-token
+            # Don't remove connection
+            except asyncio.TimeoutError:
+                # Отправляем keep-alive сообщение
+                # log.info("DEBUG 1 BEFORE __setitem__ ")
+                keep_alive_event = {}
+                keep_alive_event.__setitem__("event", "keep_alive")
+                keep_alive_event.__setitem__("detail", {})
+                keep_alive_event["detail"].__setitem__("status", "connected")
+                keep_alive_event["detail"]["status"] = "connected"
+                keep_alive_event["detail"].__setitem__(
+                    "timestamp", str(asyncio.get_event_loop().time())
+                )
+                yield f"event: {keep_alive_event['event']}\ndetail: {json.dumps(keep_alive_event['detail'])}\n\n"
+                next_timeout_at = time.time() + timeout
+                continue
+            await asyncio.sleep(2)
+    except asyncio.CancelledError:
+        # Клиент отключился remove of client !!!
+        pass
+    except Exception as e:
+        log.info("DEBUG 2 BEFORE __setitem__ ")
+        error_event = {}
+        error_event.__setitem__("event", "error")
+        error_event.__setitem__("detail", {})
+        error_event["detail"].__setitem__("error", e.args[0] if e.args else str(e))
+        error_event["detail"].__setitem__(
+            "timestamp", str(asyncio.get_event_loop().time())
+        )
+        yield f"event: {error_event['event']}\ndetail: {json.dumps(error_event['detail'])}\n\n"
+    finally:
+        # ===============================
+        # ---- DELETE THE CLIENT WHEN DISCONNECTING CLIENT
+        # ===============================
+        yield 'event: closed\ndetail: "message": "Connection closed"\n\n'

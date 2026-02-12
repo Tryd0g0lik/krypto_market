@@ -137,6 +137,7 @@ class Settings(SettingsProps):
         "X-Language",
         "X-Request-ID",
         "X-Client-Id",
+        "X-User-ID",
         "X-Secret-key",
         "access_token",
     ]

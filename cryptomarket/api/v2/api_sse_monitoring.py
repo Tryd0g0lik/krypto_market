@@ -7,188 +7,114 @@ import json
 import logging
 import re
 from datetime import datetime
-from random import random
 from uuid import uuid4
 
 from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
     Request,
-    Response,
-    openapi,
-    status,
 )
 from fastapi.responses import StreamingResponse
 
-from cryptomarket.project.enums import ExternalAPIEnum, RadisKeysEnum
+from cryptomarket.project.enums import ExternalAPIEnum
+from cryptomarket.project.functions import event_generator
 from cryptomarket.project.signals import signal
-from cryptomarket.tasks.queues.task_user_data_to_cache import task_caching_user_data
+from cryptomarket.tasks.queues.task_account_user import task_account
+from cryptomarket.type.deribit_type import Person
+
+log = logging.getLogger(__name__)
 
 
-async def sse_monitoring_child(ticker: str, request: Request) -> StreamingResponse:
+async def sse_monitoring_child(request: Request) -> StreamingResponse:
     """
     ticker: ДАННЫЕ КОТОРЫЕ ПОЛУЧИТЬ
     request: Объект запроса FastAPI для проверки разрыва соединения
     parrameter: 'url/?timer=5' Пользователь устанавливает время в секундах. Время для \
         временного интервала (обновления данных). По умолчанию 60 секунд
+    :param headers["X-Client-Id"] (str) Required,
+    :param headers["X-User-id"] (str).
     :param ticker:
     :param request:
     :return:
     """
+    # =====================
+    # ---- BASIS OPTIONS
+    # =====================
     from cryptomarket.project.app import manager
 
+    sse_manager = manager.sse_manager
     timer = request.query_params.get("timer")
-    request_id = str(uuid4())
-    user_id = (request_id.split("-"))[0]
-    client_id = request_id.replace("-", "")
-
-    client__auth = request.headers.get("Authorization")
-    access_token = client__auth[7:] if client__auth is not None else ""
-
-    args = [
-        RadisKeysEnum.DERIBIT_GET_SUBACCOUNTS.value % user_id,
-    ]
-    kwargs_new = {}
-    kwargs_new.__setitem__("client_id", client_id)
-    kwargs_new.__setitem__("user_id", user_id)
-    kwargs_new.__setitem__("access_token", access_token)
-
-    await signal.schedule_with_delay(
-        None,
-        task_caching_user_data,
-        0.2,
-        *args,
-        **kwargs_new,
-    )
-
-    key_of_queue = "sse_connection:%s:%s" % (
-        user_id,
-        datetime.now().strftime("%Y%m%d%H%M%S"),
-    )
-    # =====================
-    # ---- User Meta DATA
-    # =====================
-    # kwargs = {
-    #     "user_id": user_id,
-    #     "index": 10,
-    #     "method": "private/get_subaccounts",
-    #     "request_id": request_id[:],
-    #     "api_key": ExternalAPIEnum.WS_COMMON_URL.value,
-    #     "client_id": client_id,
-    #     "mapped_key": key_of_queue,
-    # }
-    kwargs = {
-        "user_id": user_id,
-        "index": request_id,
-        "method": "private/get_subaccounts",
-        "request_id": request_id[:],
-        "api_key": ExternalAPIEnum.WS_COMMON_URL.value,
-        "client_id": client_id,
-        "mapped_key": key_of_queue,
-    }
-
-    # REGULAR EXPRESSION
     user_interval: int = (
         (int(timer) if re.search(r"^(\d+)$", str(timer)) else 60)
         if timer is not None
         else 60
     )
+    headers_request_id = request.headers.get("X-Request-ID")
+    request_id = (
+        str(uuid4()) if headers_request_id is None else str(headers_request_id)[:]
+    )
+    headers_user_id = request.headers.get("X-User-id")
+    user_id = (request_id.split("-"))[0] if headers_user_id is None else headers_user_id
+    headers_client_id = request.headers.get("X-Client-Id")
+    headers_client_secret = str(request.headers.get("X-Secret-key"))
+    del headers_request_id
+
+    key_of_queue = "sse_connection:%s:%s" % (
+        user_id,
+        datetime.now().strftime("%Y%m%d%H%M%S"),
+    )
+    # await sse_manager.subscribe(key_of_queue)
+    task_0 = asyncio.create_task(sse_manager.subscribe(key_of_queue))
+    # =====================
+    # ---- User Meta DATA
+    # =====================
+    user_meta_data = {
+        "user_id": user_id,
+        "index": 4947,  # request_id.replace("-", ""),
+        "method": "private/get_subaccounts",
+        "request_id": request_id[:],
+        "api_key": ExternalAPIEnum.WS_COMMON_URL.value,
+        "client_id": str(headers_client_id)[:],
+        "mapped_key": key_of_queue,
+        "timeinterval_query": "0.0",
+    }
+
+    # =====================
+    # ---- CREATE PERSON
+    # =====================
+    person_manager = manager.person_manager
+    if user_id not in person_manager.person_dict:
+        person_manager.add(person_id=user_id, client_id=str(headers_client_id)[:])
+        p_dict = person_manager.person_dict
+        p: Person = p_dict.get(user_id)
+        p.key_of_queue = key_of_queue
+        p.client_secret_encrypt = headers_client_secret[:]
+        p_dict.__setitem__(user_id, p)
+    # REGULAR EXPRESSION
     del timer
-    kwargs.__setitem__("user_interval", str(user_interval))
-    ticke_r = ticker if ticker else "btc_usd"
-    kwargs.setdefault("ticker", ticke_r)
-    await manager.enqueue(3600, **kwargs)
-    del kwargs
+    del headers_client_id
+    del headers_client_secret
+    del request_id
+    # =====================
+    # ---- CREATE QUEUE
+    # =====================
+    user_meta_data.__setitem__("user_interval", str(user_interval))
+    # await manager.enqueue(3600, **user_meta_data)
+    task_1 = asyncio.create_task(manager.enqueue(3600, **user_meta_data))
+    del user_meta_data
 
-    async def event_generator(mapped_key: str, client_ticker_: str, timeout=60):
-        import time
-        from datetime import datetime, timedelta
+    # ===============================
+    # ---- RAN SIGNAL
+    # ==============================
+    # await signal.schedule_with_delay(callback_=None, asynccallback_=task_account)
 
-        from cryptomarket.project.app import manager
-
-        sse_manager = manager.sse_manager
-        # Timer
-        start_time = time.time()
-        next_timeout_at = start_time + timeout
-        # ===============================
-        # ---- SUBSCRIBE
-        # ===============================
-        queue = await sse_manager.subscribe(mapped_key)
-        try:
-            # ===============================
-            # FIRST MESSAGE ABOUT CONNECTION TO THE SSE
-            # ===============================
-            initial_event = {
-                "event": "connected",
-                "detail": {
-                    "client_ticker": client_ticker_,
-                    "status": "waiting_for_exchange",
-                    "message": "Waiting for the exchange rate ...",
-                    "timestamp": str(asyncio.get_event_loop().time()),
-                },
-            }
-            yield f"event: {initial_event['event']}\n detail: {json.dumps(initial_event['detail'])}\n\n"
-
-            while True:
-                now = time.time()
-                timeout_lest = next_timeout_at - now
-                # Check the connection with a client
-                if await request.is_disconnected():
-                    yield f'event: disconnected\ndetail: {{"client_ticker": "{client_id}", "message": "Client disconnected"}}\n\n'
-                    break
-
-                # ===============================
-                # TO WAIT NEW EVENT/MESSAGE OF QUEUE
-                # ===============================
-                try:
-                    message_str = await asyncio.wait_for(
-                        queue.get(), timeout=timeout_lest
-                    )
-
-                    # message_str = json.dumps(list(json.loads(message).values())[0])
-                    yield f'event: message: "client_id": "{client_id}", "message": {message_str}\n\n'
-
-                    # Then we wait for  the moment when the need is update the access-token
-                    # Don't remove connection
-                except asyncio.TimeoutError:
-                    # Отправляем keep-alive сообщение
-                    keep_alive_event = {}
-                    keep_alive_event.__setitem__("event", "keep_alive")
-                    keep_alive_event.__setitem__("detail", {})
-                    keep_alive_event["detail"].__setitem__(
-                        "client_ticker", client_ticker_
-                    )
-                    keep_alive_event["detail"].__setitem__("status", "connected")
-                    keep_alive_event["detail"].__setitem__(
-                        "timestamp", str(asyncio.get_event_loop().time())
-                    )
-                    yield f"event: {keep_alive_event['event']}\ndetail: {json.dumps(keep_alive_event['detail'])}\n\n"
-                    next_timeout_at = time.time() + timeout
-                    continue
-
-        except asyncio.CancelledError:
-            # Клиент отключился remove of client !!!
-            pass
-        except Exception as e:
-            error_event = {}
-            error_event.__setitem__("event", "error")
-            error_event.__setitem__("detail", {})
-            error_event["detail"].__setitem__("client_ticker", client_ticker_)
-            error_event["detail"].__setitem__("error", e.args[0] if e.args else str(e))
-            error_event["detail"].__setitem__(
-                "timestamp", str(asyncio.get_event_loop().time())
-            )
-            yield f"event: {error_event['event']}\ndetail: {json.dumps(error_event['detail'])}\n\n"
-        finally:
-            # ===============================
-            # ---- DELETE THE CLIENT WHEN DISCONNECTING CLIENT
-            # ===============================
-            await sse_manager.unsubscribe(client_ticker_, queue)
-            yield f'event: closed\ndetail: {{"client_ticker": "{client_ticker_}", "message": "Connection closed"}}\n\n'
-
+    task_2 = asyncio.create_task(
+        signal.schedule_with_delay(callback_=None, asynccallback_=task_account)
+    )
+    await asyncio.gather(task_0, task_1, task_2)
+    del task_0
+    del task_1
+    del task_2
     return StreamingResponse(
-        event_generator(key_of_queue, ticke_r, user_interval),
+        event_generator(key_of_queue, user_id, request, user_interval),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache, no-transform",
