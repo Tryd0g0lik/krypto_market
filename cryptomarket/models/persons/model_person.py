@@ -4,8 +4,16 @@ cryptomarket/models/persons/model_person.py
 
 import logging
 
-from more_itertools.more import map_except
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cryptomarket.models import BaseModel
@@ -20,14 +28,21 @@ url_str = (
 
 
 class PersonModel(BaseModel):
-
+    __table_args_some = (
+        UniqueConstraint("email", name="user_email_unique"),
+        Index("ix_user_email", "email", unique=True),
+    )
     if DEBUG:
         __tablename__ = "crypto_person"
-
+        __table_args__ = __table_args_some
     else:
         __tablename__ = "crypto.person"
-        __table_args__ = ({"schema": "crypto"},)
-
+        __table_args__ = __table_args_some + ({"schema": "crypto"},)
+    index_app: Mapped[int] = mapped_column(
+        "index_app",
+        Integer,
+        doc="""The user index from the app database.""",
+    )
     primary_role: Mapped[str] = mapped_column(
         "person_role",
         String(25),
