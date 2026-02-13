@@ -15,10 +15,9 @@ from fastapi import (
 from fastapi.responses import StreamingResponse
 
 from cryptomarket.project.enums import ExternalAPIEnum
-from cryptomarket.project.functions import event_generator
+from cryptomarket.project.functions import create_person, event_generator
 from cryptomarket.project.signals import signal
 from cryptomarket.tasks.queues.task_account_user import task_account
-from cryptomarket.type.deribit_type import Person
 
 log = logging.getLogger(__name__)
 
@@ -62,7 +61,7 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
         datetime.now().strftime("%Y%m%d%H%M%S"),
     )
     # await sse_manager.subscribe(key_of_queue)
-    task_0 = asyncio.create_task(sse_manager.subscribe(key_of_queue))
+    task = asyncio.create_task(sse_manager.subscribe(key_of_queue))
     # =====================
     # ---- User Meta DATA
     # =====================
@@ -76,30 +75,28 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
         "mapped_key": key_of_queue,
         "timeinterval_query": "0.0",
     }
+    task_0 = asyncio.to_thread(
+        create_person,
+        (
+            str(user_id)[:],
+            key_of_queue[:],
+            headers_client_id,
+            headers_client_secret,
+        ),
+    )
 
-    # =====================
-    # ---- CREATE PERSON
-    # =====================
-    person_manager = manager.person_manager
-    if user_id not in person_manager.person_dict:
-        person_manager.add(person_id=user_id, client_id=str(headers_client_id)[:])
-        p_dict = person_manager.person_dict
-        p: Person = p_dict.get(user_id)
-        p.key_of_queue = key_of_queue
-        p.client_secret_encrypt = headers_client_secret[:]
-        p_dict.__setitem__(user_id, p)
     # REGULAR EXPRESSION
-    del timer
-    del headers_client_id
-    del headers_client_secret
-    del request_id
+
+    # del headers_client_id
+    # del headers_client_secret
+    # del request_id
     # =====================
     # ---- CREATE QUEUE
     # =====================
     user_meta_data.__setitem__("user_interval", str(user_interval))
     # await manager.enqueue(3600, **user_meta_data)
     task_1 = asyncio.create_task(manager.enqueue(3600, **user_meta_data))
-    del user_meta_data
+    # del user_meta_data
 
     # ===============================
     # ---- RAN SIGNAL
@@ -109,10 +106,11 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
     task_2 = asyncio.create_task(
         signal.schedule_with_delay(callback_=None, asynccallback_=task_account)
     )
-    await asyncio.gather(task_0, task_1, task_2)
-    del task_0
-    del task_1
-    del task_2
+    await asyncio.gather(task, task_0, task_1, task_2)
+    del [task, task_0, task_1, task_2]
+    del [user_meta_data, timer, headers_client_id, headers_client_secret, request_id]
+    # del task_1
+    # del task_2
     return StreamingResponse(
         event_generator(key_of_queue, user_id, request, user_interval),
         media_type="text/event-stream",

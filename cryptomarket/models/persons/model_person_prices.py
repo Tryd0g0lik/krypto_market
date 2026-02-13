@@ -1,0 +1,44 @@
+"""
+cryptomarket/models/persons/model_person_prices.py
+"""
+
+from sqlalchemy import Column, Float, ForeignKey, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from cryptomarket.models import BaseModel
+from cryptomarket.project.functions import connection_db
+from cryptomarket.project.settings.core import DEBUG, settings
+
+setting = settings()
+
+url_str = (
+    setting.get_database_url_sqlite if DEBUG else setting.get_database_url_external
+)
+
+
+class PersonPricesModel(BaseModel):
+    if DEBUG:
+        __tablename__ = "crypto_person_prices"
+    else:
+        __tablename__ = "person_prices"
+        __table_args__ = {"schema": "crypto"}
+
+    currency: Mapped[str] = mapped_column(
+        String(20),
+    )
+    person = mapped_column(
+        ForeignKey(
+            ("crypto_person.id" if connection_db.is_sqlitetype else "crypto.person.id")
+        ),
+        comment="Reference to the person database.",
+    )
+    price_ticker = mapped_column(
+        ForeignKey(
+            (
+                "crypto_price_tickers.id"
+                if connection_db.is_sqlitetype
+                else "crypto.price_tickers.id"
+            ),
+            comment="Reference to the price ticker database.",
+        ),
+    )

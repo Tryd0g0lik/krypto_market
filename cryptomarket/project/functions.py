@@ -14,6 +14,7 @@ from fastapi import (
 )
 
 from cryptomarket.project.settings.core import DEBUG, settings
+from cryptomarket.type.db import DatabaseConnection
 
 log = logging.getLogger(__name__)
 
@@ -137,19 +138,26 @@ def wrapper_delayed_task(
     return delayed_task
 
 
-url_str = (
-    settings().get_database_url_sqlite
-    if DEBUG
-    else settings().get_database_url_external
-)
-
-
-def connection_database():
+# ===============================
+# ---- DATABASE CONNECTION (LOCAL DB)
+# ===============================
+def connection_database(url_str):
     from cryptomarket.database.connection import DatabaseConnection
 
     return DatabaseConnection(url_str)
 
 
+url_str = (
+    settings().get_database_url_sqlite
+    if DEBUG
+    else settings().get_database_url_external
+)
+connection_db: DatabaseConnection = connection_database(url_str)
+
+
+# ===============================
+# ---- OBJ TO BYTE
+# ===============================
 def obj_to_byte(odj) -> bytes:
 
     return pickle.dumps(odj)
@@ -199,8 +207,6 @@ def string_to_seconds(
 # ===============================
 # ---- HANDLER SSE CONNECTION
 # ===============================
-
-
 def time_now_to_seconds() -> float:
     return datetime.now().timestamp()
 
@@ -211,12 +217,8 @@ async def event_generator(
     import time
 
     from cryptomarket.project.app import manager
-    from cryptomarket.type.deribit_type import Person
 
     sse_manager = manager.sse_manager
-    person_manager = manager.person_manager
-    p_dict = person_manager.person_dict
-    p: Person = p_dict.get(user_id)
 
     # Timer
     start_time = time.time()
@@ -243,7 +245,7 @@ async def event_generator(
             timeout_lest = next_timeout_at - now
             # Check the connection with a client
             if await request.is_disconnected():
-                yield f'event: disconnected\ndetail: {{"client_ticker": "{p.client_id}", "message": "Client disconnected"}}\n\n'
+                yield f'event: disconnected\ndetail: {{"index_app": "{user_id}", "message": "Client disconnected"}}\n\n'
                 break
 
             # ===============================
@@ -256,12 +258,12 @@ async def event_generator(
                     message_str = await asyncio.wait_for(
                         queue.get_nowait(), timeout=timeout_lest
                     )
-                    yield f'event: message: "client_id": "{p.client_id}", "message": {message_str}\n\n'
+                    yield f'event: message: "index_app": "{user_id}", "message": {message_str}\n\n'
                 except Exception:
                     message_str = await asyncio.wait_for(
                         queue.get(), timeout=timeout_lest
                     )
-                    yield f'event: message: "client_id": "{p.client_id}", "message": {message_str}\n\n'
+                    yield f'event: message: "index_app": "{user_id}", "message": {message_str}\n\n'
 
             # Then we wait for  the moment when the need is update the access-token
             # Don't remove connection
@@ -298,3 +300,25 @@ async def event_generator(
         # ---- DELETE THE CLIENT WHEN DISCONNECTING CLIENT
         # ===============================
         yield 'event: closed\ndetail: "message": "Connection closed"\n\n'
+
+
+def create_person(
+    user_id: str | int,
+    key_of_queue: str,
+    headers_client_id: str,
+    headers_client_secret: str,
+):
+    from cryptomarket.project.app import manager
+    from cryptomarket.type.deribit_type import Person
+
+    # =====================
+    # ---- CREATE PERSON
+    # =====================
+    person_manager = manager.person_manager
+    if user_id not in person_manager.person_dict:
+        person_manager.add(person_id=user_id, client_id=str(headers_client_id)[:])
+        p_dict = person_manager.person_dict
+        p: Person = p_dict.get(user_id)
+        p.key_of_queue = key_of_queue
+        p.client_secret_encrypt = headers_client_secret[:]
+        p_dict.__setitem__(user_id, p)

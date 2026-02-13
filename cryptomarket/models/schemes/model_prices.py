@@ -48,7 +48,6 @@ class PriceTicker(BaseModel):
         String(10),
         nullable=False,
         doc="Ticker of currency (Example: BTC_USD). This column is indexed.",
-        # index=True,
     )
     instrument_name: Mapped[str] = mapped_column(
         String(15),
@@ -152,6 +151,14 @@ class PriceTicker(BaseModel):
 
     updated_at = None
     # created_at = None
+
+    person_price = relationship(
+        "PersonPricesModel",
+        back_populates="person_user",
+        uselist=True,
+        passive_deletes=False,
+        cascade="save-update, merge",
+    )
 
     @validates("currency_size")
     def validate_price(self):

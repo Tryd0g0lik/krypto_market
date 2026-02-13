@@ -67,3 +67,11 @@ class PersonModel(BaseModel):
     )
     is_access: Mapped[bool] = mapped_column("is_access", Boolean, default=False)
     is_active: Mapped[bool] = mapped_column("is_active", Boolean, default=False)
+    person_price = relationship(
+        "PersonPricesModel",
+        back_populates="person_user",
+        lazy="joined",
+        uselist=False,
+        passive_deletes=False,
+        cascade="save-update, merge",
+    )
