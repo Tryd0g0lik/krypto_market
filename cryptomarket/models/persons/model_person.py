@@ -32,6 +32,7 @@ class PersonModel(BaseModel):
     __table_args_some = (
         UniqueConstraint("email", name="user_email_unique"),
         Index("ix_user_email", "email", unique=True),
+        Index("ix_index_app", "index_app", unique=True),
     )
     if DEBUG:
         __tablename__ = "crypto_person"
@@ -42,7 +43,7 @@ class PersonModel(BaseModel):
     index_app: Mapped[str] = mapped_column(
         "index_app",
         String(50),
-        doc="""The user index from the app database.""",
+        doc="""The user index from the app database. THe user index from the basic database (external app database""",
     )
     primary_role: Mapped[str] = mapped_column(
         "person_role",

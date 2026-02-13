@@ -20,6 +20,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from cryptomarket.errors import DeribitValidationError
 from cryptomarket.models import BaseModel
+from cryptomarket.project.app import manager
 from cryptomarket.project.settings.core import DEBUG
 
 log = logging.getLogger(__name__)
