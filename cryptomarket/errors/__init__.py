@@ -7,6 +7,7 @@ __all__ = [
     "DeribitConnectionError",
     "DeribitValueError",
     "DeribitValidationError",
+    "EncryptTypeError",
 ]
 
 from cryptomarket.errors.deribit_errors import (
@@ -15,3 +16,4 @@ from cryptomarket.errors.deribit_errors import (
     DeribitValidationError,
     DeribitValueError,
 )
+from cryptomarket.errors.encrypt_error import EncryptTypeError
