@@ -33,15 +33,15 @@ async def handler_restart_create_tables(
     """
     await db.create_table()
     # Checking a connection_database - whose type already exists.
-    await asyncio.sleep(3)
+
     # Check connection_database postgres
     if db.is_postgresqltype and restart_quantity < max_restart:
         restart_quantity += 1
         dbtable_bool = await db.is_postgres_exists_async(
-            db.engine, "cryptomarket_db", settings
+            db.engine, settings.POSTGRES_DB, settings
         )
         if not dbtable_bool:
-            await asyncio.sleep(3)
+            await asyncio.sleep(2)
             await db.create_table()
             await handler_restart_create_tables(
                 db, max_restart, restart_quantity, settings
@@ -102,10 +102,11 @@ async def handler_restart_create_tables(
 async def checkOrCreateTables(settings: SettingsProps, max_restart=3) -> None:
     """
     TODO: When, we have the 'except Exception as e:'  - we need to check the create of db to the sqlit3
-        To the line 'except InvalidRequestError as e:' & 'InvalidRequestError as e' insert the clean SQL
+        The the clean SQL insert to the under lines: 'except InvalidRequestError as e:' & 'InvalidRequestError as e'
     This is function for processing the checking or creating db tables.
-    :param 'settings': Settings Properties Example 'Settings(settings.GET_DATABASE_URL_PS)'.
-    :param 'max_restart': Restart create connection_database if we have not  received from the initial.
+    :param max_restart: Restart create connection_database if we have not  received from the initial.
+    :param settings: 'cryptomarket.project.settings.core.Settings'.
+        Settings Properties Example 'Settings(settings.GET_DATABASE_URL_PS)'.
 
     :return:
     """

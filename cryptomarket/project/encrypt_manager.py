@@ -7,9 +7,10 @@ https://cryptography.io/en/latest/fernet/
 from cryptography.fernet import Fernet
 
 from cryptomarket.errors import EncryptTypeError
+from cryptomarket.type.deribit_type import EncryptManagerBase
 
 
-class EncryptManager:
+class EncryptManager(EncryptManagerBase):
     """
     TODO: создать шифр
         Каждый пользователь имеет индивидуальный ключ
@@ -18,6 +19,7 @@ class EncryptManager:
     def __init__(
         self,
     ) -> None:
+        super().__init__()
         self.log_t = "[AESEncrypt.%s]: "
 
     async def str_to_encrypt(self, plaintext: str, *args) -> dict[str, str]:

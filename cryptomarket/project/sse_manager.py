@@ -101,8 +101,11 @@ class ServerSSEManager:
         async with self.lock:
             if mapped_key not in self._connections:
                 log.warning(
-                    "%s The ticker: '%s' not defined!",
-                    (self.log_t % self.broadcast, mapped_key),
+                    "%s The ticker: '%s' not defined!"
+                    % (
+                        self.log_t % self.broadcast,
+                        mapped_key,
+                    )
                 )
                 return
 
@@ -117,22 +120,21 @@ class ServerSSEManager:
 
                 except Exception as e:
                     log.error(
-                        "%s ERROR on the sending in the queue: %s  => %s. The data: %s not to be added!",
-                        (
+                        "%s ERROR on the sending in the queue: %s  => %s. The data: %s not to be added!"
+                        % (
                             self.log_t,
                             self.broadcast.__name__,
                             queue,
                             e.args[0] if e.args else str(e),
-                        ),
-                        message_data,
+                        )
                     )
                     dead_queues.append(queue)
 
             for queue in dead_queues:
                 self._connections[mapped_key].remove(queue)
                 log.warning(
-                    "%s The bad queue: %s was removed successfully!",
-                    (self.log_t % self.broadcast.__name__, queue),
+                    "%s The bad queue: %s was removed successfully!"
+                    % (self.log_t % self.broadcast.__name__, queue),
                 )
 
     @contextmanager

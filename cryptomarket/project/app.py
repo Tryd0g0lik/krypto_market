@@ -13,12 +13,7 @@ from cryptomarket.api.v1.api_users import router_v1
 from cryptomarket.api.v2.api_sse import router_v2
 from cryptomarket.database.handler_create_db import checkOrCreateTables
 from cryptomarket.deribit_client import DeribitManage
-from cryptomarket.project.middleware.middleware_basic import DeribitMiddleware
 from cryptomarket.project.settings.core import DEBUG, settings
-
-# from cryptomarket.tasks.queues.task_connection_maintenance import (
-#     connection_maintenance_task,
-# )
 
 manager = DeribitManage()
 
@@ -70,7 +65,7 @@ def app_cryptomarket():
     try:
         threading_ = threading.Thread(target=run_asyncio_in_thread)
         threading_.start()
-        threading_.join(timeout=30)
+        # threading_.join(timeout=30)
     except Exception as e:
         log.error(
             "[%s]: Error => %s"

@@ -8,13 +8,17 @@ import logging
 import pickle
 import threading
 from datetime import datetime
+from idlelib.autocomplete import TRY_A
 
+from aiohttp import ClientWebSocketResponse, client_ws
 from fastapi import (
     Request,
 )
 
 from cryptomarket.project.settings.core import DEBUG, settings
+from cryptomarket.type import Person
 from cryptomarket.type.db import DatabaseConnection
+from cryptomarket.type.deribit_type import EncryptManagerBase
 
 log = logging.getLogger(__name__)
 
@@ -139,7 +143,7 @@ def wrapper_delayed_task(
 
 
 # ===============================
-# ---- DATABASE CONNECTION (LOCAL DB)
+# ---- DATABASE CONNECTION (LOCAL DB) РАСКОММЕНТИРОВАТЬ
 # ===============================
 def connection_database(url_str):
     from cryptomarket.database.connection import DatabaseConnection
@@ -196,12 +200,12 @@ def datetime_to_seconds(dt: datetime, utc: bool = False) -> float:
     return dt.timestamp()
 
 
-def string_to_seconds(
-    date_string: str, format_string: str = "%d.%m.%Y", utc: bool = False
-) -> float:
-    """Преобразовать строку с датой напрямую в секунды"""
-    dt = datetime.strptime(date_string, format_string)
-    return datetime_to_seconds(dt, utc)
+# def string_to_seconds(
+#     date_string: str, format_string: str = "%d.%m.%Y", utc: bool = False
+# ) -> float:
+#     """Преобразовать строку с датой напрямую в секунды"""
+#     dt = datetime.strptime(date_string, format_string)
+#     return datetime_to_seconds(dt, utc)
 
 
 # ===============================
@@ -302,7 +306,11 @@ async def event_generator(
         yield 'event: closed\ndetail: "message": "Connection closed"\n\n'
 
 
-def create_person(
+# ===============================
+# ---- FIRST A PERSON CREATING
+# to the cryptomarket/tasks/queues/task_account_user.py
+# ===============================
+def create_person_manual(
     user_id: str | int,
     key_of_queue: str,
     headers_client_id: str,
@@ -315,10 +323,70 @@ def create_person(
     # ---- CREATE PERSON
     # =====================
     person_manager = manager.person_manager
+
+    p_dict = person_manager.person_dict
     if user_id not in person_manager.person_dict:
         person_manager.add(person_id=user_id, client_id=str(headers_client_id)[:])
-        p_dict = person_manager.person_dict
         p: Person = p_dict.get(user_id)
         p.key_of_queue = key_of_queue
         p.client_secret_encrypt = headers_client_secret[:]
+        p.active = True
         p_dict.__setitem__(user_id, p)
+    else:
+        p: Person = p_dict.get(user_id)
+        p.active = True
+
+
+async def update_person_manual(*args, **kwargs):
+    """
+
+    :param args: empty
+    :param kwargs: {'ws'; ..., 'person': ...., "user_meta_json": }
+    :return:
+    """
+    from cryptomarket.project.app import manager
+
+    person: Person = list(args)[0]
+    user_meta_json = kwargs.get("user_meta_json")
+
+    try:
+        # while person.active:
+        # seconds = time_now_to_seconds()
+        # time_range: float = seconds - person.last_activity
+        # ----
+        auth_data = {}
+        client_secret_encrypt: bytes | None = person.client_secret_encrypt.encode()
+        key_encrypt: bytes | None = person.key_encrypt
+        access_token = person.access_token
+        encrypt_manager: EncryptManagerBase = person.encrypt_manager
+        # ----
+        _json = user_meta_json.pop("request_data")
+
+        # timeinterval_query = user_meta_json.pop("timeinterval_query")
+
+        if (
+            access_token is None
+            and person.refresh_token is None
+            and client_secret_encrypt is not None
+            and key_encrypt is not None
+        ):
+            # ===============================
+            # ---- AUTHENTICATE QUERY
+            # ===============================
+            user_secret = encrypt_manager.descrypt_to_str(
+                {key_encrypt: client_secret_encrypt}
+            )
+            auth_data = person.get_autantication_data(person.client_id, user_secret)
+        elif person.access_token and _json is not None and "jsonrpc" in _json:
+            # ===============================
+            # ---- TOTAL QUERY
+            # ===============================
+            _json.__setitem__("access_token", person.access_token)
+            auth_data = _json.copy()
+        return auth_data
+
+    except Exception as e:
+        person.active = False
+        raise e
+    finally:
+        pass

@@ -233,7 +233,7 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
                 )
 
         # @staticmethod
-        # def _get_autantication_data(
+        # def get_autantication_data(
         #     index: int, client_id: int | str, client_secret_key: str
         # ) -> dict:
         #     """

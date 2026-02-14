@@ -55,6 +55,21 @@ class PersonModel(BaseModel):
         String(50),
         doc="""Email address of the account owner. The person’s email address.""",
     )
+    system_name: Mapped[str] = mapped_column(
+        "system_name",
+        String(50),
+        doc="""system_name address of the account owner.""",
+    )
+    username: Mapped[str] = mapped_column(
+        "username",
+        String(50),
+        doc="""username of the account owner. """,
+    )
+    is_password: Mapped[bool] = mapped_column(
+        "is_password",
+        Boolean,
+        doc=""".""",
+    )
     client_id: Mapped[str] = mapped_column(
         "client_id",
         String(50),

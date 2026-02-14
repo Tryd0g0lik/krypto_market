@@ -193,6 +193,7 @@ class Person:
     """
 
     SUPPORTED_CURRENCIES = {}
+    encrypt_manager: "EncryptManagerBase"
 
     def __init__(
         self,
@@ -205,16 +206,19 @@ class Person:
         self.__access_token: str | None = None
         self.expires_in: int | None = None
         self.__refresh_token: str | None = None
-        self.last_activity: float = last_activity
-        self.ws: client_ws.ClientWebSocketResponse | None = None
+        self.last_activity: float = last_activity  # last time when
+        # self.timeinterval_query: int | float = 0.0
+        self.last_data_query: dict = {}
+        self.ws: ClientWebSocketResponse | None = None
         self.active: bool = True
-        self.key_of_queue: str | None = None
         self.__deribit_client_secret_encrypt: bytes | None = None
         self.__key_encrypt: bytes | None = None
+        self.key_of_queue: str | None = None
         self.scope: str | None = None
         self.token_type: str | None = None
-        self.msg: dict | None = None
+        # self.msg: dict | None = None
         self.client: DeribitClient | None = None
+        self.log_t = f"{self.__class__.__name__}.%s"
 
     @asynccontextmanager
     async def ws_send(self, client: DeribitClient):
@@ -238,10 +242,14 @@ class Person:
 
     @property
     def client_secret_encrypt(self) -> str | None:
-        pass
+        return self.__deribit_client_secret_encrypt
+
+    @property
+    def key_encrypt(self) -> bytes:
+        return self.__key_encrypt
 
     @client_secret_encrypt.setter
-    async def client_secret_encrypt(self, client_secret: str) -> None:
+    def client_secret_encrypt(self, client_secret: str) -> None:
         """
         Async
         :param client_secret:
@@ -268,7 +276,7 @@ class Person:
         pass
 
     @staticmethod
-    def _get_autantication_data(
+    def get_autantication_data(
         client_id: int | str, client_secret_key: str, index: int | None = None
     ) -> dict:
         """
@@ -300,5 +308,33 @@ class Person:
         Безопасное получение JSON с защитой от конкурентного доступа.
 
         ВАЖНО: В системе должен быть только ОДИН получатель сообщений на WebSocket!
+        """
+        pass
+
+
+class EncryptManagerBase:
+    """
+    Used to the 'cryptomarket.project.encrypt_manager.EncryptManager' and more
+    """
+
+    def __init__(
+        self,
+    ) -> None:
+        pass
+
+    async def str_to_encrypt(self, plaintext: str, *args) -> dict[str, str]:
+        """
+        :param plaintext: (str) Clean text for encryption.
+        :return: asynccontext: Example '{key: encrypted}' or \
+            by type '{< key_generated_Fernet >: <decrypt_text >}'
+        :return args: This data for recording the 'encrypt_key' to the cache server
+        """
+        pass
+
+    def descrypt_to_str(self, encrypted_dict: dict[bytes, bytes]) -> str:
+        """
+        :param encrypted_dict: (dict[bytes, bytes]) Encrypted dict. Example '{key: encrypted}' or\
+            by type '{< bytes_key_generated_Fernet >: <bytes_decrypt_text >}'.
+        :return: str
         """
         pass
