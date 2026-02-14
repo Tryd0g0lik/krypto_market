@@ -171,7 +171,7 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
                     % (log_t, "WebSocket connection the end, but NOT is closed!")
                 )
 
-        # async def _safe_receive_json(self, ws, timeout: float = 5.0):
+        # async def safe_receive_json(self, ws, timeout: float = 5.0):
         #     """
         #     Безопасное получение JSON с защитой от конкурентного доступа.
         #

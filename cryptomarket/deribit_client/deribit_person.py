@@ -22,8 +22,6 @@ import logging
 import threading
 from collections import UserDict
 from contextlib import asynccontextmanager
-from datetime import datetime
-from sys import maxsize
 from typing import Any, AsyncGenerator
 
 from aiohttp import client_ws
@@ -56,6 +54,7 @@ class PersonDictionary(UserDict):
         super().__init__()
 
     def __setitem__(self, key, value):
+
         try:
             if (
                 key is None
@@ -64,8 +63,8 @@ class PersonDictionary(UserDict):
                 or not isinstance(value, Person)
             ):
                 raise PersonDictionaryError()
-            key = key.lower() if () else key
-            if maxsize is not None and len(self) >= maxsize:
+
+            if self.maxsize is not None and len(self) >= self.maxsize:
                 self.pop(list(self.keys())[0])
             super().__setitem__(key, value)
         except PersonDictionaryError as e:
@@ -87,9 +86,27 @@ class PersonDictionary(UserDict):
 
 
 class PersonManager:
+    # We created the person image. He was added to the cache by the key 'deribit:person' &
+    # value: '{'deribit:person:< person_id >': {..p.e.r.s.o.n..}}"
     person_dict = PersonDictionary(maxsize=setting.DERIBIT_QUEUE_SIZE)
-    # ws: client_ws.ClientWebSocketResponse | None = None
     client: DeribitClient | None = None
+    SUPPORTED_CURRENCIES = {
+        "BTC": [
+            "BTC-PERPETUAL",
+            "BTC-USDT-PERPETUAL",
+            "BTC_USD",
+        ],
+        "ETH": [
+            "ETH-PERPETUAL",
+            "ETH-USDT-PERPETUAL",
+            "ETH_USD",
+        ],
+        "SOL": ["SOL-PERPETUAL", "SOL_USD"],
+        "XRP": ["XRP-PERPETUAL", "XRP_USD"],
+        "ADA": ["ADA-PERPETUAL", "ADA_USD"],
+        "DOGE": ["DOGE-PERPETUAL", "DOGE_USDC"],
+        "DOT": ["DOT-PERPETUAL", "DOT_USDC"],
+    }
 
     def __init__(self):
         self.log_t = f"{self.__class__.__name__}.%s"
@@ -120,23 +137,6 @@ class PersonManager:
         """
 
         encrypt_manager = EncryptManager()
-        SUPPORTED_CURRENCIES = {
-            "BTC": [
-                "BTC-PERPETUAL",
-                "BTC-USDT-PERPETUAL",
-                "BTC_USD",
-            ],
-            "ETH": [
-                "ETH-PERPETUAL",
-                "ETH-USDT-PERPETUAL",
-                "ETH_USD",
-            ],
-            "SOL": ["SOL-PERPETUAL", "SOL_USD"],
-            "XRP": ["XRP-PERPETUAL", "XRP_USD"],
-            "ADA": ["ADA-PERPETUAL", "ADA_USD"],
-            "DOGE": ["DOGE-PERPETUAL", "DOGE_USDC"],
-            "DOT": ["DOT-PERPETUAL", "DOT_USDC"],
-        }
 
         def __init__(
             self,
@@ -333,7 +333,7 @@ class PersonManager:
             log.error(str(log_err))
             raise ValueError(str(log_err))
 
-    async def _safe_receive_json(self, ws) -> None | dict:
+    async def safe_receive_json(self, ws) -> None | dict:
         """
         Безопасное получение JSON с защитой от конкурентного доступа.
 

@@ -141,6 +141,7 @@ class Settings(SettingsProps):
         "X-Secret-key",
         "access_token",
     ]
+    # THe working currency
     CURRENCY_FOR_CHOOSING = [
         "btc_usd",
         "eth_usd",

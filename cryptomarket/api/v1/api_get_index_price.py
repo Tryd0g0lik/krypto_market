@@ -53,17 +53,17 @@ async def get_index_price_child(
     response = Response(
         status_code=status.HTTP_200_OK,
     )
-    headers_user_id = request.headers.get("X-User-ID")
+    headers_person_id = request.headers.get("X-User-ID")
     headers_request_id = request.headers.get("X-Request-ID")
     tickers = request.query_params.get("tickers")
     method = request.query_params.get("method")
     start_date = request.query_params.get("start_date")
     end_date = request.query_params.get("end_date")
     timer = request.query_params.get("timer")
-    p: Person = person_manager.person_dict.get(headers_user_id)
+    p: Person = person_manager.person_dict.get(headers_person_id)
     user_interval: int = (
         (int(timer) if re.search(renge_time, str(timer)) else 0.0)
-        if timer is not None
+        if timer is not None and timer >= 0
         else 0.0
     )
 
@@ -84,7 +84,7 @@ async def get_index_price_child(
         # ---- User Meta DATA
         # =====================
         user_meta_data = {
-            "user_id": headers_user_id,  # This is the user id from app
+            "user_id": headers_person_id,  # This is the user id from app
             "method": (
                 method.replace("public_", "public/")
                 if "public_" in method
@@ -156,8 +156,8 @@ async def get_index_price_child(
         detail_dict = {
             "detail": (
                 "Ok. Data in proces!"
-                if headers_user_id[0] is not None
-                else f"Ok. Data in proces! Data not found: {str(headers_user_id)}"
+                if headers_person_id[0] is not None
+                else f"Ok. Data in proces! Data not found: {str(headers_person_id)}"
             )
         }
         response.content = json.dumps(detail_dict)

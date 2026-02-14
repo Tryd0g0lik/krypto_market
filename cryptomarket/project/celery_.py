@@ -16,7 +16,7 @@ celery_deribit = Celery(
 celery_deribit.config_from_object(celeryconfig)
 celery_deribit.conf.beat_schedule = {
     "add-avery-60-seconds": {
-        "task": "cryptomarket.tasks.celery.add-avery-60-seconds",
+        "task": "cryptomarket.tasks.celery.add_avery_60_seconds",  # monitoring an external server of Deribit.
         "schedule": 60.0,
     }
 }

@@ -108,7 +108,7 @@ async def task_account(*args, **kwargs) -> bool:
                             person, **{"user_meta_json": user_meta_json}
                         )
                         await asyncio.wait_for(ws.send_json(auth_data), 7)
-                        msg_data = await person_manager._safe_receive_json(ws)
+                        msg_data = await person_manager.safe_receive_json(ws)
                         if (
                             "error" not in msg_data.keys()
                             and person.access_token is None
@@ -120,7 +120,7 @@ async def task_account(*args, **kwargs) -> bool:
                             person.token_type = msg_data["result"]["token_type"]
                             continue
                         else:
-                            person.active = False
+
                             person.access_token = None
                             person.refresh_token = None
 
@@ -185,7 +185,6 @@ async def task_account(*args, **kwargs) -> bool:
                 finally:
                     person.refresh_token = None
                     person.access_token = None
-                    person.active = False
                     # manager.person_manager.person_dict.__setitem__(person.person_id, person)
 
         except Exception as e:

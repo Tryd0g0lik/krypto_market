@@ -81,7 +81,12 @@ class PersonModel(BaseModel):
         doc="""This is attribute from the deribit service. Here the string is in encrypted state""",
     )
     is_access: Mapped[bool] = mapped_column("is_access", Boolean, default=False)
-    is_active: Mapped[bool] = mapped_column("is_active", Boolean, default=False)
+    is_active: Mapped[bool] = mapped_column(
+        "is_active",
+        Boolean,
+        default=False,
+        comment="If value has the True mean that an account is active and SSE canal was connected!",
+    )
     person_price = relationship(
         "PersonPricesModel",
         back_populates="person_user",

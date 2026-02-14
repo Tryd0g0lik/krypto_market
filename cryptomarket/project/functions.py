@@ -335,6 +335,7 @@ def create_person_manual(
     else:
         p: Person = p_dict.get(user_id)
         p.active = True
+        p_dict.__setitem__(user_id, p)
 
 
 async def update_person_manual(*args, **kwargs):
