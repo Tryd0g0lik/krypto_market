@@ -85,11 +85,6 @@ def app_cryptomarket():
         the payments between roles the OWNER & MASTER""",
         lifespan=lifespan,
     )
-    # ===============================
-    # ---- MIDDLEWARE ZERO
-    # ===============================
-    # middleware = DeribitMiddleware(manager)
-    # app_.middleware("http")(middleware)
 
     # ===============================
     # ---- CORS MIDDLEWARE

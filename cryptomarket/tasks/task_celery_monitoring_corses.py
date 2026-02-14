@@ -9,5 +9,5 @@ import logging
 log = logging.getLogger(__name__)
 
 
-def task_celery_monitoring_corses(*args, **kwargs):
+def task_celery_monitoring_curency(*args, **kwargs):
     pass
