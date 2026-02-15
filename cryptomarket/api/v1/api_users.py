@@ -6,6 +6,9 @@ from fastapi import APIRouter, Request, Response, openapi, status
 
 from cryptomarket.api.v1.api_get_index_price import get_index_price_child
 from cryptomarket.deribit_client.deribit_currency import CryptoCurrency
+from cryptomarket.tasks.celery.task_add_every_60_seconds import (
+    task_celery_monitoring_currency,
+)
 
 crypto_currency = CryptoCurrency()
 router_v1 = APIRouter(
@@ -40,7 +43,8 @@ async def create_order(request: Request):
     Добавляем пользователя в список и пользователь должен получаеть данные каждую минуту
     """
     # response = await get_index_price_child(request)
-    response = crypto_currency.create_order(request)
+    response = await crypto_currency.create_order(request)
+    # task_celery_monitoring_currency()
     return response
 
 

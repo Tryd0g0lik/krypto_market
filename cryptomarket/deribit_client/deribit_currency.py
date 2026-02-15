@@ -2,16 +2,16 @@
 cryptomarket/deribit_client/deribit_currency.py
 """
 
-import asyncio
 import json
 from collections import UserDict
 from uuid import uuid4
 
 from fastapi import Request, Response, status
 
-from cryptomarket.deribit_client.deribit_person import PersonDictionary
 from cryptomarket.errors import DeribitValueError
 from cryptomarket.errors.person_errors import PersonDictionaryError
+from cryptomarket.project.enums import RadisKeysEnum
+from cryptomarket.project.functions import set_record
 from cryptomarket.project.settings.core import settings
 
 setting = settings()
@@ -70,34 +70,47 @@ class CryptoCurrency:
     def __init__(self):
         self.response = Response()
 
-    def create_order(self, request: Request):
-        from cryptomarket.project.app import manager
+    async def create_order(self, request: Request):
+        try:
+            from cryptomarket.project.app import manager
 
-        persons = manager.person_manager.person_dict
-        ticker = request.path_params.get("ticker")
-        person_id = request.path_params.get("user_id")
-        # person_id = request.headers.get('"X-User-ID"')
-        headers_request_id = request.headers.get('"X-Request-ID"')
-        self.__check_received_data(person_id, persons, ticker, request)
-        if self.response.status_code >= status.HTTP_300_MULTIPLE_CHOICES:
+            persons = manager.person_manager.person_dict
+            ticker = request.path_params.get("ticker")
+            person_id = request.path_params.get("user_id")
+            # person_id = request.headers.get('"X-User-ID"')
+            headers_request_id = request.headers.get('"X-Request-ID"')
+            self.__check_received_data(person_id, persons, ticker, request)
+            if self.response.status_code >= status.HTTP_300_MULTIPLE_CHOICES:
+                return self.response
+
+            if headers_request_id is None:
+                headers_request_id = str(uuid4())
+            self.response.status_code = status.HTTP_201_CREATED
+            self.response.content = json.dumps(
+                {"detail": "Ticker was added (in queue for monitoring) successfully!"}
+            )
+            if ticker not in self.currency_dict:
+                self.currency_dict.__setitem__(ticker.lower(), [person_id.strip()])
+                args = (RadisKeysEnum.DERIBIT_CURRENCY.value,)
+                await set_record(*args, **self.currency_dict)
+                pass
+            elif self.currency_dict.__vhas__(ticker.lower(), person_id):
+                self.response.content = json.dumps(
+                    {"detail": "Ticker was added before!"}
+                )
+                self.response.status_code = status.HTTP_200_OK
+            else:
+                v: list = self.currency_dict.get(ticker.lower())
+                v.append(headers_request_id)
+                self.currency_dict.__setitem__(ticker.lower(), v)
+
             return self.response
-
-        if headers_request_id is None:
-            headers_request_id = str(uuid4())
-        self.response.status_code = status.HTTP_201_CREATED
-        self.response.content = json.dumps(
-            {"detail": "Ticker was added (in queue for monitoring) successfully!"}
-        )
-        if ticker not in self.currency_dict:
-            self.currency_dict.__setitem__(ticker.lower(), [person_id.strip()])
-        elif self.currency_dict.__vhas__(ticker.lower(), person_id):
-            self.response.content = json.dumps({"detail": "Ticker was added before!"})
-            self.response.status_code = status.HTTP_200_OK
-        else:
-            v: list = self.currency_dict.get(ticker.lower())
-            v.append(headers_request_id)
-            self.currency_dict.__setitem__(ticker.lower(), v)
-        return self.response
+        except Exception as e:
+            self.response.content = json.dumps(
+                {"detail": str(e.args[0] if e.args else str(e))}
+            )
+            self.response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+            return self.response
 
     def update_order(self, request: Request):
         pass

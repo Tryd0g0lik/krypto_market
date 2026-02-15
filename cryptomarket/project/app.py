@@ -17,6 +17,7 @@ from cryptomarket.project.settings.core import DEBUG, settings
 
 manager = DeribitManage()
 
+
 log = logging.getLogger(__name__)
 
 

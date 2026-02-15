@@ -20,7 +20,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from cryptomarket.errors import DeribitValidationError
 from cryptomarket.models import BaseModel
-from cryptomarket.project.app import manager
 from cryptomarket.project.settings.core import DEBUG
 
 log = logging.getLogger(__name__)
@@ -28,10 +27,10 @@ log = logging.getLogger(__name__)
 
 class PriceTicker(BaseModel):
     __table_args__some = (
-        UniqueConstraint(
-            "instrument_name",
-            name="instrument_name_unique",
-        ),
+        # UniqueConstraint(
+        #     "instrument_name",
+        #     name="instrument_name_unique",
+        # ),
         Index("ix_price_tickers_ticker", "ticker"),
         CheckConstraint("price >= 0", name="price_check"),
         CheckConstraint("timestamp >= 0", name="timestamp_check"),
@@ -57,7 +56,7 @@ class PriceTicker(BaseModel):
 
     price: Mapped[float] = mapped_column(
         Float,
-        nullable=False,
+        nullable=True,
     )
     timestamp: Mapped[int] = mapped_column(
         Integer,
@@ -97,8 +96,8 @@ class PriceTicker(BaseModel):
         nullable=True,
         doc="""The settlement price for the instrument. Only when state = closed""",
     )
-    open_interest: Mapped[float] = mapped_column(
-        Float,
+    open_interest: Mapped[int] = mapped_column(
+        Integer,
         nullable=False,
         doc="""
         The total amount of outstanding contracts in the corresponding amount units. For perpetual and inverse \

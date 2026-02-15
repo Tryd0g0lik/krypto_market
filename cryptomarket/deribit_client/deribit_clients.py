@@ -30,7 +30,7 @@ setting = settings()
 class DeribitManage(DeribitManageType):
     _deque_postman = deque(maxlen=setting.DERIBIT_QUEUE_SIZE)
     _deque_error = deque(maxlen=10000)  # Which have not passed caching
-    _deque_coroutines = deque(
+    deque_coroutines = deque(
         maxlen=500
     )  # Coroutine of workers / Look to the 'self.start_worker' & and the tasks.
     # Tasks this are place where we can use the '_deque_coroutines'
@@ -196,13 +196,13 @@ class DeribitManage(DeribitManageType):
                         await redis.expire("sleeptime", 1)
 
                     for i in range(limitations):
-                        if len(self._deque_coroutines) == limitations:
+                        if len(self.deque_coroutines) == limitations:
                             await asyncio.sleep(self._sleep)
                             continue
                         task = asyncio.create_task(
                             self._process_queue_worker(work_id=f"worker_{i}")
                         )
-                        self._deque_coroutines.append(
+                        self.deque_coroutines.append(
                             {f"worker_{i}": task}
                         )  # coroutine caching
 

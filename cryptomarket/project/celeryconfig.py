@@ -5,6 +5,8 @@ broker_url = < Look to the 'cryptomarket/project/settings/settings_env.py' >
 result_backend = < Look to the 'cryptomarket/project/settings/settings_env.py' >
 """
 
+from cryptomarket.database.connection import log
+
 task_serializer = "json"
 result_serializer = "json"
 accept_content = ["json"]
@@ -19,6 +21,8 @@ enable_utc = True
 # THe True when need the sync
 # task_always_eager = False
 
+worker_redirect_stdouts = False
+worker_redirect_stdouts_level = "INFO"
 # quantity of workers
 worker_concurrency = 1
 worker_prefetch_multiplier = 1

@@ -68,3 +68,12 @@ Authentication https://docs.deribit.com/articles/authentication \
 
 ---
 Получаем данные пользователя и сохраняем (пользователя) в кеше по ключём "`deribit:person:%s`"  
+
+--- 
+`'cryptomarket.tasks.celery.task_add_every_60_seconds.task_celery_monitoring_currency'` Задача запускается с интервалом в 45 секунд.\
+Проверяет кеш. Если пусто, уходит спать. \
+Если Есть тикер, отправляется запрос на дерибит. и ответ сохраняем в базу данных. 
+
+Задача настроена работать на poistgresql & sqlite . Синхронная и асинхронная сессия. 
+
+49 секунд, "queue" есть "high" и ключ "routing_key": "high.priority".

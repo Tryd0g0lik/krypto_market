@@ -31,7 +31,7 @@ async def task_account(*args, **kwargs) -> bool:
     # ===============================
     # ---- RECEIVE THE REBIT CLIENT FOR CONNECTION
     # ===============================
-    _deque_coroutines = manager._deque_coroutines
+    _deque_coroutines = manager.deque_coroutines
     coroutine = _deque_coroutines.popleft()
     client: DeribitClient = await list(coroutine.values())[0]
     # ===============================

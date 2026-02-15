@@ -8,8 +8,10 @@ __all__ = [
     "DeribitValueError",
     "DeribitValidationError",
     "EncryptTypeError",
+    "DatabaseConnectionCoroutineError",
 ]
 
+from cryptomarket.errors.database_errors import DatabaseConnectionCoroutineError
 from cryptomarket.errors.deribit_errors import (
     DeribitConnectionError,
     DeribitKeyError,

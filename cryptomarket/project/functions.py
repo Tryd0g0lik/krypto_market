@@ -391,3 +391,60 @@ async def update_person_manual(*args, **kwargs):
         raise e
     finally:
         pass
+
+
+# ===============================
+# ---- REDIS CACHE SERVER
+# ===============================
+
+
+async def set_record(
+    *args,
+    **kwargs,
+) -> None:
+    from cryptomarket.deribit_client import DeribitLimited
+    from cryptomarket.project.sse_manager import setting
+
+    deribit_limited = DeribitLimited()
+    context_redis_connection = deribit_limited.context_redis_connection
+
+    try:
+
+        async with context_redis_connection() as redis_client:
+            result_ = await asyncio.wait_for(
+                redis_client.setex(
+                    args[0],
+                    setting.CACHE_AUTHENTICATION_DATA_LIVE,
+                    json.dumps(kwargs),
+                ),
+                10,
+            )
+            return result_
+    except Exception as e:
+        log.error(
+            "%s ERROR => %s" % (set_record.__name__, e.args[0] if e.args else str(e))
+        )
+
+
+async def get_record(
+    *args,
+) -> None:
+    from cryptomarket.deribit_client import DeribitLimited
+
+    deribit_limited = DeribitLimited()
+    context_redis_connection = deribit_limited.context_redis_connection
+
+    try:
+
+        async with context_redis_connection() as redis_client:
+            result_ = await asyncio.wait_for(
+                redis_client.get(
+                    args[0],
+                ),
+                10,
+            )
+            return result_
+    except Exception as e:
+        log.error(
+            "%s ERROR => %s" % (get_record.__name__, e.args[0] if e.args else str(e))
+        )
