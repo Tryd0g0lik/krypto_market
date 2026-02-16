@@ -32,8 +32,12 @@ async def task_account(*args, **kwargs) -> bool:
     # ---- RECEIVE THE REBIT CLIENT FOR CONNECTION
     # ===============================
     _deque_coroutines = manager.deque_coroutines
-    coroutine = _deque_coroutines.popleft()
-    client: DeribitClient = await list(coroutine.values())[0]
+    sleep_worker = await _deque_coroutines.get()
+    # worker_index = _deque_coroutines.task_names.pop(
+    #     list(_deque_coroutines.task_names.keys())[0]
+    # )
+    worker_coroutine = sleep_worker()
+
     # ===============================
     # ---- COMMON QUEUE OF KEYS (THEY FROM THE USER META DATA (str/json)
     # ===============================
@@ -83,6 +87,7 @@ async def task_account(*args, **kwargs) -> bool:
             # ===============================
             # RESPONSE / MASSAGE / LOOP / THREADING.THREAD
             # ===============================
+            client = await worker_coroutine()
             person_manager.client = client if person.client is None else person.client
             async with person_manager.ws_json() as ws:
                 try:

@@ -32,7 +32,7 @@ from cryptomarket.errors.person_errors import (
     PersonNotFoundAccessError,
 )
 from cryptomarket.project.encrypt_manager import EncryptManager
-from cryptomarket.project.functions import time_now_to_seconds
+from cryptomarket.project.functions import run_asyncio_debug, time_now_to_seconds
 from cryptomarket.project.settings.core import settings
 from cryptomarket.type import DeribitClient
 from cryptomarket.type.deribit_type import Person
@@ -101,10 +101,6 @@ class PersonManager:
             "ETH-USDT-PERPETUAL",
             "ETH_USD",
         ],
-        "SOL": ["SOL-PERPETUAL", "SOL_USD"],
-        "XRP": ["XRP-PERPETUAL", "XRP_USD"],
-        "ADA": ["ADA-PERPETUAL", "ADA_USD"],
-        "DOGE": ["DOGE-PERPETUAL", "DOGE_USDC"],
         "DOT": ["DOT-PERPETUAL", "DOT_USDC"],
     }
 
@@ -273,6 +269,9 @@ class PersonManager:
         def func(self, client_secret: str, client_secret_encrypt):
             try:
                 loop = asyncio.new_event_loop()
+                # loop.set_debug(True)
+                # loop.slow_callback_duration = 0.08
+                run_asyncio_debug(loop)
                 asyncio.set_event_loop(loop)
 
                 result = threading.Thread(

@@ -26,6 +26,7 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
     _instance = None
     # This list is the list[coroutine].
     _clients: list = deque(maxlen=setting.DERIBIT_QUEUE_SIZE)
+
     # Below (DeribitWebsocketPool.__new__) he will receive the coroutine for a connection with the Deribit API.
     # The length of list will be containe the quantity of elements == 'setting.STRIPE_MAX_QUANTITY_WORKERS'.
     # Everything coroutine/connection will require the:
@@ -34,6 +35,9 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
     # - client_secret from the Deribit.
     _current_index = 0
     _auth_tokens = {}
+
+    def __init__(self, _heartbeat=30, _timeout=10):
+        self.__generate_workers(_heartbeat, _timeout)
 
     # ==============================
     # ---- CLIENT FOR THE BASIC CONNECTION
@@ -199,8 +203,8 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
         #         log.error(f"Error receiving message: {e}")
         #         return None
 
-    def __new__(
-        cls,
+    def __generate_workers(
+        self,
         _heartbeat=30,
         _timeout=10,
     ):
@@ -246,16 +250,17 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
 
 
         """
-        if not cls._instance:
-            cls._instance = super().__new__(cls)
+        if not self._instance:
+            # self._instance = super().__new__(cls)
             # This is creating the coroutines for clients (entry points or entry windows).
             # Everyone coroutine for connections with the Deribit.
             # Max quantity of coroutines contain value require - the 'setting.DERIBIT_MAX_QUANTITY_WORKERS',
             # it is the max number of connection.
-            for i in range(setting.DERIBIT_MAX_QUANTITY_WORKERS):
-                client_ = cls.DeribitClient()
-                cls._clients.append(client_)
-        return cls._instance
+            for i in range(setting.DERIBIT_MAX_CONCURRENT):
+                client_ = self.DeribitClient()
+                self._clients.append(client_)
+
+        # return self._instance
 
     # def __init__(self):
     #     super().__init__()
@@ -267,17 +272,19 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
         :return: DeribitClient.initialize (coroutine).
         10 clients is everything
         """
-        conn = self._clients[
-            (
-                self._current_index
-                if self._current_index < setting.DERIBIT_MAX_QUANTITY_WORKERS
-                and self._current_index
-                < setting.DERIBIT_MAX_QUANTITY_WORKERS
-                <= setting.DERIBIT_MAX_CONCURRENT
-                else setting.DERIBIT_MAX_CONCURRENT - 1
-            )
-        ]
+        # i = self._current_index \
+        #     if self._current_index < setting.DERIBIT_MAX_QUANTITY_WORKERS \
+        #        and (self._current_index <= setting.DERIBIT_MAX_CONCURRENT)\
+        #     else setting.DERIBIT_MAX_CONCURRENT - 1
+        #
+        if len(self._clients) == 0:
+            print("PUSTO")
+            self.__generate_workers()
+
+        # conn = self._clients.pop()
+        # del self._clients.workers[list(self._clients.workers.keys())[0]]
 
         # Resent the cls._current_index
-        self._current_index = (self._current_index + 1) % len(self._clients)
-        return conn
+        # self._current_index = (self._current_index + 1) % len(self._clients.get_active_task())
+        #
+        return self._clients.pop()

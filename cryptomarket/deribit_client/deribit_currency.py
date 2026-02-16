@@ -71,9 +71,11 @@ class CryptoCurrency:
         self.response = Response()
 
     async def create_order(self, request: Request):
-        try:
-            from cryptomarket.project.app import manager
+        from cryptomarket.project.app import manager
 
+        try:
+
+            self.response.status_code = status.HTTP_201_CREATED
             persons = manager.person_manager.person_dict
             ticker = request.path_params.get("ticker")
             person_id = request.path_params.get("user_id")
@@ -90,10 +92,14 @@ class CryptoCurrency:
                 {"detail": "Ticker was added (in queue for monitoring) successfully!"}
             )
             if ticker not in self.currency_dict:
-                self.currency_dict.__setitem__(ticker.lower(), [person_id.strip()])
-                args = (RadisKeysEnum.DERIBIT_CURRENCY.value,)
-                await set_record(*args, **self.currency_dict)
-                pass
+                result = self.currency_dict.get(ticker.lower(), [])
+                (
+                    self.currency_dict.__setitem__(ticker.lower(), [person_id.strip()])
+                    if result is None or len(result) == 0
+                    else self.currency_dict[ticker.lower()].append(person_id.strip())
+                )
+
+                await self.set_cache()
             elif self.currency_dict.__vhas__(ticker.lower(), person_id):
                 self.response.content = json.dumps(
                     {"detail": "Ticker was added before!"}
@@ -115,49 +121,76 @@ class CryptoCurrency:
     def update_order(self, request: Request):
         pass
 
-    def cancel_order(self, request: Request):
+    async def cancel_order(self, request: Request):
+
         from cryptomarket.project.app import manager
 
-        persons = manager.person_manager.person_dict
-        ticker = request.query_params.get("ticker")
-        person_id = request.query_params.get("user_id")
-        # person_id = request.headers.get('"X-User-ID"')
-        # headers_request_id = request.headers.get('"X-Request-ID"')
-        self.__check_received_data(person_id, persons, ticker, request)
-        if self.response.status_code >= status.HTTP_300_MULTIPLE_CHOICES:
-            return self.response
+        try:
+            persons = manager.person_manager.person_dict
+            ticker = request.path_params.get("ticker")
+            person_id = request.path_params.get("user_id")
+            # person_id = request.headers.get('"X-User-ID"')
+            # headers_request_id = request.headers.get('"X-Request-ID"')
+            self.__check_received_data(person_id, persons, ticker, request)
+            if self.response.status_code >= status.HTTP_300_MULTIPLE_CHOICES:
+                return self.response
 
-        self.currency_dict.get(ticker.lower(), []).remove(person_id.strip())
-        self.response.content = json.dumps(
-            {"detail": f"Order per ticker: {ticker} cancel was successfully!"}
-        )
-        self.response.status_code = status.HTTP_200_OK
-        return self.response
+            result = self.currency_dict.get(ticker.lower(), {})
+            if len(result) == 0:
+                self.response.status_code = status.HTTP_404_NOT_FOUND
+                return self.response
+            del self.currency_dict[ticker.lower()]
+            await self.set_cache()
+            self.response.content = json.dumps(
+                {"detail": f"Order per ticker: {ticker} cancel was successfully!"}
+            )
+            await self.set_cache()
+            self.response.status_code = status.HTTP_200_OK
+            return self.response
+        except Exception as e:
+            self.response.content = json.dumps(
+                {"detail": str(e.args[0] if e.args else str(e))}
+            )
+            self.response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+            return self.response
 
     def cancel_all_orders(self, request: Request):
-        from cryptomarket.project.app import manager
+        try:
+            from cryptomarket.project.app import manager
 
-        persons = manager.person_manager.person_dict
-        ticker = request.query_params.get("ticker")
-        person_id = request.query_params.get("user_id")
-        # person_id = request.headers.get('"X-User-ID"')
-        # headers_request_id = request.headers.get('"X-Request-ID"')
-        self.__check_received_data(person_id, persons, ticker, request)
-        if self.response.status_code >= status.HTTP_300_MULTIPLE_CHOICES:
+            persons = manager.person_manager.person_dict
+            ticker = request.query_params.get("ticker")
+            person_id = request.query_params.get("user_id")
+            # person_id = request.headers.get('"X-User-ID"')
+            # headers_request_id = request.headers.get('"X-Request-ID"')
+            self.__check_received_data(person_id, persons, ticker, request)
+            if self.response.status_code >= status.HTTP_300_MULTIPLE_CHOICES:
+                return self.response
+
+            found_person_id_list = [
+                {k: v} for k, v in self.currency_dict.items() if person_id in v
+            ]
+            if len(found_person_id_list) == 0:
+                self.response.status_code = status.HTTP_404_NOT_FOUND
+                return self.response
+
+            clean_list = [
+                {k: v.remove(person_id)}
+                for view in found_person_id_list
+                for k, v in view.items()
+            ]
+            [self.currency_dict.__setitem__(k, v) for k, v in clean_list]
+            self.response.content = json.dumps(
+                {"detail": "Person was removed successful!"}
+            )
+            self.response.status_code = status.HTTP_200_OK
             return self.response
-
-        found_person_id_list = [
-            {k: v} for k, v in self.currency_dict.items() if person_id in v
-        ]
-        clean_list = [
-            {k: v.remove(person_id)}
-            for view in found_person_id_list
-            for k, v in view.items()
-        ]
-        [self.currency_dict.__setitem__(k, v) for k, v in clean_list]
-        self.response.content = json.dumps({"detail": "Person was removed successful!"})
-        self.response.status_code = status.HTTP_200_OK
-        return self.response
+        except Exception as e:
+            self.response.content = json.dumps(
+                {"detail": str(e.args[0] if e.args else str(e))}
+            )
+            self.response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+            return self.response
 
     def __check_received_data(
         self, person_id: str, persons: dict, ticker: str, request: Request
@@ -179,3 +212,19 @@ class CryptoCurrency:
             return self.response
         self.response.status_code = status.HTTP_200_OK
         return self.response
+
+    async def set_cache(self):
+        from cryptomarket.project.app import manager
+
+        context_redis_connection = manager.rate_limit.context_redis_connection
+        # ===============================
+        # ---- CACHE SERVER
+        # ===============================
+        async with context_redis_connection() as redis:
+            await redis.setex(
+                RadisKeysEnum.DERIBIT_CURRENCY.value,
+                27 * 60 * 60,
+                json.dumps({**self.currency_dict}),
+            )
+
+        pass

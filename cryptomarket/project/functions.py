@@ -24,6 +24,22 @@ log = logging.getLogger(__name__)
 
 
 # ===============================
+# ---- ASНNCIO DEBUG
+# ===============================
+def run_asyncio_debug(loop, maxtimesize=0.08):
+    loop.set_debug(DEBUG)
+    loop.slow_callback_duration = maxtimesize
+    tasks = asyncio.all_tasks(loop)
+    log.info(f"Активных задач: {len(tasks)}")
+    for task in tasks:
+        log.info(
+            f"Задача: {task.get_name()}, Статус: {task.done()}, Отменена: {task.cancelled()}"
+        )
+        if not task.done():
+            task.print_stack()
+
+
+# ===============================
 # ---- CREATE THE ONE/TEMPLATE TASK
 # ===============================
 def run_async_worker(callback_, *args, **kwargs):
@@ -34,6 +50,9 @@ def run_async_worker(callback_, *args, **kwargs):
     :return:
     """
     loop = asyncio.new_event_loop()
+    run_asyncio_debug(loop)
+    # loop.set_debug(True)
+    # loop.slow_callback_duration = 0.08
     asyncio.set_event_loop(loop)
     try:
         # if args and kwargs:
@@ -52,6 +71,9 @@ def run_sync_worker(callback_, *args, **kwargs):
     :return:
     """
     loop = asyncio.new_event_loop()
+    run_asyncio_debug(loop)
+    # loop.set_debug(True)
+    # loop.slow_callback_duration = 0.08
     asyncio.set_event_loop(loop)
     try:
         # if args and kwargs:

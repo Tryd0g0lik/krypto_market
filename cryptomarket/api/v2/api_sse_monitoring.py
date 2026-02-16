@@ -65,6 +65,7 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
         datetime.now().strftime("%Y%m%d%H%M%S"),
     )
     task = asyncio.create_task(sse_manager.subscribe(key_of_queue))
+    manager.register_tasks.register(task)
     # =====================
     # ---- User Meta DATA
     # =====================
@@ -92,7 +93,7 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
     # =====================
     user_meta_data.__setitem__("user_interval", str(user_interval))
     task_1 = asyncio.create_task(manager.enqueue(3600, **user_meta_data))
-
+    manager.register_tasks.register(task_1)
     # ===============================
     # ---- RAN SIGNAL
     # ==============================
@@ -102,8 +103,10 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
             asynccallback_=task_account,
         )
     )
+    manager.register_tasks.register(task_2)
     await asyncio.gather(task, task_0, task_1, task_2)
     del [user_meta_data, timer, headers_client_id, headers_client_secret, request_id]
+    manager.register_tasks.get_stats()
     return StreamingResponse(
         event_generator(key_of_queue, user_id, request, user_interval),
         media_type="text/event-stream",

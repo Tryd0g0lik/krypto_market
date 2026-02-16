@@ -50,11 +50,11 @@ async def create_order(request: Request):
 
 @router_v1.get("/{user_id}/cancel_order/{ticker}")
 async def cancel_order(request: Request):
-    response = crypto_currency.update_order(request)
+    response = await crypto_currency.cancel_order(request)
     return response
 
 
 @router_v1.get("/{user_id}/cancel_all_orders")
 async def cancel_all_orders(request: Request):
-    response = crypto_currency.update_order(request)
+    response = crypto_currency.cancel_all_orders(request)
     return response

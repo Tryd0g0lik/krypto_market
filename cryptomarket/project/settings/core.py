@@ -70,7 +70,7 @@ class Settings(SettingsProps):
     # ---------------------------------------
     # DERIBIT
     # ---------------------------------------
-    DERIBIT_MAX_QUANTITY_WORKERS = 10
+    DERIBIT_MAX_QUANTITY_WORKERS = 500
     DERIBIT_MAX_CONCURRENT = 40
     DERIBIT_QUEUE_SIZE = 5000
     CACHE_AUTHENTICATION_DATA_LIVE = 97200

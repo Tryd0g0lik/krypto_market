@@ -77,3 +77,20 @@ Authentication https://docs.deribit.com/articles/authentication \
 Задача настроена работать на poistgresql & sqlite . Синхронная и асинхронная сессия. 
 
 49 секунд, "queue" есть "high" и ключ "routing_key": "high.priority".
+
+
+ btc_usd и eth_usd 
+
+--- 
+DEBUG 
+К настройке привязаны 
+- вид базы данных
+- имена таблиц и базы данных. Если DEBUG = False, имена баз данных с shema "`crypro.< table name>`" 
+- asyncio в debug режиме
+- 
+
+----
+
+start_worker и _process_queue_worker имеют свой поток  и создают список корутинов. Следят , чтоб список был полный. 
+
+Корутины это клиент для соединения с внешним сервером deribit/ 

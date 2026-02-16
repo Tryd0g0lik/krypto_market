@@ -96,7 +96,6 @@ async def get_index_price_child(
             "tickers": tickers,
             "timeinterval_query": user_interval,
         }
-        # task_0 = asyncio.create_task(sse_manager.subscribe(p.key_of_queue))
         # =====================
         # ---- CHECK DATES OF FILTERS & CREATE THE SECONDS
         # =====================
@@ -143,9 +142,10 @@ async def get_index_price_child(
         task_2 = asyncio.create_task(
             signal.schedule_with_delay(callback_=None, asynccallback_=task_account)
         )
+        manager.register_tasks.register(task_1, task_2)
         await asyncio.gather(task_1, task_2)
         del user_meta_data
-
+        manager.register_tasks.get_stats()
         # ===============================
         # ---- RAN SIGNAL
         # ==============================

@@ -11,6 +11,7 @@ from contextvars import ContextVar
 from cryptomarket.deribit_client.deribit_limites import DeribitLimited
 from cryptomarket.deribit_client.deribit_person import PersonManager
 from cryptomarket.deribit_client.deribit_websocket import DeribitWebsocketPool
+from cryptomarket.project import TaskRegistery
 from cryptomarket.project.settings.core import settings
 from cryptomarket.project.sse_manager import ServerSSEManager
 from cryptomarket.type import (
@@ -30,10 +31,12 @@ setting = settings()
 class DeribitManage(DeribitManageType):
     _deque_postman = deque(maxlen=setting.DERIBIT_QUEUE_SIZE)
     _deque_error = deque(maxlen=10000)  # Which have not passed caching
-    deque_coroutines = deque(
-        maxlen=500
-    )  # Coroutine of workers / Look to the 'self.start_worker' & and the tasks.
+    deque_coroutines: asyncio.Queue = asyncio.Queue(40)
+    # deque_coroutines: deque = deque(
+    #     maxlen=500
+    # )  # Coroutine of workers / Look to the 'self.start_worker' & and the tasks.
     # Tasks this are place where we can use the '_deque_coroutines'
+
     _sleep = 1  # second
 
     def __init__(self, max_concurrent=None) -> None:
@@ -59,6 +62,7 @@ class DeribitManage(DeribitManageType):
         args = ("btc_usd", "eth_usd", "connection")
         self.sse_manager = ServerSSEManager(*args)
         self.person_manager = PersonManager()
+        self.register_tasks = TaskRegistery()
         # self.ws_connection_manager = DeribitWSSConnectionManager()
 
     async def enqueue(self, cache_live: int, **kwargs) -> None:
@@ -79,10 +83,6 @@ class DeribitManage(DeribitManageType):
         except Exception as err:
             raise ValueError(err.args[0] if err.args else str(err))
         try:
-            self.client_pool = DeribitWebsocketPool(
-                _heartbeat=30,
-                _timeout=10,
-            )
             if len(self._deque_postman) > 0:
                 # ===============================
                 # ---- CACHE THE RAQUEST BODY DATA 1/2
@@ -153,7 +153,6 @@ class DeribitManage(DeribitManageType):
 
     async def _process_queue_worker(
         self,
-        work_id: str,
     ) -> DeribitClient | None:
         """
         TODO: Протестировать!!
@@ -174,7 +173,7 @@ class DeribitManage(DeribitManageType):
 
     async def start_worker(
         self,
-        limitations: int = 10,
+        limitations: int = setting.DERIBIT_MAX_QUANTITY_WORKERS,
     ) -> None:
         """
         This is controller of the workers.
@@ -187,6 +186,10 @@ class DeribitManage(DeribitManageType):
 
         try:
             while True:
+
+                if DeribitManage.deque_coroutines.qsize() == limitations:
+                    await asyncio.sleep(self._sleep)
+                    continue
                 context_redis_connection = self.rate_limit.context_redis_connection
                 async with context_redis_connection() as redis:
                     get_sleeptime = await redis.get("sleeptime")
@@ -195,16 +198,21 @@ class DeribitManage(DeribitManageType):
                         await redis.incr("sleeptime", 1)
                         await redis.expire("sleeptime", 1)
 
-                    for i in range(limitations):
-                        if len(self.deque_coroutines) == limitations:
-                            await asyncio.sleep(self._sleep)
-                            continue
-                        task = asyncio.create_task(
-                            self._process_queue_worker(work_id=f"worker_{i}")
-                        )
-                        self.deque_coroutines.append(
-                            {f"worker_{i}": task}
-                        )  # coroutine caching
+                for i in range(limitations):
+                    if DeribitManage.deque_coroutines.qsize() >= limitations:
+                        await asyncio.sleep(self._sleep)
+                        continue
+
+                    def sleep_worker():
+                        async def worker_coroutine():
+                            return await self._process_queue_worker()
+
+                        return worker_coroutine
+
+                    try:
+                        self.deque_coroutines.put_nowait(sleep_worker)
+                    except asyncio.QueueFull:
+                        await self.deque_coroutines.put(sleep_worker)
 
                     await redis.incr("sleeptime", 1)
                     await redis.expire("sleeptime", 1)

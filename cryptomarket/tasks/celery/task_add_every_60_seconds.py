@@ -14,9 +14,9 @@ from sqlalchemy.dialects.postgresql import insert
 from cryptomarket.deribit_client import DeribitWebsocketPool
 from cryptomarket.errors import DatabaseConnectionCoroutineError
 from cryptomarket.models import PriceTicker
-from cryptomarket.project import celery_deribit
+from cryptomarket.project import TaskRegistery, celery_deribit
 from cryptomarket.project.enums import RadisKeysEnum
-from cryptomarket.project.functions import get_record
+from cryptomarket.project.functions import get_record, run_asyncio_debug
 from cryptomarket.type import DeribitClient
 
 semaphore = asyncio.Semaphore(40)
@@ -24,27 +24,16 @@ lock = asyncio.Lock()
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
-# Добавляем handler для вывода в stderr
-if not log.handlers:
-    handler = logging.StreamHandler(sys.stderr)
-    handler.setLevel(logging.INFO)
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    handler.setFormatter(formatter)
-    log.addHandler(handler)
-    log.propagate = False
-
 
 async def func(*args):
     try:
-        [manager, connection_db] = args
+        [manager, workers, connection_db, task_register] = args
         log.warning("DEBUG CELERY TASK START ...")
         currency_dict: str | None = await get_record(
             RadisKeysEnum.DERIBIT_CURRENCY.value
         )
         if currency_dict is None:
-            log.info(f"""\n The var 'currency_dict' is empty""")
+            log.info("""\n The var 'currency_dict' is empty""")
             return False
         currency_dict: dict = json.loads(currency_dict)
         person_manager = manager.person_manager
@@ -60,24 +49,13 @@ async def func(*args):
             "id": datetime.now().strftime("%Y%m%d%H%M%S"),
             "method": "public/ticker",
             "params": {},
-            # "params": {"instrument_name": args[0]} # "BTC-PERPETUAL"
         }
         # ===============================
         # ---- RECEIVE THE REBIT CLIENT FOR CONNECTION
         # ===============================
-        client_pool = DeribitWebsocketPool(
-            _heartbeat=30,
-            _timeout=10,
-        )
-        # _deque_coroutines = manager.deque_coroutines
-        # if not _deque_coroutines:
-        #     log.error("No coroutines available in deque! Waiting for connections...")
-        #     return False
-        # coroutine = _deque_coroutines.popleft()
-        client: DeribitClient = client_pool.get_clients()
+        client: DeribitClient = workers.get_clients()
+        task_register.register(client)
         person_manager.client = client
-        # log.warning(f"DEBUG CELERY 'coroutine': {coroutine} ")
-        # client: DeribitClient = await list(coroutine.values())[0]
 
         log.warning("DEBUG CELERY  TASK0")
         async with person_manager.ws_json() as ws:
@@ -195,10 +173,13 @@ async def func(*args):
                     # ===============================
                     # SAVE TO THE DATABASE.
                     # ===============================
-    except IndexError:
-        log.error("Deque is empty when trying to pop")
+    except IndexError as e:
+        log.error(
+            f"Deque is empty when trying to pop => {e.args[0] if e.args else str(e)}"
+        )
         return False
-    except Exception:
+    except Exception as e:
+        log.error(f"CELERY ERROR => {e.args[0] if e.args else str(e)}")
         return False
 
 
@@ -219,11 +200,17 @@ def task_celery_monitoring_currency(self, *args, **kwargs):
         connection_db,
     )
 
+    task_register = TaskRegistery()
+
+    workers = DeribitWebsocketPool()
     loop = asyncio.get_event_loop()
+    run_asyncio_debug(loop)
+    # loop.set_debug(True)
+    # loop.slow_callback_duration = 0.08
     try:
 
         asyncio.set_event_loop(loop)
-        args = [manager, connection_db]  # loop=loop
+        args = [manager, workers, connection_db, task_register]  # loop=loop
         task = asyncio.ensure_future(
             func(*args),
         )
