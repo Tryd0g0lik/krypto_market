@@ -44,3 +44,11 @@ class PersonPricesModel(BaseModel):
         ),
         comment="Reference to the price ticker database.",
     )
+    person = relationship(
+        "PersonModel",
+        back_populates="person_price",
+    )
+    price_ticker = relationship(
+        "PriceTicker",
+        back_populates="person_price",
+    )

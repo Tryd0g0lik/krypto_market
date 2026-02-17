@@ -77,7 +77,7 @@ async def func(*args, **kwargs):
 
                                     response = session.execute(
                                         stmt,
-                                    ).fetchall()
+                                    ).first()
                                 log.info(
                                     "Celery 'task_celery_postman_currency' => data was added successfully!"
                                 )
@@ -99,7 +99,7 @@ async def func(*args, **kwargs):
                         else:
                             pass
 
-                user_list = response_json
+                # user_list = response_json
         except Exception as e:
             log.error(f"""ERROR => '{e.args[0] if e.args else str(e)}'""")
         return None
