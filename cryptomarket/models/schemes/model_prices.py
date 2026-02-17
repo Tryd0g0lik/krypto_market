@@ -153,7 +153,7 @@ class PriceTicker(BaseModel):
 
     person_price = relationship(
         "PersonPricesModel",
-        back_populates="price_ticker_id",
+        back_populates="price_ticker",
         uselist=True,
         passive_deletes=False,
         cascade="save-update, merge",

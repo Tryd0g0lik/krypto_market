@@ -10,14 +10,15 @@ import threading
 from datetime import datetime
 
 from sqlalchemy import and_, desc, or_, select, update
-from sqlalchemy.dialects.postgresql import insert
 
+from cryptomarket.deribit_client import DeribitLimited
 from cryptomarket.errors import DatabaseConnectionCoroutineError
 from cryptomarket.models import PriceTicker
-from cryptomarket.project import TaskRegistery, celery_deribit
+from cryptomarket.project import celery_deribit
 from cryptomarket.project.enums import RadisKeysEnum
-from cryptomarket.project.functions import get_record, run_asyncio_debug
-from cryptomarket.type import DeribitClient, ServerSSEManager
+from cryptomarket.project.functions import run_asyncio_debug
+from cryptomarket.project.task_registeration import TaskRegistery
+from cryptomarket.type import DeribitLimitedType, Person, ServerSSEManager
 
 # semaphore = asyncio.Semaphore(40)
 lock = asyncio.Lock()
@@ -27,7 +28,11 @@ log.setLevel(logging.INFO)
 
 async def func(*args, **kwargs):
     [manager, workers, connection_db, task_register, rate_limit] = args
+    task_register: TaskRegistery
+    rate_limit: DeribitLimited
     sse_manager: ServerSSEManager = manager.sse_manager
+    person_manager = manager.person_manager
+
     async with rate_limit.context_redis_connection() as redis:
         try:
             async with rate_limit.semaphore:
@@ -45,16 +50,16 @@ async def func(*args, **kwargs):
                 address_for_send = [
                     {key: p} for key in keys for p in response_json[key]
                 ]
-                # ----
-
+                # =====================
+                # ---- DISPATCH USER DATA PER QUEUE
+                # 'address_for_send' Template: '{< ticker name> : < person/user id >}'
+                # Everyone user/person, who hase (passed ) 'ServerSSEManager.subscribe' are locate here (in 'address_for_send')
+                # =====================
                 for viwe_dict in address_for_send:
-                    """ "
-                    добавить user meta data и  data ot cursa
-                    """
-
-                    # broadcast = sse_manager.broadcast()
-                    # task_register.register(broadcast)
-
+                    # =====================
+                    # ---- DATABASE
+                    # This is not be cache server
+                    # =====================
                     async with lock:
                         connection_db.init_engine()
                         connection_db.session_factory()
@@ -71,30 +76,83 @@ async def func(*args, **kwargs):
                                     .order_by(desc(PriceTicker.id))
                                     .limit(1)
                                 )
-                                response = None
-                                # Sync connection
+                                result = None
+                                # =====================
+                                # ---- DATABASE SYNC CONNECTION
+                                # =====================
                                 with connection_db.session_scope() as session:
 
-                                    response = session.execute(
+                                    rows = session.execute(
                                         stmt,
-                                    ).first()
+                                    ).fitchall()
                                 log.info(
                                     "Celery 'task_celery_postman_currency' => data was added successfully!"
                                 )
                             except DatabaseConnectionCoroutineError as e:
                                 log.warning(e.args[0] if e.args else str(e))
-                                # Async connection
+                                # =====================
+                                # ---- DATABASE ASYNC CONNECTION
+                                # =====================
                                 async with connection_db.asyncsession_scope() as session:
                                     result = await session.execute(stmt)
                                     rows = result.fetchall()
-                                    if rows:
-                                        row = rows[0][0]
+                                # =====================
+                                # ---- USER DATA
+                                # Async connection
+                                # =====================
+                                if (
+                                    rows
+                                    and rows[0] is not None
+                                    and rows[0][0] is not None
+                                ):
+                                    row = rows[0][0]
+                                    serialize_json = {
+                                        k: v
+                                        for k, v in row.__dict__.items()
+                                        if k != "created_at" and not k.startswith("_")
+                                    }
+                                    serialize_json.__setitem__(
+                                        "created_at",
+                                        row.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                                    )
+                                    serialize_json.__setitem__(
+                                        "updated_at",
+                                        (
+                                            row.updated_at.strftime("%Y-%m-%d %H:%M:%S")
+                                            if row.updated_at is not None
+                                            else None
+                                        ),
+                                    )
+                                    # =====================
+                                    # ---- USER DATA  & User Meta DATA
+                                    # =====================
+                                    person_id = list(viwe_dict.values())[0]
+                                    p: Person = person_manager.person_dict.get(
+                                        person_id
+                                    )
+                                    user_meta_data = {}
+                                    user_meta_data.__setitem__(
+                                        "mapped_key", p.key_of_queue
+                                    )
+                                    user_meta_data.__setitem__(
+                                        "method", "public/ticker"
+                                    )
+                                    user_meta_data.__setitem__("user_id", person_id)
+                                    user_meta_data.__setitem__("request_id", "None")
+                                    user_meta_data.__setitem__(
+                                        "tickers", serialize_json["ticker"]
+                                    )
+                                    serialize_json.__setitem__(
+                                        "user_meta", user_meta_data
+                                    )
+                                    # =====================
+                                    # ---- USER QUEUE
+                                    # =====================
+                                    await sse_manager.broadcast(serialize_json)
+
                                 log.info(
                                     "Celery 'task_celery_postman_currency' => data was added successfully!"
                                 )
-                                serileze = {
-                                    k: v for k, v in response_json.__dict__.items()
-                                }
 
                         else:
                             pass
@@ -105,19 +163,16 @@ async def func(*args, **kwargs):
         return None
 
 
-#
-# @celery_deribit.task(
-#     name="cryptomarket.tasks.celery.task_add_every_60_seconds.task_celery_postman_currency",
-#     bind=True,
-#     ignore_result=False,
-#     autoretry_for=(TimeoutError, OSError, ConnectionError),
-#     retry_backoff=True,
-#     max_retries=3,
-#     retry_backoff_max=30,
-# )self,
-
-
-def task_celery_postman_currency(*args, **kwargs):
+@celery_deribit.task(
+    name="cryptomarket.tasks.celery.task_add_every_60_seconds.task_celery_postman_currency",
+    bind=True,
+    ignore_result=False,
+    autoretry_for=(TimeoutError, OSError, ConnectionError),
+    retry_backoff=True,
+    max_retries=3,
+    retry_backoff_max=30,
+)
+def task_celery_postman_currency(self, *args, **kwargs):
     from cryptomarket.deribit_client import DeribitLimited, DeribitWebsocketPool
     from cryptomarket.project.app import manager
     from cryptomarket.project.functions import (

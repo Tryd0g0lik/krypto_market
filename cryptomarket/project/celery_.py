@@ -25,7 +25,6 @@ celery_deribit.conf.task_queues = (
     Queue("high", Exchange("high"), routing_key="high.#"),
     Queue("beat", Exchange("beat"), routing_key="beat.#"),
     Queue("low", Exchange("low"), routing_key="low.#"),
-    Queue("beat", Exchange("beat"), routing_key="beat.#"),
     Queue("celery"),
 )
 celery_deribit.conf.task_default_queue = "default"
@@ -35,11 +34,20 @@ celery_deribit.conf.task_default_routing_key = "task.default"
 celery_deribit.conf.beat_schedule = {
     "add-every-60-seconds": {
         "task": "cryptomarket.tasks.celery.task_add_every_60_seconds.task_celery_monitoring_currency",
-        "schedule": 45,  # crontab(hour=0, minute=1,),
+        "schedule": 45,  # receiving data from the deribit server.
         "options": {
             "queue": "high",
             "routing_key": "high.priority",
             "expires": 60,
         },
-    }
+    },
+    "postman-every-60-seconds": {
+        "task": "cryptomarket.tasks.celery.task_add_every_60_seconds.task_celery_postman_currency",
+        "schedule": crontab(minute="*/1"),  # Send data (received above ) by SSE.
+        "options": {
+            "queue": "default",
+            "routing_key": "task.default",
+            "expires": 40,
+        },
+    },
 }

@@ -11,7 +11,7 @@ from contextvars import ContextVar
 from cryptomarket.deribit_client.deribit_limites import DeribitLimited
 from cryptomarket.deribit_client.deribit_person import PersonManager
 from cryptomarket.deribit_client.deribit_websocket import DeribitWebsocketPool
-from cryptomarket.project import TaskRegistery
+from cryptomarket.project import TaskRegisteryType
 from cryptomarket.project.settings.core import settings
 from cryptomarket.project.sse_manager import ServerSSEManager
 from cryptomarket.type import (
@@ -62,7 +62,7 @@ class DeribitManage(DeribitManageType):
         args = ("btc_usd", "eth_usd", "connection")
         self.sse_manager = ServerSSEManager(*args)
         self.person_manager = PersonManager()
-        self.register_tasks = TaskRegistery()
+        self.register_tasks = TaskRegisteryType()
         # self.ws_connection_manager = DeribitWSSConnectionManager()
 
     async def enqueue(self, cache_live: int, **kwargs) -> None:

@@ -7,10 +7,12 @@ import logging
 import weakref
 from typing import Set
 
+from cryptomarket.type.task_register import TaskRegisteryType
+
 log = logging.getLogger(__name__)
 
 
-class TaskRegistery:
+class TaskRegistery(TaskRegisteryType):
     """
     This is registry of memory for the asyncio tasks/
     """
@@ -19,6 +21,7 @@ class TaskRegistery:
 
     def __init__(self, max_size: int = 500):
         # self.workers = weakref.WeakSet()
+        super().__init__(max_size)
         self.task_names = {}
         self._max_size = max_size
         self.log_t = f"[{self.__class__.__name__}.%s]:"
@@ -26,7 +29,7 @@ class TaskRegistery:
     def register(self, worker, index=None) -> None:
         task_id = f"worker_{str(index)}"
 
-        TaskRegistery._workers.add(worker)
+        TaskRegisteryType._workers.add(worker)
         if index is not None:
             self.task_names[task_id] = index
         #
@@ -35,7 +38,7 @@ class TaskRegistery:
             % (
                 self.log_t % self.register.__name__,
                 worker or task_id,
-                len(TaskRegistery._workers),
+                len(TaskRegisteryType._workers),
             )
         )
 
@@ -59,8 +62,8 @@ class TaskRegistery:
             )
 
     async def wait_free_slot(self, time=None) -> None:
-        if len(TaskRegistery._workers) >= 0:
-            while len(TaskRegistery._workers) >= self._max_size:
+        if len(TaskRegisteryType._workers) >= 0:
+            while len(TaskRegisteryType._workers) >= self._max_size:
                 if time:
                     await asyncio.sleep(time)
                 else:
@@ -74,16 +77,16 @@ class TaskRegistery:
          """
             % (
                 self.log_t % self.get_stats.__name__,
-                len(TaskRegistery._workers),
+                len(TaskRegisteryType._workers),
                 self._max_size,
                 list(self.task_names.keys()),
             )
         )
         return {
-            "active_tasks": len(TaskRegistery._workers),
+            "active_tasks": len(TaskRegisteryType._workers),
             "max_size": self._max_size,
             "task_names": list(self.task_names.values()),
         }
 
     def get_active_task(self) -> Set[asyncio.Task]:
-        return set(TaskRegistery._workers)
+        return set(TaskRegisteryType._workers)

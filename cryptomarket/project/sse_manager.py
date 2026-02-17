@@ -96,8 +96,8 @@ class ServerSSEManager(ServerSSEManager):
         :param user_id: (str) Client ID This is the index for the deribit's api key
         :param ticker: (str) The attribute that the user subscribed to and the response will be sent by SSE.
         """
-        user_meta = data.get("user_meta")
-        mapped_key = user_meta.get("mapped_key")
+        user_meta = data.get("user_meta", {})
+        mapped_key = user_meta.get("mapped_key", "NuLL")
         del data["user_meta"]
 
         async with self.lock:
