@@ -133,23 +133,17 @@ async def get_index_price_child(
         if method == "public/get_index_price":
             user_meta_data.__setitem__("timeinterval", "60.0")
 
-        # else:
-        #     response.detail = json.dumps({"details": DeribitRangeDatetimeError()})
-        #     response.status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
-        #     return response
-
+        # ===============================
+        # ---- TASKS
+        # ==============================
         task_1 = asyncio.create_task(manager.enqueue(3600, **user_meta_data))
         task_2 = asyncio.create_task(
             signal.schedule_with_delay(callback_=None, asynccallback_=task_account)
         )
         manager.register_tasks.register(task_1, task_2)
         await asyncio.gather(task_1, task_2)
-        del user_meta_data
+        del [user_meta_data, task_1, task_2]
         manager.register_tasks.get_stats()
-        # ===============================
-        # ---- RAN SIGNAL
-        # ==============================
-        # await signal.schedule_with_delay(callback_=None, asynccallback_=task_account)
         # ===============================
         # ---- RESPONSE HTTP
         # ==============================

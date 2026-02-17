@@ -77,6 +77,7 @@ async def func(*args, **kwargs):
                                     .limit(1)
                                 )
                                 result = None
+                                serialize_json ={}
                                 # =====================
                                 # ---- DATABASE SYNC CONNECTION
                                 # =====================
@@ -85,6 +86,33 @@ async def func(*args, **kwargs):
                                     rows = session.execute(
                                         stmt,
                                     ).fitchall()
+                                    # =====================
+                                    # ---- USER DATA - SYNC
+                                    # Async connection
+                                    # =====================
+                                    if (
+                                        rows
+                                        and rows[0] is not None
+                                        and rows[0][0] is not None
+                                    ):
+                                        row = rows[0][0]
+                                        serialize_json = {
+                                            k: v
+                                            for k, v in row.__dict__.items()
+                                            if k != "created_at" and not k.startswith("_")
+                                        }
+                                        serialize_json.__setitem__(
+                                            "created_at",
+                                            row.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                                        )
+                                        serialize_json.__setitem__(
+                                            "updated_at",
+                                            (
+                                                row.updated_at.strftime("%Y-%m-%d %H:%M:%S")
+                                                if row.updated_at is not None
+                                                else None
+                                            ),
+                                        )
                                 log.info(
                                     "Celery 'task_celery_postman_currency' => data was added successfully!"
                                 )
@@ -96,33 +124,33 @@ async def func(*args, **kwargs):
                                 async with connection_db.asyncsession_scope() as session:
                                     result = await session.execute(stmt)
                                     rows = result.fetchall()
-                                # =====================
-                                # ---- USER DATA
-                                # Async connection
-                                # =====================
-                                if (
-                                    rows
-                                    and rows[0] is not None
-                                    and rows[0][0] is not None
-                                ):
-                                    row = rows[0][0]
-                                    serialize_json = {
-                                        k: v
-                                        for k, v in row.__dict__.items()
-                                        if k != "created_at" and not k.startswith("_")
-                                    }
-                                    serialize_json.__setitem__(
-                                        "created_at",
-                                        row.created_at.strftime("%Y-%m-%d %H:%M:%S"),
-                                    )
-                                    serialize_json.__setitem__(
-                                        "updated_at",
-                                        (
-                                            row.updated_at.strftime("%Y-%m-%d %H:%M:%S")
-                                            if row.updated_at is not None
-                                            else None
-                                        ),
-                                    )
+                                    # =====================
+                                    # ---- USER DATA - ASYNC
+                                    # Async connection
+                                    # =====================
+                                    if (
+                                        rows
+                                        and rows[0] is not None
+                                        and rows[0][0] is not None
+                                    ):
+                                        row = rows[0][0]
+                                        serialize_json = {
+                                            k: v
+                                            for k, v in row.__dict__.items()
+                                            if k != "created_at" and not k.startswith("_")
+                                        }
+                                        serialize_json.__setitem__(
+                                            "created_at",
+                                            row.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                                        )
+                                        serialize_json.__setitem__(
+                                            "updated_at",
+                                            (
+                                                row.updated_at.strftime("%Y-%m-%d %H:%M:%S")
+                                                if row.updated_at is not None
+                                                else None
+                                            ),
+                                        )
                                     # =====================
                                     # ---- USER DATA  & User Meta DATA
                                     # =====================
@@ -131,6 +159,7 @@ async def func(*args, **kwargs):
                                         person_id
                                     )
                                     user_meta_data = {}
+                                    log.warning(f"DEBUG CELERY TASK SEND 'p.key_of_queue' {p.key_of_queue} & p: {str(p.__dict__)}")
                                     user_meta_data.__setitem__(
                                         "mapped_key", p.key_of_queue
                                     )
@@ -164,7 +193,7 @@ async def func(*args, **kwargs):
 
 
 @celery_deribit.task(
-    name="cryptomarket.tasks.celery.task_add_every_60_seconds.task_celery_postman_currency",
+    name="cryptomarket.tasks.celery.task_send_every_60_seconds.task_celery_postman_currency",
     bind=True,
     ignore_result=False,
     autoretry_for=(TimeoutError, OSError, ConnectionError),

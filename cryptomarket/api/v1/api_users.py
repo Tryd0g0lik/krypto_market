@@ -45,10 +45,7 @@ async def create_order(request: Request):
     """
     Добавляем пользователя в список и пользователь должен получаеть данные каждую минуту
     """
-    # response = await get_index_price_child(request)
     response = await crypto_currency.create_order(request)
-    # task_celery_monitoring_currency()
-    task_celery_postman_currency()
     return response
 
 

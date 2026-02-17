@@ -79,7 +79,6 @@ class CryptoCurrency:
             persons = manager.person_manager.person_dict
             ticker = request.path_params.get("ticker")
             person_id = request.path_params.get("user_id")
-            # person_id = request.headers.get('"X-User-ID"')
             headers_request_id = request.headers.get('"X-Request-ID"')
             self.__check_received_data(person_id, persons, ticker, request)
             if self.response.status_code >= status.HTTP_300_MULTIPLE_CHOICES:

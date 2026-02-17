@@ -16,7 +16,10 @@ celery_deribit = Celery(
     __name__,
     broker=f"{CELERY_BROKER_URL}",
     backend=f"{CELERY_RESULT_BACKEND}",
-    include=["cryptomarket.tasks.celery.task_add_every_60_seconds"],
+    include=[
+        "cryptomarket.tasks.celery.task_add_every_60_seconds",
+        "cryptomarket.tasks.celery.task_send_every_60_seconds"
+    ],
 )
 celery_deribit.config_from_object(celeryconfig)
 
@@ -42,7 +45,7 @@ celery_deribit.conf.beat_schedule = {
         },
     },
     "postman-every-60-seconds": {
-        "task": "cryptomarket.tasks.celery.task_add_every_60_seconds.task_celery_postman_currency",
+        "task": "cryptomarket.tasks.celery.task_send_every_60_seconds.task_celery_postman_currency",
         "schedule": crontab(minute="*/1"),  # Send data (received above ) by SSE.
         "options": {
             "queue": "default",

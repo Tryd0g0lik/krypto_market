@@ -6,6 +6,7 @@ result_backend = < Look to the 'cryptomarket/project/settings/settings_env.py' >
 """
 
 from cryptomarket.database.connection import log
+from cryptomarket.project.settings.settings_env import REDIS_MASTER_NAME, REDIS_PASSWORD
 
 task_serializer = "json"
 result_serializer = "json"
@@ -26,3 +27,9 @@ worker_redirect_stdouts_level = "INFO"
 # quantity of workers
 worker_concurrency = 1
 worker_prefetch_multiplier = 1
+
+# Redis
+broker_transport_options = {
+    'master_name': str(REDIS_MASTER_NAME),
+    'sentinel_kwargs': {'password': str(REDIS_PASSWORD)},
+}
