@@ -8,6 +8,7 @@ from cryptomarket.type.deribit_type import (
     OAuthAutenticationParamsType,
     OAuthAutenticationType,
     Person,
+    ServerSSEManager,
 )
 from cryptomarket.type.settings_prop import SettingsProps
 from cryptomarket.type.type_signal import UserSignalHandlerProp
@@ -24,4 +25,5 @@ __all__ = [
     "DeribitWebsocketPoolType",
     "DeribitClient",
     "Person",
+    "ServerSSEManager",
 ]

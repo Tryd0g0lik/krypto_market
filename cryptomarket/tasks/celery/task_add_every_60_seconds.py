@@ -14,6 +14,7 @@ from sqlalchemy.dialects.postgresql import insert
 from cryptomarket.deribit_client import DeribitWebsocketPool
 from cryptomarket.errors import DatabaseConnectionCoroutineError
 from cryptomarket.models import PriceTicker
+from cryptomarket.models.persons.model_person_prices import PersonPricesModel
 from cryptomarket.project import TaskRegistery, celery_deribit
 from cryptomarket.project.enums import RadisKeysEnum
 from cryptomarket.project.functions import get_record, run_asyncio_debug

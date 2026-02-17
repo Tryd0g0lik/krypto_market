@@ -12,6 +12,7 @@ from contextlib import contextmanager
 from typing import Set
 
 from cryptomarket.project.settings.core import settings
+from cryptomarket.type.deribit_type import ServerSSEManager
 
 log = logging.getLogger(__name__)
 setting = settings()
@@ -54,11 +55,12 @@ setting = settings()
 #             )
 
 
-class ServerSSEManager:
+class ServerSSEManager(ServerSSEManager):
     _connections: dict[str, Set[asyncio.Queue]] = {}
     lock: asyncio.Lock = asyncio.Lock()
 
     def __init__(self, *args):
+        super().__init__(*args)
         self.log_t = f"[{self.__class__.__name__}.%s]:"
         self._connections.update({title: set() for title in args if args is not None})
 

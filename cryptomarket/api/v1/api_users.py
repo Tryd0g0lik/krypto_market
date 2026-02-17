@@ -9,6 +9,9 @@ from cryptomarket.deribit_client.deribit_currency import CryptoCurrency
 from cryptomarket.tasks.celery.task_add_every_60_seconds import (
     task_celery_monitoring_currency,
 )
+from cryptomarket.tasks.celery.task_send_every_60_seconds import (
+    task_celery_postman_currency,
+)
 
 crypto_currency = CryptoCurrency()
 router_v1 = APIRouter(
@@ -45,6 +48,7 @@ async def create_order(request: Request):
     # response = await get_index_price_child(request)
     response = await crypto_currency.create_order(request)
     # task_celery_monitoring_currency()
+    task_celery_postman_currency()
     return response
 
 

@@ -4,10 +4,10 @@ cryptomarket/type/deribit_type.py
 
 import asyncio
 from collections import deque
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
 from datetime import datetime
-from typing import Any, Protocol, TypedDict
+from typing import Any, Protocol, Set, TypedDict
 
 from aiohttp import client_ws
 from aiohttp.client_ws import ClientWebSocketResponse
@@ -336,5 +336,44 @@ class EncryptManagerBase:
         :param encrypted_dict: (dict[bytes, bytes]) Encrypted dict. Example '{key: encrypted}' or\
             by type '{< bytes_key_generated_Fernet >: <bytes_decrypt_text >}'.
         :return: str
+        """
+        pass
+
+
+# =========================
+# ---- SSE MANAGER
+# =========================
+class ServerSSEManager:
+    _connections: dict[str, Set[asyncio.Queue]] = {}
+    lock: asyncio.Lock = asyncio.Lock()
+
+    def __init__(self, *args):
+        self.log_t = f"[{self.__class__.__name__}.%s]:"
+        self._connections.update({title: set() for title in args if args is not None})
+
+    async def subscribe(self, key_of_queue: str):
+        """Here we create a new queue for subscribe"""
+        pass
+
+    async def unsubscribe(self, ticker: str, queue: asyncio.Queue):
+        pass
+
+    async def broadcast(self, data: dict):
+        # async def broadcast(self, user_id: str, ticker: str, data: dict):
+        """
+        Here we broadcast a message to all subscribers by ticker. Template: 'queue.put(json.dumps({user_id: data}))'
+        :param user_id: (str) Client ID This is the index for the deribit's api key
+        :param ticker: (str) The attribute that the user subscribed to and the response will be sent by SSE.
+        """
+        pass
+
+    @contextmanager
+    def _extract_ticker_from_message(self, *args: list[str], **kwargs: dict):
+        """
+        This is the simple function. It don't have the close session - by default.
+        :param data: (dict)
+        :param args: (list[str]) Example "['connection', ]"
+        :param kwargs: (dict[str, Set[asyncio.Queue]] ) Example "{'eth_usd': < set() >}"
+        :return:
         """
         pass

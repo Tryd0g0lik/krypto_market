@@ -26,19 +26,21 @@ class PersonPricesModel(BaseModel):
     currency: Mapped[str] = mapped_column(
         String(20),
     )
-    person = mapped_column(
+    person_id = mapped_column(
         ForeignKey(
-            ("crypto_person.id" if connection_db.is_sqlitetype else "crypto.person.id")
+            ("crypto_person.id" if connection_db.is_sqlitetype else "crypto.person.id"),
+            name="fk_person_prices_person_id",
         ),
         comment="Reference to the person database.",
     )
-    price_ticker = mapped_column(
+    price_ticker_id = mapped_column(
         ForeignKey(
             (
                 "crypto_price_tickers.id"
                 if connection_db.is_sqlitetype
                 else "crypto.price_tickers.id"
             ),
-            comment="Reference to the price ticker database.",
+            name="fk_person_prices_price_ticker_id",
         ),
+        comment="Reference to the price ticker database.",
     )

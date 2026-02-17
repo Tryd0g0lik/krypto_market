@@ -354,6 +354,7 @@ def create_person_manual(
         p.client_secret_encrypt = headers_client_secret[:]
         p.active = True
         p_dict.__setitem__(user_id, p)
+
     else:
         p: Person = p_dict.get(user_id)
         p.active = True

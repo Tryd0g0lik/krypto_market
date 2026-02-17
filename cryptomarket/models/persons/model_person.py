@@ -89,7 +89,7 @@ class PersonModel(BaseModel):
     )
     person_price = relationship(
         "PersonPricesModel",
-        back_populates="person_user",
+        back_populates="person_id",
         lazy="joined",
         uselist=False,
         passive_deletes=False,
