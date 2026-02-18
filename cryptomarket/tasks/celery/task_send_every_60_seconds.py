@@ -62,15 +62,13 @@ async def func(*args, **kwargs):
                             connection_db.is_postgresqltype
                             or connection_db.is_sqlitetype
                         ):
+                            stmt = (
+                                select(PriceTicker)
+                                .where(PriceTicker.ticker == list(viwe_dict.keys())[0])
+                                .order_by(desc(PriceTicker.id))
+                                .limit(1)
+                            )
                             try:
-                                stmt = (
-                                    select(PriceTicker)
-                                    .where(
-                                        PriceTicker.ticker == list(viwe_dict.keys())[0]
-                                    )
-                                    .order_by(desc(PriceTicker.id))
-                                    .limit(1)
-                                )
 
                                 # =====================
                                 # ---- DATABASE SYNC CONNECTION 1/2

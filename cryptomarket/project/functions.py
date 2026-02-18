@@ -329,7 +329,6 @@ async def event_generator(
                 continue
             await asyncio.sleep(2)
     except asyncio.CancelledError:
-
         pass
     except Exception as e:
         log.info("DEBUG 2 BEFORE __setitem__ ")

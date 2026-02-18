@@ -4,14 +4,7 @@ cryptomarket/api/v1/api_users.py
 
 from fastapi import APIRouter, Request, Response, openapi, status
 
-from cryptomarket.api.v1.api_get_index_price import get_index_price_child
 from cryptomarket.deribit_client.deribit_currency import CryptoCurrency
-from cryptomarket.tasks.celery.task_add_every_60_seconds import (
-    task_celery_monitoring_currency,
-)
-from cryptomarket.tasks.celery.task_send_every_60_seconds import (
-    task_celery_postman_currency,
-)
 
 crypto_currency = CryptoCurrency()
 router_v1 = APIRouter(
@@ -54,6 +47,12 @@ async def create_order(request: Request):
 @router_v1.get("/{user_id}/cancel_order/{ticker}")
 async def cancel_order(request: Request):
     response = await crypto_currency.cancel_order(request)
+    return response
+
+
+@router_v1.get("/{user_id}/get_order/{ticker}")
+async def cancel_order(request: Request):
+    response = await crypto_currency.get_order(request)
     return response
 
 

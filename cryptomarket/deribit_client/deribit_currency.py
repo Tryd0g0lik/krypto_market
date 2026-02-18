@@ -7,10 +7,13 @@ from collections import UserDict
 from uuid import uuid4
 
 from fastapi import Request, Response, status
+from watchfiles import awatch
 
+from cryptomarket.api.v1.api_get_index_price import get_index_price_child
 from cryptomarket.errors import DeribitValueError
 from cryptomarket.errors.person_errors import PersonDictionaryError
 from cryptomarket.project.enums import RadisKeysEnum
+from cryptomarket.project.functions import set_record
 from cryptomarket.project.settings.core import settings
 
 setting = settings()
@@ -117,6 +120,29 @@ class CryptoCurrency:
             self.response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
             return self.response
 
+    async def get_order(self, request: Request):
+        from cryptomarket.project.app import manager
+
+        ticker = request.path_params.get("ticker")
+        person_id = request.path_params.get("user_id")
+        persons = manager.person_manager.person_dict
+        self.__check_received_data(person_id, persons, ticker, request)
+        if self.response.status_code >= status.HTTP_300_MULTIPLE_CHOICES:
+            return self.response
+        result = self.currency_dict.get(ticker.lower(), {})
+        if len(result) == 0:
+            self.response.status_code = status.HTTP_404_NOT_FOUND
+            return self.response
+        try:
+            response = await get_index_price_child(request)
+            return response
+        except Exception as e:
+            self.response.content = json.dumps(
+                {"detail": str(e.args[0] if e.args else str(e))}
+            )
+            self.response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+            return self.response
+
     def update_order(self, request: Request):
         pass
 
@@ -209,17 +235,20 @@ class CryptoCurrency:
         return self.response
 
     async def set_cache(self):
-        from cryptomarket.project.app import manager
+        # from cryptomarket.project.app import manager
 
-        context_redis_connection = manager.rate_limit.context_redis_connection
+        # context_redis_connection = manager.rate_limit.context_redis_connection
         # ===============================
         # ---- CACHE SERVER
         # ===============================
-        async with context_redis_connection() as redis:
-            await redis.setex(
-                RadisKeysEnum.DERIBIT_CURRENCY.value.strip(),
-                27 * 60 * 60,
-                json.dumps({**self.currency_dict}),
-            )
+        await set_record(
+            RadisKeysEnum.DERIBIT_CURRENCY.value.strip(), {**self.currency_dict}
+        )
+        # async with context_redis_connection() as redis:
+        #     await redis.setex(
+        #         ,
+        #         27 * 60 * 60,
+        #         json.dumps({**self.currency_dict}),
+        #     )
 
         pass
