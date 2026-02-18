@@ -51,6 +51,8 @@ async def func(*args, **kwargs):
                 # 'address_for_send' Template: '{< ticker name> : [< person/user id >]}'
                 # Everyone user/person, who hase (passed ) 'ServerSSEManager.subscribe' are locate here (in 'address_for_send')
                 # =====================
+                result = None
+                serialize_json = {}
                 for viwe_dict in address_for_send:
                     # =====================
                     # ---- DATABASE
@@ -72,8 +74,7 @@ async def func(*args, **kwargs):
                                     .order_by(desc(PriceTicker.id))
                                     .limit(1)
                                 )
-                                result = None
-                                serialize_json = {}
+
                                 # =====================
                                 # ---- DATABASE SYNC CONNECTION
                                 # =====================
@@ -167,87 +168,81 @@ async def func(*args, **kwargs):
                                             % (str(rows),)
                                         )
 
-                                    # =====================
-                                    # ---- USER DATA  & User Meta DATA
-                                    # =====================
-                                    for person_id in list(viwe_dict.values()):
-                                        # key_of_queue: str = (
-                                        #     RadisKeysEnum.DERIBIT_PERSON_RESULT.value
-                                        #     % person_id
-                                        # )
+                            # =====================
+                            # ---- USER DATA  & User Meta DATA
+                            # =====================
+                            for person_id in list(viwe_dict.values()):
+                                # key_of_queue: str = (
+                                #     RadisKeysEnum.DERIBIT_PERSON_RESULT.value
+                                #     % person_id
+                                # )
 
-                                        user_meta_data = {}
-                                        log.warning(
-                                            f"DEBUG CELERY TASK SEND PERSON: 'key_of_queue' {list(viwe_dict.keys())[0]}"
-                                        )
-                                        user_meta_data.__setitem__(
-                                            "mapped_key",
-                                            ":".join(["sse_connection", person_id]),
-                                        )
-                                        user_meta_data.__setitem__(
-                                            "method", "public/ticker"
-                                        )
-                                        user_meta_data.__setitem__("user_id", person_id)
-                                        user_meta_data.__setitem__("request_id", "None")
-                                        user_meta_data.__setitem__(
-                                            "ticker", serialize_json["ticker"]
-                                        )
-                                        serialize_json.__setitem__(
-                                            "user_meta", user_meta_data
-                                        )
-
-                                        try:
-                                            # =====================
-                                            # ---- REDIS & GET KEY USER's QUEUE 2/4
-                                            # =====================
-                                            # result = await luo_script_find_key(redis, f"{user_meta_data['mapped_key']}:*")
-                                            result = await luo_script_find_key(
-                                                redis,
-                                                f"{user_meta_data['mapped_key']}:*",
-                                            )
-
-                                            result = json.loads(result)
-                                            log.info(
-                                                f"DEBUG LUA SCRIPT Keys: {str(result['keys'])}"
-                                            )
-                                            log.info(
-                                                f"DEBUG LUA SCRIPT Debug: {str(result['debug'])}"
-                                            )
-                                            if list(result.keys())[0] is None:
-                                                return None
-                                            key = result["keys"][-1]
-                                            # =====================
-                                            # ---- REDIS & GET OLD DATA BY KEY USER's QUEUE 3/4
-                                            # =====================
-                                            old_data_str = await asyncio.wait_for(
-                                                redis.get(key), 7
-                                            )
-                                            if old_data_str is None:
-                                                return None
-                                            old_data_json = json.loads(old_data_str)
-
-                                            # =====================
-                                            # ---- REDIS &  SEND DATA TO THE CACHE SERVER BY KEY USER's QUEUE 4/4
-                                            # =====================
-                                            old_data_json.__setitem__(
-                                                "message", serialize_json
-                                            )
-                                            await redis.setex(
-                                                key,
-                                                27 * 60 * 60,
-                                                json.dumps(old_data_json),
-                                            )
-                                            log.info(
-                                                f"Celery 'task_celery_postman_currency' => User key: {key} data was sent successful!"
-                                            )
-                                        except Exception as e:
-                                            log.warning(
-                                                f"Redis luo script failed, Result: {str(result)} Error: {e.args[0] if e.args else str(e)}"
-                                            )
-                                            return None
-                                log.info(
-                                    "Celery 'task_celery_postman_currency' => data was added successfully!"
+                                user_meta_data = {}
+                                log.warning(
+                                    f"DEBUG CELERY TASK SEND PERSON: 'key_of_queue' {list(viwe_dict.keys())[0]}"
                                 )
+                                user_meta_data.__setitem__(
+                                    "mapped_key",
+                                    ":".join(["sse_connection", person_id]),
+                                )
+                                user_meta_data.__setitem__("method", "public/ticker")
+                                user_meta_data.__setitem__("user_id", person_id)
+                                user_meta_data.__setitem__("request_id", "None")
+                                user_meta_data.__setitem__(
+                                    "ticker", serialize_json["ticker"]
+                                )
+                                serialize_json.__setitem__("user_meta", user_meta_data)
+
+                                try:
+                                    # =====================
+                                    # ---- REDIS & GET KEY USER's QUEUE 2/4
+                                    # =====================
+                                    # result = await luo_script_find_key(redis, f"{user_meta_data['mapped_key']}:*")
+                                    result = await luo_script_find_key(
+                                        redis,
+                                        f"{user_meta_data['mapped_key']}:*",
+                                    )
+
+                                    result = json.loads(result)
+                                    log.info(
+                                        f"DEBUG LUA SCRIPT Keys: {str(result['keys'])}"
+                                    )
+                                    log.info(
+                                        f"DEBUG LUA SCRIPT Debug: {str(result['debug'])}"
+                                    )
+                                    if list(result.keys())[0] is None:
+                                        return None
+                                    key = result["keys"][-1]
+                                    # =====================
+                                    # ---- REDIS & GET OLD DATA BY KEY USER's QUEUE 3/4
+                                    # =====================
+                                    old_data_str = await asyncio.wait_for(
+                                        redis.get(key), 7
+                                    )
+                                    if old_data_str is None:
+                                        return None
+                                    old_data_json = json.loads(old_data_str)
+
+                                    # =====================
+                                    # ---- REDIS &  SEND DATA TO THE CACHE SERVER BY KEY USER's QUEUE 4/4
+                                    # =====================
+                                    old_data_json.__setitem__("message", serialize_json)
+                                    await redis.setex(
+                                        key,
+                                        27 * 60 * 60,
+                                        json.dumps(old_data_json),
+                                    )
+                                    log.info(
+                                        f"Celery 'task_celery_postman_currency' => User key: {key} data was sent successful!"
+                                    )
+                                except Exception as e:
+                                    log.warning(
+                                        f"Redis luo script failed, Result: {str(result)} Error: {e.args[0] if e.args else str(e)}"
+                                    )
+                                    return None
+                            log.info(
+                                "Celery 'task_celery_postman_currency' => data was added successfully!"
+                            )
 
                         else:
                             pass
