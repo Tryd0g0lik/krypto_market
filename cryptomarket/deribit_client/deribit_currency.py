@@ -221,7 +221,7 @@ class CryptoCurrency:
         # ===============================
         async with context_redis_connection() as redis:
             await redis.setex(
-                RadisKeysEnum.DERIBIT_CURRENCY.value,
+                RadisKeysEnum.DERIBIT_CURRENCY.value.strip(),
                 27 * 60 * 60,
                 json.dumps({**self.currency_dict}),
             )

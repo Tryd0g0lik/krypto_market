@@ -43,7 +43,7 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
     # =====================
     from cryptomarket.project.app import manager
 
-    sse_manager = manager.sse_manager
+    # sse_manager = manager.sse_manager
     timer = request.query_params.get("timer")
     user_interval: int = (
         (int(timer) if timer is None or re.search(r"^(\d+)$", str(timer)) else 60)
@@ -64,8 +64,8 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
         user_id,
         datetime.now().strftime("%Y%m%d%H%M%S"),
     )
-    task = asyncio.create_task(sse_manager.subscribe(key_of_queue))
-    manager.register_tasks.register(task)
+    # task = asyncio.create_task(sse_manager.subscribe(key_of_queue))
+    # manager.register_tasks.register(task)
     # =====================
     # ---- User Meta DATA
     # =====================
@@ -104,7 +104,7 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
         )
     )
     manager.register_tasks.register(task_2)
-    await asyncio.gather(task, task_0, task_1, task_2)
+    await asyncio.gather(task_0, task_1, task_2)
     del [user_meta_data, timer, headers_client_id, headers_client_secret, request_id]
     manager.register_tasks.get_stats()
     return StreamingResponse(

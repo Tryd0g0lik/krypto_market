@@ -5,9 +5,6 @@ cryptomarket/tasks/celery/task_send_every_60_seconds.py
 import asyncio
 import json
 import logging
-import sys
-import threading
-from datetime import datetime
 
 from sqlalchemy import and_, desc, or_, select, update
 
@@ -16,11 +13,9 @@ from cryptomarket.errors import DatabaseConnectionCoroutineError
 from cryptomarket.models import PriceTicker
 from cryptomarket.project import celery_deribit
 from cryptomarket.project.enums import RadisKeysEnum
-from cryptomarket.project.functions import run_asyncio_debug
+from cryptomarket.project.functions import luo_script_find_key, run_asyncio_debug
 from cryptomarket.project.task_registeration import TaskRegistery
-from cryptomarket.type import DeribitLimitedType, Person, ServerSSEManager
 
-# semaphore = asyncio.Semaphore(40)
 lock = asyncio.Lock()
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
@@ -30,15 +25,16 @@ async def func(*args, **kwargs):
     [manager, workers, connection_db, task_register, rate_limit] = args
     task_register: TaskRegistery
     rate_limit: DeribitLimited
-    sse_manager: ServerSSEManager = manager.sse_manager
-    person_manager = manager.person_manager
 
     async with rate_limit.context_redis_connection() as redis:
         try:
             async with rate_limit.semaphore:
+                # =====================
+                # ---- REDIS 1/4
+                # =====================
                 deribit_currency = RadisKeysEnum.DERIBIT_CURRENCY.value
                 response: None | str = await asyncio.wait_for(
-                    redis.get(deribit_currency), 7
+                    redis.get(deribit_currency.strip()), 7
                 )
                 if response is None:
                     log.warning(
@@ -52,7 +48,7 @@ async def func(*args, **kwargs):
                 ]
                 # =====================
                 # ---- DISPATCH USER DATA PER QUEUE
-                # 'address_for_send' Template: '{< ticker name> : < person/user id >}'
+                # 'address_for_send' Template: '{< ticker name> : [< person/user id >]}'
                 # Everyone user/person, who hase (passed ) 'ServerSSEManager.subscribe' are locate here (in 'address_for_send')
                 # =====================
                 for viwe_dict in address_for_send:
@@ -77,12 +73,11 @@ async def func(*args, **kwargs):
                                     .limit(1)
                                 )
                                 result = None
-                                serialize_json ={}
+                                serialize_json = {}
                                 # =====================
                                 # ---- DATABASE SYNC CONNECTION
                                 # =====================
                                 with connection_db.session_scope() as session:
-
                                     rows = session.execute(
                                         stmt,
                                     ).fitchall()
@@ -99,23 +94,32 @@ async def func(*args, **kwargs):
                                         serialize_json = {
                                             k: v
                                             for k, v in row.__dict__.items()
-                                            if k != "created_at" and not k.startswith("_")
+                                            if k != "created_at"
+                                            and not k.startswith("_")
                                         }
                                         serialize_json.__setitem__(
                                             "created_at",
-                                            row.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                                            row.created_at.strftime(
+                                                "%Y-%m-%d %H:%M:%S"
+                                            ),
                                         )
                                         serialize_json.__setitem__(
                                             "updated_at",
                                             (
-                                                row.updated_at.strftime("%Y-%m-%d %H:%M:%S")
+                                                row.updated_at.strftime(
+                                                    "%Y-%m-%d %H:%M:%S"
+                                                )
                                                 if row.updated_at is not None
                                                 else None
                                             ),
                                         )
-                                log.info(
-                                    "Celery 'task_celery_postman_currency' => data was added successfully!"
-                                )
+                                    else:
+                                        log.warning(
+                                            """SYNC Command SELECT is empty & Data not was found in\n
+                                             database rows: %s!"""
+                                            % (str(rows),)
+                                        )
+
                             except DatabaseConnectionCoroutineError as e:
                                 log.warning(e.args[0] if e.args else str(e))
                                 # =====================
@@ -137,56 +141,116 @@ async def func(*args, **kwargs):
                                         serialize_json = {
                                             k: v
                                             for k, v in row.__dict__.items()
-                                            if k != "created_at" and not k.startswith("_")
+                                            if k != "created_at"
+                                            and not k.startswith("_")
                                         }
                                         serialize_json.__setitem__(
                                             "created_at",
-                                            row.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                                            row.created_at.strftime(
+                                                "%Y-%m-%d %H:%M:%S"
+                                            ),
                                         )
                                         serialize_json.__setitem__(
                                             "updated_at",
                                             (
-                                                row.updated_at.strftime("%Y-%m-%d %H:%M:%S")
+                                                row.updated_at.strftime(
+                                                    "%Y-%m-%d %H:%M:%S"
+                                                )
                                                 if row.updated_at is not None
                                                 else None
                                             ),
                                         )
+                                    else:
+                                        log.warning(
+                                            """ASYNC Command SELECT is empty & Data not was found in\n
+                                             database rows: %s!"""
+                                            % (str(rows),)
+                                        )
+
                                     # =====================
                                     # ---- USER DATA  & User Meta DATA
                                     # =====================
-                                    person_id = list(viwe_dict.values())[0]
-                                    p: Person = person_manager.person_dict.get(
-                                        person_id
-                                    )
-                                    user_meta_data = {}
-                                    log.warning(f"DEBUG CELERY TASK SEND 'p.key_of_queue' {p.key_of_queue} & p: {str(p.__dict__)}")
-                                    user_meta_data.__setitem__(
-                                        "mapped_key", p.key_of_queue
-                                    )
-                                    user_meta_data.__setitem__(
-                                        "method", "public/ticker"
-                                    )
-                                    user_meta_data.__setitem__("user_id", person_id)
-                                    user_meta_data.__setitem__("request_id", "None")
-                                    user_meta_data.__setitem__(
-                                        "tickers", serialize_json["ticker"]
-                                    )
-                                    serialize_json.__setitem__(
-                                        "user_meta", user_meta_data
-                                    )
-                                    # =====================
-                                    # ---- USER QUEUE
-                                    # =====================
-                                    await sse_manager.broadcast(serialize_json)
+                                    for person_id in list(viwe_dict.values()):
+                                        # key_of_queue: str = (
+                                        #     RadisKeysEnum.DERIBIT_PERSON_RESULT.value
+                                        #     % person_id
+                                        # )
 
+                                        user_meta_data = {}
+                                        log.warning(
+                                            f"DEBUG CELERY TASK SEND PERSON: 'key_of_queue' {list(viwe_dict.keys())[0]}"
+                                        )
+                                        user_meta_data.__setitem__(
+                                            "mapped_key",
+                                            ":".join(["sse_connection", person_id]),
+                                        )
+                                        user_meta_data.__setitem__(
+                                            "method", "public/ticker"
+                                        )
+                                        user_meta_data.__setitem__("user_id", person_id)
+                                        user_meta_data.__setitem__("request_id", "None")
+                                        user_meta_data.__setitem__(
+                                            "ticker", serialize_json["ticker"]
+                                        )
+                                        serialize_json.__setitem__(
+                                            "user_meta", user_meta_data
+                                        )
+
+                                        try:
+                                            # =====================
+                                            # ---- REDIS & GET KEY USER's QUEUE 2/4
+                                            # =====================
+                                            # result = await luo_script_find_key(redis, f"{user_meta_data['mapped_key']}:*")
+                                            result = await luo_script_find_key(
+                                                redis,
+                                                f"{user_meta_data['mapped_key']}:*",
+                                            )
+
+                                            result = json.loads(result)
+                                            log.info(
+                                                f"DEBUG LUA SCRIPT Keys: {str(result['keys'])}"
+                                            )
+                                            log.info(
+                                                f"DEBUG LUA SCRIPT Debug: {str(result['debug'])}"
+                                            )
+                                            if list(result.keys())[0] is None:
+                                                return None
+                                            key = result["keys"][-1]
+                                            # =====================
+                                            # ---- REDIS & GET OLD DATA BY KEY USER's QUEUE 3/4
+                                            # =====================
+                                            old_data_str = await asyncio.wait_for(
+                                                redis.get(key), 7
+                                            )
+                                            if old_data_str is None:
+                                                return None
+                                            old_data_json = json.loads(old_data_str)
+
+                                            # =====================
+                                            # ---- REDIS &  SEND DATA TO THE CACHE SERVER BY KEY USER's QUEUE 4/4
+                                            # =====================
+                                            old_data_json.__setitem__(
+                                                "message", serialize_json
+                                            )
+                                            await redis.setex(
+                                                key,
+                                                27 * 60 * 60,
+                                                json.dumps(old_data_json),
+                                            )
+                                            log.info(
+                                                f"Celery 'task_celery_postman_currency' => User key: {key} data was sent successful!"
+                                            )
+                                        except Exception as e:
+                                            log.warning(
+                                                f"Redis luo script failed, Result: {str(result)} Error: {e.args[0] if e.args else str(e)}"
+                                            )
+                                            return None
                                 log.info(
                                     "Celery 'task_celery_postman_currency' => data was added successfully!"
                                 )
 
                         else:
                             pass
-
-                # user_list = response_json
         except Exception as e:
             log.error(f"""ERROR => '{e.args[0] if e.args else str(e)}'""")
         return None
@@ -214,18 +278,14 @@ def task_celery_postman_currency(self, *args, **kwargs):
     workers = DeribitWebsocketPool()
     loop = asyncio.new_event_loop()
     run_asyncio_debug(loop)
-    # loop.set_debug(True)
-    # loop.slow_callback_duration = 0.08
     try:
 
         asyncio.set_event_loop(loop)
-        args = [manager, workers, connection_db, task_register, rate_limit]  # loop=loop
+        args = [manager, workers, connection_db, task_register, rate_limit]
         task = asyncio.ensure_future(
             func(*args),
         )
         loop.run_until_complete(task)
-
-        # threading.Thread(target=loop.run_forever).start()
         return True
     except Exception as e:
         loop.close()

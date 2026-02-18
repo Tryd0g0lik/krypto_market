@@ -7,13 +7,15 @@ import json
 import logging
 import pickle
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from idlelib.autocomplete import TRY_A
+from typing import Any, Coroutine
 
 from aiohttp import ClientWebSocketResponse, client_ws
 from fastapi import (
     Request,
 )
+from redis import Redis
 
 from cryptomarket.project.settings.core import DEBUG, settings
 from cryptomarket.type import Person
@@ -243,12 +245,13 @@ async def event_generator(
     import time
 
     from cryptomarket.project.app import manager
+    from cryptomarket.type.deribit_type import DeribitLimitedType, EncryptManagerBase
 
     sse_manager = manager.sse_manager
-
+    rate_limit: DeribitLimitedType = manager.rate_limit
     # Timer
-    start_time = time.time()
-    next_timeout_at = start_time + timeout
+    start_time = datetime.now()
+    next_timeout_at = start_time + timedelta(seconds=timeout)
 
     try:
         # ===============================
@@ -267,12 +270,53 @@ async def event_generator(
         # _connections = sse_manager._connections
         while True:
 
-            now = time.time()
-            timeout_lest = next_timeout_at - now
             # Check the connection with a client
             if await request.is_disconnected():
                 yield f'event: disconnected\ndetail: {{"index_app": "{user_id}", "message": "Client disconnected"}}\n\n'
                 break
+
+            # ===============================
+            # LOCK TO THE CACHE SERVER
+            # ===============================
+            try:
+
+                result = None
+                now = datetime.now()
+                timeout_lest = next_timeout_at.timestamp() - now.timestamp()
+
+                async with rate_limit.context_redis_connection() as redis_client:
+                    result = await luo_script_find_key(redis_client, "sse_connection:*")
+                    log.warning("DEBUG SSE CONNECTION RESULT OF CACHE: %s", str(result))
+                result = json.loads(result)
+                result_dict = {}
+                if list(result.keys())[0] is not None and timeout_lest <= 0:
+                    # ===============================
+                    # UPDATE USER QUEUE
+                    # ===============================
+                    next_timeout_at = datetime.now() + timedelta(seconds=timeout)
+                    log.warning(
+                        "DEBUG SSE CONNECTION RESULT_list: %s", str(result["keys"])
+                    )
+                    if result["keys"][0] is not None:
+                        for key in result["keys"]:
+                            result_str = await redis_client.get(key)
+                            result_json = json.loads(result_str)
+                            result_dict = result_json
+                        log.warning(
+                            "DEBUG SSE CONNECTION RESULT_dict: %s", str(result_dict)
+                        )
+                        await sse_manager.broadcast(result_dict)
+                    else:
+                        log.warning("DEBUG SSE CONNECTION NOT RESULT OF CACHE")
+                    timeout_lest += timedelta(seconds=timeout)
+                else:
+                    log.warning(
+                        "DEBUG SSE CONNECTION RESULT: %s",
+                    )
+            except Exception as e:
+                log.warning(
+                    f"[event_generator]: Redis luo script failed, Result: {str(result)} Error: {e.args[0] if e.args else str(e)}"
+                )
 
             # ===============================
             # TO WAIT NEW EVENT/MESSAGE OF QUEUE
@@ -280,20 +324,19 @@ async def event_generator(
             try:
 
                 try:
-
-                    message_str = await asyncio.wait_for(
-                        queue.get_nowait(), timeout=timeout_lest
-                    )
+                    # for mess in queue.get_nowait():
+                    message_str = queue.get_nowait()
                     yield f'event: message: "index_app": "{user_id}", "message": {message_str}\n\n'
-                except Exception:
-                    message_str = await asyncio.wait_for(
-                        queue.get(), timeout=timeout_lest
+                except Exception as e:
+                    log.warning(
+                        f"[event_generator]: event: message: Error: {e.args[0] if e.args else str(e)}"
                     )
+                    message_str = await asyncio.wait_for(queue.get(), 7)
                     yield f'event: message: "index_app": "{user_id}", "message": {message_str}\n\n'
 
             # Then we wait for  the moment when the need is update the access-token
             # Don't remove connection
-            except asyncio.TimeoutError:
+            except (asyncio.TimeoutError, asyncio.QueueEmpty):
                 # Отправляем keep-alive сообщение
                 # log.info("DEBUG 1 BEFORE __setitem__ ")
                 keep_alive_event = {}
@@ -305,7 +348,7 @@ async def event_generator(
                     "timestamp", str(asyncio.get_event_loop().time())
                 )
                 yield f"event: {keep_alive_event['event']}\ndetail: {json.dumps(keep_alive_event['detail'])}\n\n"
-                next_timeout_at = time.time() + timeout
+
                 continue
             await asyncio.sleep(2)
     except asyncio.CancelledError:
@@ -471,3 +514,54 @@ async def get_record(
         log.error(
             "%s ERROR => %s" % (get_record.__name__, e.args[0] if e.args else str(e))
         )
+
+
+async def delete_key(
+    key_str: str,
+) -> None:
+    from cryptomarket.deribit_client import DeribitLimited
+
+    deribit_limited = DeribitLimited()
+    context_redis_connection = deribit_limited.context_redis_connection
+
+    try:
+
+        async with context_redis_connection() as redis_client:
+            result_ = await asyncio.wait_for(
+                redis_client.delete(key_str),
+                10,
+            )
+            return result_
+    except Exception as e:
+        log.error(
+            "%s ERROR => %s" % (get_record.__name__, e.args[0] if e.args else str(e))
+        )
+
+
+async def luo_script_find_key(redis_client: Redis, key_str: str):
+    script = """
+    local cursor = '0'
+    local all_keys = {}
+    local debug_info = {}
+    local pattern = KEYS[1]
+    local iteration  = 1
+    table.insert(debug_info, '=== SCAN RESULT ===')
+    repeat
+        table.insert(debug_info, 'Start luo script. iteration : ' .. iteration  .. 'whith cursor: ' .. cursor)
+        local result = redis.call('SCAN', cursor, 'MATCH', pattern, 'COUNT', 500)
+        cursor = result[1]
+        if #result[2] > 0 then
+            for _, key in ipairs(result[2]) do
+                table.insert(all_keys, key)
+                table.insert(debug_info, ' Found key: ' .. key)
+            end
+            iteration  = iteration  + 1
+            table.insert(debug_info, 'Redis SCAN got result. Cursor:' .. result[1] .. ' & Keys:' .. #result[2])
+        end
+    until cursor == '0'
+    table.insert(debug_info, 'Redis SCAN complete. Total keys found: ' .. #all_keys)
+    return  cjson.encode({keys = all_keys, debug = debug_info})
+    """
+
+    result = await asyncio.wait_for(redis_client.eval(script, 1, key_str), 7)
+    return result

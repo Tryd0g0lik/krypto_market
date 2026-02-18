@@ -36,9 +36,6 @@ async def task_account(*args, **kwargs) -> bool:
     # ===============================
     _deque_coroutines = manager.deque_coroutines
     sleep_worker = await _deque_coroutines.get()
-    # worker_index = _deque_coroutines.task_names.pop(
-    #     list(_deque_coroutines.task_names.keys())[0]
-    # )
     worker_coroutine = sleep_worker()
 
     # ===============================

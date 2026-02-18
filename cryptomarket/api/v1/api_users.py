@@ -23,6 +23,7 @@ router_v1 = APIRouter(
         500: {"description": "Internal server error"},
     },
 )
+# {'btc_usd': set(), 'connection': set(), 'eth_usd': set(), 'sse_connection:XcQ7xuV:20260217163132': {<Queue at 0x21450622330 maxsize=5000>, <Queue at 0x21450625260 maxsize=5000 _getters[1]>}}
 
 
 @router_v1.get(
@@ -46,6 +47,7 @@ async def create_order(request: Request):
     Добавляем пользователя в список и пользователь должен получаеть данные каждую минуту
     """
     response = await crypto_currency.create_order(request)
+    # task_celery_postman_currency()
     return response
 
 
