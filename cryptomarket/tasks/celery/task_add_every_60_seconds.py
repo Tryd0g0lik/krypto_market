@@ -5,8 +5,6 @@ cryptomarket/tasks/celery/task_add_every_60_seconds.py
 import asyncio
 import json
 import logging
-import sys
-import threading
 from datetime import datetime
 
 from sqlalchemy.dialects.postgresql import insert
@@ -14,7 +12,6 @@ from sqlalchemy.dialects.postgresql import insert
 from cryptomarket.deribit_client import DeribitWebsocketPool
 from cryptomarket.errors import DatabaseConnectionCoroutineError
 from cryptomarket.models import PriceTicker
-from cryptomarket.models.persons.model_person_prices import PersonPricesModel
 from cryptomarket.project import TaskRegisteryType, celery_deribit
 from cryptomarket.project.enums import RadisKeysEnum
 from cryptomarket.project.functions import get_record, run_asyncio_debug
@@ -73,6 +70,7 @@ async def func(*args):
                         continue
                     # ===============================
                     # WSS REQUEST TO  THE EXTERNAL SERVER.
+                    # Get data from the Deribit server
                     # ===============================
                     request_data["params"].__setitem__(
                         "instrument_name",
@@ -137,7 +135,7 @@ async def func(*args):
                                 or connection_db.is_sqlitetype
                             ):
                                 try:
-                                    # Sync connection
+                                    # Sync connection 1/2
                                     with connection_db.session_scope() as session:
                                         session.execute(
                                             stmt.on_conflict_do_nothing(
@@ -149,7 +147,7 @@ async def func(*args):
                                     )
                                 except DatabaseConnectionCoroutineError as e:
                                     log.warning(e.args[0] if e.args else str(e))
-                                    # Async connection
+                                    # Async connection 2/2
                                     async with connection_db.asyncsession_scope() as session:
                                         await session.execute(
                                             stmt.on_conflict_do_nothing(
@@ -206,8 +204,6 @@ def task_celery_monitoring_currency(self, *args, **kwargs):
     workers = DeribitWebsocketPool()
     loop = asyncio.get_event_loop()
     run_asyncio_debug(loop)
-    # loop.set_debug(True)
-    # loop.slow_callback_duration = 0.08
     try:
 
         asyncio.set_event_loop(loop)
@@ -216,8 +212,6 @@ def task_celery_monitoring_currency(self, *args, **kwargs):
             func(*args),
         )
         loop.run_until_complete(task)
-
-        # threading.Thread(target=loop.run_forever).start()
         return True
     except Exception as e:
         loop.close()
