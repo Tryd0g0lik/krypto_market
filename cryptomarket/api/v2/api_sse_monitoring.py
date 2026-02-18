@@ -3,7 +3,6 @@ cryptomarket/api/v2/api_sse_monitoring.py:
 """
 
 import asyncio
-import json
 import logging
 import re
 from datetime import datetime
@@ -18,7 +17,6 @@ from cryptomarket.project.enums import ExternalAPIEnum
 from cryptomarket.project.functions import (
     create_person_manual,
     event_generator,
-    update_person_manual,
 )
 from cryptomarket.project.signals import signal
 from cryptomarket.tasks.queues.task_account_user import task_account
@@ -64,8 +62,6 @@ async def sse_monitoring_child(request: Request) -> StreamingResponse:
         user_id,
         datetime.now().strftime("%Y%m%d%H%M%S"),
     )
-    # task = asyncio.create_task(sse_manager.subscribe(key_of_queue))
-    # manager.register_tasks.register(task)
     # =====================
     # ---- User Meta DATA
     # =====================

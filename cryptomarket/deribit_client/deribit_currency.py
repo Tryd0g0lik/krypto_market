@@ -11,7 +11,6 @@ from fastapi import Request, Response, status
 from cryptomarket.errors import DeribitValueError
 from cryptomarket.errors.person_errors import PersonDictionaryError
 from cryptomarket.project.enums import RadisKeysEnum
-from cryptomarket.project.functions import set_record
 from cryptomarket.project.settings.core import settings
 
 setting = settings()
@@ -61,7 +60,8 @@ class CurrencyDictionary(UserDict):
 
 
 # ===============================
-# ---- RESPONSE HTTP
+# ---- RESPONSE HTTP LOCAL API
+# This is the sub-function
 # ==============================
 class CryptoCurrency:
     # Template "{'btc_usd': [< person >, ...], 'eth_usd': [< person >, ...]}"
@@ -128,8 +128,6 @@ class CryptoCurrency:
             persons = manager.person_manager.person_dict
             ticker = request.path_params.get("ticker")
             person_id = request.path_params.get("user_id")
-            # person_id = request.headers.get('"X-User-ID"')
-            # headers_request_id = request.headers.get('"X-Request-ID"')
             self.__check_received_data(person_id, persons, ticker, request)
             if self.response.status_code >= status.HTTP_300_MULTIPLE_CHOICES:
                 return self.response
@@ -160,8 +158,6 @@ class CryptoCurrency:
             persons = manager.person_manager.person_dict
             ticker = request.query_params.get("ticker")
             person_id = request.query_params.get("user_id")
-            # person_id = request.headers.get('"X-User-ID"')
-            # headers_request_id = request.headers.get('"X-Request-ID"')
             self.__check_received_data(person_id, persons, ticker, request)
             if self.response.status_code >= status.HTTP_300_MULTIPLE_CHOICES:
                 return self.response

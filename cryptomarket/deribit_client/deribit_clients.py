@@ -63,7 +63,6 @@ class DeribitManage(DeribitManageType):
         self.sse_manager = ServerSSEManager(*args)
         self.person_manager = PersonManager()
         self.register_tasks = TaskRegisteryType()
-        # self.ws_connection_manager = DeribitWSSConnectionManager()
 
     async def enqueue(self, cache_live: int, **kwargs) -> None:
         """

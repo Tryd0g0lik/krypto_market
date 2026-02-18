@@ -224,14 +224,6 @@ def datetime_to_seconds(dt: datetime, utc: bool = False) -> float:
     return dt.timestamp()
 
 
-# def string_to_seconds(
-#     date_string: str, format_string: str = "%d.%m.%Y", utc: bool = False
-# ) -> float:
-#     """Преобразовать строку с датой напрямую в секунды"""
-#     dt = datetime.strptime(date_string, format_string)
-#     return datetime_to_seconds(dt, utc)
-
-
 # ===============================
 # ---- HANDLER SSE CONNECTION
 # ===============================
@@ -242,10 +234,8 @@ def time_now_to_seconds() -> float:
 async def event_generator(
     mapped_key: str, user_id: str | int, request: Request, timeout=60
 ):
-    import time
-
     from cryptomarket.project.app import manager
-    from cryptomarket.type.deribit_type import DeribitLimitedType, EncryptManagerBase
+    from cryptomarket.type.deribit_type import DeribitLimitedType
 
     sse_manager = manager.sse_manager
     rate_limit: DeribitLimitedType = manager.rate_limit
@@ -267,9 +257,8 @@ async def event_generator(
         }
         yield f"event: {initial_event['event']}\n detail: {json.dumps(initial_event['detail'])}\n\n"
         queue = await sse_manager.subscribe(mapped_key)
-        # _connections = sse_manager._connections
-        while True:
 
+        while True:
             # Check the connection with a client
             if await request.is_disconnected():
                 yield f'event: disconnected\ndetail: {{"index_app": "{user_id}", "message": "Client disconnected"}}\n\n'
@@ -294,17 +283,10 @@ async def event_generator(
                     # UPDATE USER QUEUE
                     # ===============================
                     next_timeout_at = datetime.now() + timedelta(seconds=timeout)
-                    log.warning(
-                        "DEBUG SSE CONNECTION RESULT_list: %s", str(result["keys"])
-                    )
                     if result["keys"][0] is not None:
                         for key in result["keys"]:
                             result_str = await redis_client.get(key)
-                            result_json = json.loads(result_str)
-                            result_dict = result_json
-                        log.warning(
-                            "DEBUG SSE CONNECTION RESULT_dict: %s", str(result_dict)
-                        )
+                            result_dict = json.loads(result_str)
                         await sse_manager.broadcast(result_dict)
                     else:
                         log.warning("DEBUG SSE CONNECTION NOT RESULT OF CACHE")
@@ -333,12 +315,7 @@ async def event_generator(
                     )
                     message_str = await asyncio.wait_for(queue.get(), 7)
                     yield f'event: message: "index_app": "{user_id}", "message": {message_str}\n\n'
-
-            # Then we wait for  the moment when the need is update the access-token
-            # Don't remove connection
             except (asyncio.TimeoutError, asyncio.QueueEmpty):
-                # Отправляем keep-alive сообщение
-                # log.info("DEBUG 1 BEFORE __setitem__ ")
                 keep_alive_event = {}
                 keep_alive_event.__setitem__("event", "keep_alive")
                 keep_alive_event.__setitem__("detail", {})
@@ -352,7 +329,7 @@ async def event_generator(
                 continue
             await asyncio.sleep(2)
     except asyncio.CancelledError:
-        # Клиент отключился remove of client !!!
+
         pass
     except Exception as e:
         log.info("DEBUG 2 BEFORE __setitem__ ")

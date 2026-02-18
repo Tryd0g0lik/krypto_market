@@ -37,9 +37,6 @@ async def func(*args, **kwargs):
                     redis.get(deribit_currency.strip()), 7
                 )
                 if response is None:
-                    log.warning(
-                        f"""\n That header: '{deribit_currency}' did not found in cache server! \n"""
-                    )
                     return None
                 response_json = json.loads(response)
                 keys = list(response_json.keys())
@@ -76,7 +73,7 @@ async def func(*args, **kwargs):
                                 )
 
                                 # =====================
-                                # ---- DATABASE SYNC CONNECTION
+                                # ---- DATABASE SYNC CONNECTION 1/2
                                 # =====================
                                 with connection_db.session_scope() as session:
                                     rows = session.execute(
@@ -124,7 +121,7 @@ async def func(*args, **kwargs):
                             except DatabaseConnectionCoroutineError as e:
                                 log.warning(e.args[0] if e.args else str(e))
                                 # =====================
-                                # ---- DATABASE ASYNC CONNECTION
+                                # ---- DATABASE ASYNC CONNECTION 2/2
                                 # =====================
                                 async with connection_db.asyncsession_scope() as session:
                                     result = await session.execute(stmt)
