@@ -65,17 +65,7 @@ jobs:
                     pip install -r requirements.txt
                     pip install pytest pytest-asyncio pytest-cov
 
-            - name: Wait for PostgreSQL
-              run: |
-                  for i in {1..10}; do
-                    if pg_isready -h ${{env.POSTGRES_DB_HOST}} -p ${{env.POSTGRES_DB_PORT}} -U ${{ secrets.POSTGRES_USER }}; then
-                      echo "PostgreSQL is ready"
-                      exit 0
-                    fi
-                    echo "Waiting for PostgreSQL... $i/10"
-                    sleep 2
-                  done
-                  exit 1
+
             - name: Set up database URL
               run: |
                     echo "DATABASE_URL=postgresql://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@${{env.POSTGRES_DB_HOST}}:${{env.POSTGRES_DB_PORT}}/test_d" >> $GITHUB_ENV
