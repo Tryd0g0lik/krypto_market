@@ -12,6 +12,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
+from cryptomarket.project.settings.settings_env import PROJECT_MODE_
 
 project_dir = str(Path(__file__).parent.parent.absolute())
 if project_dir not in sys.path:
@@ -31,7 +32,7 @@ try:
 
     print("Successfully imported target_metadata")
     logging.log(0, "Successfully imported target_metadata")
-    from cryptomarket.project.settings.core import settings
+    from cryptomarket.project.settings.core import DEBUG, settings
 except ImportError as e:
     print(f"Import error: {e}")
     logging.log(0, f"Import error: {e}")
@@ -157,8 +158,12 @@ def run_migrations_online() -> None:
 
     """
     configuration = config.get_section(config.config_ini_section) or {}
+    if not DEBUG and PROJECT_MODE_ == "production":
+        configuration["sqlalchemy.url"] = settings.get_database_url_external
+    else:
+        configuration["sqlalchemy.url"] = get_url()
     # Получаем конфигурацию из alembic.ini for SQLite
-    configuration["sqlalchemy.url"] = get_url()
+    # configuration["sqlalchemy.url"] = get_url()
     # Убираем лишние ключи
     for key in ["version"]:
         if key in configuration:
@@ -173,6 +178,7 @@ def run_migrations_online() -> None:
     with connectable.connect() as connection:
         # Определяем, используем ли мы SQLite
         is_sqlite = connectable.dialect.name == "sqlite"
+        include_schemas = connectable.dialect.name == "postgresql"
 
         # Для SQLite отключаем использование схем
         include_schemas = not is_sqlite
@@ -183,7 +189,9 @@ def run_migrations_online() -> None:
             compare_server_default=True,
             render_as_batch=True,
             include_schemas=include_schemas,  # Важно!
-            version_table_schema=None if is_sqlite else "alembic",
+            version_table_schema=(
+                None if is_sqlite else "crypto" if include_schemas else "alembic"
+            ),
         )
 
         with context.begin_transaction():

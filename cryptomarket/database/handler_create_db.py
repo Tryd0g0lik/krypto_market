@@ -100,6 +100,17 @@ async def handler_restart_create_tables(
             return False
 
 
+async def ensure_schema_exists(db):
+    """Убедиться, что схема crypto существует в PostgreSQL"""
+    if db.is_postgresqltype:
+        from sqlalchemy import text
+
+        async with db.engine.connect() as conn:
+            await conn.execute(text("CREATE SCHEMA IF NOT EXISTS crypto"))
+            await conn.commit()
+        log.info("Schema 'crypto' ensured")
+
+
 async def checkOrCreateTables(settings: SettingsProps, max_restart=3) -> None:
     """
     TODO: When, we have the 'except Exception as e:'  - we need to check the create of db to the sqlit3
@@ -127,11 +138,16 @@ async def checkOrCreateTables(settings: SettingsProps, max_restart=3) -> None:
             settings.ALLOWED_ORIGINS = settings.get_allowed_hosts(
                 "http://127.0.0.1:8000, http://localhost:8000"
             )
+        elif not DEBUG and PROJECT_MODE_ == "production":
+            db_url = settings.get_database_url_external
+            log.info(f"Using PostgreSQL for production: {db_url}")
+            db = DatabaseConnection(db_url)
         else:
             # SOME
             settings.ALLOWED_ORIGINS = settings.get_allowed_hosts(
                 "http://127.0.0.1:8000, http://localhost:8000"
             )
+        await ensure_schema_exists(db)
         restart_calculator = 0
         await handler_restart_create_tables(
             db, max_restart, restart_calculator, settings
