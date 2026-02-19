@@ -43,6 +43,7 @@ jobs:
                 uses: actions/setup-python@v6.1.0
                 with:
                     python-version: ${{  matrix.python-version  }}
+                    cache: 'pip'
 
             -   name: Install system dependencies
                 run: |
@@ -64,26 +65,38 @@ jobs:
                     pip install -r requirements.txt
                     pip install pytest pytest-asyncio pytest-cov
 
-            -   name: Run Alembic Revision
-                env:
-                    SMTP_PORT: 465
-                    SECRET_KEY_DJ: ${{ env.SECRET_KEY }}
-                    SECRET_KEY: ${{ env.SECRET_KEY }}
-                    IS_DEBUG: 0
-                run: |
-                    alembic revision --auto
+            - name: Wait for PostgreSQL
+              run: |
+                  for i in {1..10}; do
+                    if pg_isready -h localhost -p 5432 -U ${{ secrets.POSTGRES_USER }}; then
+                      echo "PostgreSQL is ready"
+                      exit 0
+                    fi
+                    echo "Waiting for PostgreSQL... $i/10"
+                    sleep 2
+                  done
+                  exit 1
+            - name: Set up database URL
+              run: |
+                    echo "DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.POSTGRES_DB }}" >> $GITHUB_ENV
 
-            -   name: Run Alembic migrate
+            -   name: Run Alembic migrations (upgrade)
                 env:
-                    SECRET_KEY_DJ: ${{ env.SECRET_KEY }}
-                    SECRET_KEY: ${{ env.SECRET_KEY }}
-                    POSTGRES_DB: ${{ env.POSTGRES_DB_NAME }}
-                    POSTGRES_USER:  ${{ env.POSTGRES_USER }}
-                    POSTGRES_PASSWORD:  ${{ env.POSTGRES_PASSWORD }}
-                    POSTGRES_PORT: ${{ env.POSTGRES_DB_PORT }}
-                    POSTGRES_HOST: ${{ env.POSTGRES_DB_HOST }}
+                    DATABASE_URL: ${{ env.DATABASE_URL }}
+                    DEBUG: "False"
+                    SECRET_KEY: ${{ secrets.SECRET_KEY }}
                 run: |
-                    alembic upgrade head
+                        alembic upgrade head
+                        alembic current
+
+            - name: Generate new migration (if needed)
+              env:
+                    DATABASE_URL: ${{ env.DATABASE_URL }}
+                    DEBUG: "False"
+                    SECRET_KEY: ${{ secrets.SECRET_KEY }}
+              run: |
+                     alembic check || true
+
 
             -   name: Run pre-commit hooks
                 working-directory: .
