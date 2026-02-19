@@ -49,7 +49,7 @@ services:
             REDIS_PORT: 6380
             PYTHONPATH: /www/src
         volumes:
-            - ./:/app
+            - ./:/www/src
             - volume_static:/www/src/collectstatic
             - volume_media:/www/src/media
         command:

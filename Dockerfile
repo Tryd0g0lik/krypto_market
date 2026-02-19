@@ -20,6 +20,6 @@ COPY ./requirements-redis.txt .
 RUN --mount=type=cache,target=/var/cache/pip \
     pip install --no-cache-dir -r requirements.txt
 RUN mkdir -p cryptomarket alembic collectstatic media
-COPY ./alembic .
-COPY ./alembic.ini .
-COPY ./logs.py .
+COPY ./alembic /www/src/alembic
+COPY ./alembic.ini /www/src
+COPY ./logs.py /www/src
