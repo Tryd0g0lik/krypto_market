@@ -1,4 +1,7 @@
-[![Build status](https://ci.appveyor.com/api/projects/status/0lpb18l2iqh2t2wn/branch/dev?svg=true)](https://ci.appveyor.com/project/Tryd0g0lik/products/branch/dev)
+
+![Workflow Status](https://github.com/Tryd0g0lik/crypto_market/actions/workflows/main.yml/badge.svg?branch=dev)
+[![Deploy Status](https://github.com/Tryd0g0lik/crypto_market/actions/workflows/main.yml/badge.svg?branch=dev)](https://github.com/Tryd0g0lik/crypto_market/actions/workflows/main.yml)
+
 Note: Публикация файлов не нарушило условий задания 
 ## APP CryptoMarket
  
