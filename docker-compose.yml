@@ -48,8 +48,8 @@ services:
             REDIS_PORT: 6380
         volumes:
             - ./:/app
-            - static_volume:/www/src/cryptomarket
-            - medis_volume:/www/src/media
+            - volume_static:/www/src/collectstatic
+            - volume_media:/www/src/media
         command:
             - bash
             - -c
@@ -167,6 +167,7 @@ services:
                 condition: service_healthy
         volumes:
             - volume_static:/www/src/collectstatic
+            - volume_media:/www/src/media
         restart: on-failure
         ports:
             - "80:80"
@@ -210,9 +211,9 @@ volumes:
         name: /var/lib/postgresql/18/data
     redis_data:
         name: ${COMPOSE_PROJECT_NAME:-fastapi}_redis_data
-    static_volume:
+    volume_static:
         name: www/src/cryptomarket
-    medis_volume:
+    volume_media:
         name: www/src/media
 
 networks:

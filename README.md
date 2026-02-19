@@ -1,7 +1,4 @@
 
-![Workflow Status](https://github.com/Tryd0g0lik/crypto_market/actions/workflows/main.yml/badge.svg?branch=dev)
-[![Deploy Status](https://github.com/Tryd0g0lik/crypto_market/actions/workflows/main.yml/badge.svg?branch=dev)](https://github.com/Tryd0g0lik/crypto_market/actions/workflows/main.yml)
-
 Note: Публикация файлов не нарушило условий задания 
 ## APP CryptoMarket
  
