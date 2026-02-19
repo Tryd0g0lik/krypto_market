@@ -287,11 +287,30 @@ class DatabaseConnection(Database):
         Here we have getting the ASYNC connection on connection_database and creating all tables.
         :return: None
         """
+        from sqlalchemy import text
+
         from cryptomarket.models import Base
 
         try:
-            engine: AsyncEngine = self.engine
-            async with engine.begin() as conn:
+            # engine: AsyncEngine = self.engine
+            session: AsyncSession = self.session_factory()
+            if not session:
+                self.init_engine()
+
+            async with self.asyncsession_scope() as conn:
+                try:
+                    if self.is_postgresqltype:
+                        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS crypto"))
+                        await conn.commit()
+                        log.info("Schema 'crypto' ensured")
+                except Exception as e:
+                    log_t = "[%s.%s]: ERROR => %s" % (
+                        self.__class__.__name__,
+                        self.__create_all_async.__name__,
+                        e,
+                    )
+                    log.error(log_t)
+                    raise log_t
                 await conn.run_sync(Base.metadata.create_all)
 
         except Exception as e:

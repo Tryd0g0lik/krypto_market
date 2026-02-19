@@ -107,7 +107,7 @@ class Settings(SettingsProps):
         )
     )
     __SQLALCHEMY_DATABASE_URL: str | None = (
-        f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}{POSTGRES_PORT if POSTGRES_PORT else ""}/{POSTGRES_DB}".replace(
+        f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT if POSTGRES_PORT else ""}/{POSTGRES_DB}".replace(
             "\\", "/"
         )
     )
