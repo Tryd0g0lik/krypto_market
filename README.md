@@ -166,3 +166,25 @@ root
 ├── README.md
 
 ```
+## .ENV Files
+```text
+APP_PROTOCOL=http
+APP_HOST=127.0.0.1
+APP_PORT=8003
+REDIS_URL=redis://< external_server_host >:< external_server_port >
+REDIS_DB=0
+REDIS_HOST=< IP/domen_of_host >
+REDIS_PORT=< port >
+
+DEBUG=True # True That mean You are working in local SQLIte database  
+
+REDIS_MASTER_NAME=< user_By_ssh_of_external_server >
+REDIS_PASSWORD= < password_By_ssh_of_external_server > 
+
+POSTGRES_USER= < user_database >
+POSTGRES_PASSWORD= < password_database >
+POSTGRES_PORT=< port_database>
+POSTGRES_HOST=db
+
+COMPOSE_PROJECT_NAME=cryptomarket
+```
