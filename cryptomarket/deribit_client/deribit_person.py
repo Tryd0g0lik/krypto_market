@@ -21,8 +21,8 @@ import json
 import logging
 import threading
 from collections import UserDict
-from datetime import datetime
-from sys import maxsize
+from contextlib import asynccontextmanager
+from typing import Any, AsyncGenerator
 
 from aiohttp import client_ws
 
@@ -32,7 +32,7 @@ from cryptomarket.errors.person_errors import (
     PersonNotFoundAccessError,
 )
 from cryptomarket.project.encrypt_manager import EncryptManager
-from cryptomarket.project.functions import time_now_to_seconds, wrapper_delayed_task
+from cryptomarket.project.functions import run_asyncio_debug, time_now_to_seconds
 from cryptomarket.project.settings.core import settings
 from cryptomarket.type import DeribitClient
 from cryptomarket.type.deribit_type import Person
@@ -54,6 +54,7 @@ class PersonDictionary(UserDict):
         super().__init__()
 
     def __setitem__(self, key, value):
+
         try:
             if (
                 key is None
@@ -62,8 +63,8 @@ class PersonDictionary(UserDict):
                 or not isinstance(value, Person)
             ):
                 raise PersonDictionaryError()
-            key = key.lower() if () else key
-            if maxsize is not None and len(self) >= maxsize:
+
+            if self.maxsize is not None and len(self) >= self.maxsize:
                 self.pop(list(self.keys())[0])
             super().__setitem__(key, value)
         except PersonDictionaryError as e:
@@ -85,7 +86,26 @@ class PersonDictionary(UserDict):
 
 
 class PersonManager:
+    # We created the person image. He was added to the cache by the key 'deribit:person' &
+    # value: '{'deribit:person:< person_id >': {..p.e.r.s.o.n..}}"
     person_dict = PersonDictionary(maxsize=setting.DERIBIT_QUEUE_SIZE)
+    client: DeribitClient | None = None
+    SUPPORTED_CURRENCIES = {
+        "BTC": [
+            "BTC-PERPETUAL",
+            "BTC-USDT-PERPETUAL",
+            "BTC_USD",
+        ],
+        "ETH": [
+            "ETH-PERPETUAL",
+            "ETH-USDT-PERPETUAL",
+            "ETH_USD",
+        ],
+        "DOT": ["DOT-PERPETUAL", "DOT_USDC"],
+    }
+
+    def __init__(self):
+        self.log_t = f"{self.__class__.__name__}.%s"
 
     def add(
         self,
@@ -113,23 +133,6 @@ class PersonManager:
         """
 
         encrypt_manager = EncryptManager()
-        SUPPORTED_CURRENCIES = {
-            "BTC": [
-                "BTC-PERPETUAL",
-                "BTC-USDT-PERPETUAL",
-                "BTC_USD",
-            ],
-            "ETH": [
-                "ETH-PERPETUAL",
-                "ETH-USDT-PERPETUAL",
-                "ETH_USD",
-            ],
-            "SOL": ["SOL-PERPETUAL", "SOL_USD"],
-            "XRP": ["XRP-PERPETUAL", "XRP_USD"],
-            "ADA": ["ADA-PERPETUAL", "ADA_USD"],
-            "DOGE": ["DOGE-PERPETUAL", "DOGE_USDC"],
-            "DOT": ["DOT-PERPETUAL", "DOT_USDC"],
-        }
 
         def __init__(
             self,
@@ -145,15 +148,19 @@ class PersonManager:
             self.last_activity: float = last_activity  # last time when
             # self.timeinterval_query: int | float = 0.0
             self.last_data_query: dict = {}
-            self.ws: client_ws.ClientWebSocketResponse | None = None
+
             self.active: bool = True
-            self.__client_secret_encrypt: bytes | None = None
+            self.__deribit_client_secret_encrypt: bytes | None = None
             self.__key_encrypt: bytes | None = None
             self.key_of_queue: str | None = None
             self.scope: str | None = None
             self.token_type: str | None = None
+            self.email: str | None = None
+            self.is_password: bool | None = None
+            self.system_name: str | None = None
+            self.username: str | None = None
             # self.msg: dict | None = None
-            self.client: DeribitClient | None = None
+
             self.log_t = f"{self.__class__.__name__}.%s"
             super().__init__(client_id, person_id, last_activity)
 
@@ -176,10 +183,14 @@ class PersonManager:
         @property
         def client_secret_encrypt(self) -> str | None:
             return (
-                self.__client_secret_encrypt.decode()
-                if self.__client_secret_encrypt
+                self.__deribit_client_secret_encrypt.decode()
+                if self.__deribit_client_secret_encrypt
                 else None
             )
+
+        @property
+        def key_encrypt(self):
+            return self.__key_encrypt
 
         @client_secret_encrypt.setter
         def client_secret_encrypt(self, client_secret: str) -> None:
@@ -194,9 +205,9 @@ class PersonManager:
                 self.func(client_secret, client_secret_encrypt)
 
                 self.__key_encrypt = list(client_secret_encrypt.keys())[0].encode()
-                self.__client_secret_encrypt = list(client_secret_encrypt.values())[
-                    0
-                ].encode()
+                self.__deribit_client_secret_encrypt = list(
+                    client_secret_encrypt.values()
+                )[0].encode()
             except Exception as e:
                 log_err = "%s ERROR => %s" % (
                     self.log_t % "sclient_secret_encrypt",
@@ -213,164 +224,7 @@ class PersonManager:
         def refresh_token(self, refresh_token: str) -> str:
             self.__refresh_token = refresh_token
 
-        async def ws_json(self, *arqs, **kwargs) -> None:
-            """
-            TODO: ЗАпросы по внешнему объекту привязаны к пользователю
-                 'with client_ws.initialize() as session:' вытащить на персон манагер. СДелать общий.
-                 Запрос из кеша/db  привязать к пользователю..
-            :param _json: (dict) {"method": < deribit private or public >
-                "params":{....}, "id": < request index >
-            }
-
-            timinterval - проводим ping на внешний сервер с интервалом в 'timinterval'
-            """
-            from cryptomarket.project.app import manager
-
-            timeinterval: float = 15.0
-            _json = kwargs.copy()
-            sse_manager = manager.sse_manager
-            try:
-                client_ws = self.client
-                user_meta_json = _json.copy()
-                user_meta_json.pop("request_data")
-                timeinterval_query = user_meta_json.pop("timeinterval_query")
-                _json = _json.pop("request_data")
-                """
-
-                """
-                with client_ws.initialize() as session:
-                    async with client_ws.ws_send(session) as conn:
-                        async with conn as ws:
-                            try:
-                                while self.active:
-                                    seconds = time_now_to_seconds()
-                                    time_range: float = seconds - self.last_activity
-                                    auth_data = {}
-
-                                    if (
-                                        self.access_token is None
-                                        and self.refresh_token is None
-                                        and self.__client_secret_encrypt is not None
-                                        and self.__key_encrypt is not None
-                                    ):
-                                        # ===============================
-                                        # ---- AUTHENTICATE QUERY
-                                        # ===============================
-                                        user_secret = self.encrypt_manager.descrypt_to_str(
-                                            {
-                                                self.__key_encrypt: self.__client_secret_encrypt
-                                            }
-                                        )
-                                        auth_data = self._get_autantication_data(
-                                            self.client_id, user_secret
-                                        )
-                                    elif (
-                                        self.access_token
-                                        and _json is not None
-                                        and "jsonrpc" in _json
-                                    ):
-                                        # ===============================
-                                        # ---- TOTAL QUERY
-                                        # ===============================
-                                        _json.__setitem__(
-                                            "access_token", self.access_token
-                                        )
-                                        auth_data = _json.copy()
-                                    elif float(
-                                        timeinterval_query
-                                    ) != 0.0 and time_range >= float(
-                                        timeinterval_query
-                                    ):
-                                        auth_data = self.last_data_query
-                                    elif (
-                                        float(timeinterval_query) == 0.0
-                                        and time_range >= timeinterval
-                                    ):
-                                        # ===============================
-                                        # ---- PING
-                                        # ===============================
-                                        await ws.ping()
-                                        self.last_activity = time_now_to_seconds()
-                                        continue
-                                    else:
-                                        continue
-                                    # ===============================
-                                    # ---- QUERY TO THE EXTERNAL SERVER
-                                    # ===============================
-                                    await asyncio.wait_for(
-                                        ws.send_json(auth_data), timeout=10
-                                    )
-                                    msg_data = await self._safe_receive_json(ws)
-                                    self.last_activity = time_now_to_seconds()
-
-                                    if "error" not in msg_data.keys():
-                                        method = auth_data.get("method")
-                                        # ===============================
-                                        # ---- RESPONSE / MASSAGE DATA FROM AN AUTHENTICATE
-                                        # ===============================
-                                        if method == "public/auth":
-                                            self.access_token = msg_data["result"][
-                                                "access_token"
-                                            ]
-                                            self.refresh_token = msg_data["result"][
-                                                "refresh_token"
-                                            ]
-                                            self.expires_in = msg_data["result"][
-                                                "expires_in"
-                                            ]
-                                            self.scope = msg_data["result"]["scope"]
-                                            self.token_type = msg_data["result"][
-                                                "token_type"
-                                            ]
-                                            self.msg = msg_data.copy()
-
-                                        else:
-                                            # ===============================
-                                            # ---- RESPONSE / MASSAGE DATA FROM A TOTAL QUERY
-                                            # ===============================
-                                            pass
-
-                                    elif "error" in msg_data.keys():
-                                        # ===============================
-                                        # ---- RESPONSE / ERROR DATA
-                                        # ===============================
-                                        pass
-                                    else:
-                                        pass
-
-                                    # ===============================
-                                    # ---- SEND DATA IN THE USE QUEUE
-                                    # ===============================
-                                    if msg_data is not None and len(msg_data) > 0:
-                                        result_kwargs_new: dict = {**msg_data}
-                                        result_kwargs_new.__setitem__(
-                                            "user_meta", user_meta_json
-                                        )
-
-                                        await sse_manager.broadcast(result_kwargs_new)
-                                        self.last_data_query = auth_data
-
-                                    msg_data = {}
-                                    _json = {}
-                                    await asyncio.sleep(200)
-                            finally:
-                                await ws.close()
-                                await session.close()
-            except Exception as e:
-                self.active = False
-                log.info(
-                    "DEBUG WS 2 ERROR %s.%s  ",
-                    self.__class__.__name__,
-                    self.ws_json.__name__,
-                )
-                log_err = "[%s]: ERROR => %s" % (
-                    self.log_t % self.ws_json.__name__,
-                    e.args[0] if e.args else str(e),
-                )
-                log.error(str(log_err))
-                raise ValueError(str(log_err))
-
-        def _get_autantication_data(
+        def get_autantication_data(
             self, client_id: int | str, client_secret_key: str, index: int | None = None
         ) -> dict:
             """
@@ -394,7 +248,7 @@ class PersonManager:
             if client_id is None or client_secret_key is None:
                 log_err = (
                     "[%s]: ERROR => Client id and secret key are required variables!"
-                    % (self.log_t % self.ws_json.__name__)
+                    % (self.log_t % self.get_autantication_data.__name__)
                 )
                 log.error(str(log_err))
                 raise ValueError(str(log_err))
@@ -412,61 +266,12 @@ class PersonManager:
                 res.__setitem__("id", index)
             return res
 
-        def get_subaccount_data(
-            self, request_id: str | int | None = None, with_portfolio=False
-        ) -> dict:
-            """
-            :param request_id: This is an index your request.
-            :param with_portfolio: (bool) True - including data of portfolio or False.
-            :return: example ```json
-                {
-                    "jsonrpc": "2.0",
-                    "id": 4947,
-                    "method": "private/get_subaccounts",
-                    "params": { "with_portfolio": True }
-                }
-                ```
-            """
-            try:
-
-                access_t = self.access_token
-                return {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "method": "private/get_subaccounts",
-                    "access_token": access_t,
-                    "params": {"with_portfolio": with_portfolio},
-                }
-            except PersonNotFoundAccessError as e:
-                log.error(f"PersonNotFoundAccessError: {e}")
-                raise e
-
-        async def _safe_receive_json(self, ws) -> None | dict:
-            """
-            Безопасное получение JSON с защитой от конкурентного доступа.
-
-            ВАЖНО: В системе должен быть только ОДИН получатель сообщений на WebSocket!
-            """
-            try:
-                # Используем wait_for с обработкой таймаута
-                msg = await ws.receive_json()
-
-                if isinstance(msg, dict) and "error" not in msg:
-                    return msg
-                elif isinstance(msg, dict) and "error" in msg:
-                    log.error(f"WebSocket error: {json.dumps(msg)}")
-                    return msg
-                else:
-                    # Пинг/понг или бинарные сообщения
-                    return {}
-
-            except Exception as e:
-                log.error(f"Error receiving message: {e}")
-                return {}
-
         def func(self, client_secret: str, client_secret_encrypt):
             try:
                 loop = asyncio.new_event_loop()
+                # loop.set_debug(True)
+                # loop.slow_callback_duration = 0.08
+                run_asyncio_debug(loop)
                 asyncio.set_event_loop(loop)
 
                 result = threading.Thread(
@@ -483,3 +288,100 @@ class PersonManager:
                 loop.close()
             except Exception as e:
                 raise e
+
+    @asynccontextmanager
+    async def ws_json(
+        self, callback=None, asynccallback=None, *arqs, **kwargs
+    ) -> AsyncGenerator[client_ws.ClientWebSocketResponse, None]:
+        """
+
+        :param callback and asynccallback: 'await asynccallback(ws, *arqs, **kwargs)' You can send the handler in body\
+            this method (the ws_json).Then al the data would be processed inside of method
+            When you leave the function callback of empty you will get  the ws attribute.
+             You will be able to write the code (example) 'ws.send_json(auth_data)', when the 'auth_data' is a type dictionary.
+             You can wrap to the loop and your logic repeat more.
+        timinterval - проводим ping на внешний сервер с интервалом в 'timinterval'
+        """
+        try:
+            client_ws = self.client
+            with client_ws.initialize() as session:
+                async with client_ws.ws_send(session) as conn:
+                    async with conn as ws:
+                        try:
+                            if asynccallback is not None:
+                                await asynccallback(ws, *arqs, **kwargs)
+                            elif callback is not None:
+                                callback(ws, *arqs, **kwargs)
+                            else:
+                                yield ws
+
+                        finally:
+                            await ws.close()
+                            await session.close()
+        except Exception as e:
+
+            log.info(
+                "DEBUG WS 2 ERROR %s.%s  ",
+                self.__class__.__name__,
+                self.ws_json.__name__,
+            )
+            log_err = "[%s]: ERROR => %s" % (
+                self.log_t % self.ws_json.__name__,
+                e.args[0] if e.args else str(e),
+            )
+            log.error(str(log_err))
+            raise ValueError(str(log_err))
+
+    async def safe_receive_json(self, ws) -> None | dict:
+        """
+        Безопасное получение JSON с защитой от конкурентного доступа.
+
+        ВАЖНО: В системе должен быть только ОДИН получатель сообщений на WebSocket!
+        """
+        try:
+            # Используем wait_for с обработкой таймаута
+            msg = await ws.receive_json()
+
+            if isinstance(msg, dict) and "error" not in msg:
+                return msg
+            elif isinstance(msg, dict) and "error" in msg:
+                log.error(f"WebSocket error: {json.dumps(msg)}")
+                return msg
+            else:
+                # Пинг/понг или бинарные сообщения
+                return {}
+
+        except Exception as e:
+            log.error(f"Error receiving message: {e}")
+            return {}
+
+    def get_subaccount_data(
+        self,
+        request_id: str | int | None = None,
+        access_t: str | None = None,
+        with_portfolio=False,
+    ) -> dict:
+        """
+        :param request_id: This is an index your request.
+        :param with_portfolio: (bool) True - including data of portfolio or False.
+        :return: example ```json
+            {
+                "jsonrpc": "2.0",
+                "id": 4947,
+                "method": "private/get_subaccounts",
+                "params": { "with_portfolio": True }
+            }
+            ```
+        """
+        try:
+
+            return {
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "method": "private/get_subaccounts",
+                "access_token": access_t,
+                "params": {"with_portfolio": with_portfolio},
+            }
+        except PersonNotFoundAccessError as e:
+            log.error(f"PersonNotFoundAccessError: {e}")
+            raise e

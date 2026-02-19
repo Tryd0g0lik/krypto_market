@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import Session, SessionTransaction, sessionmaker
 
 from cryptomarket.database.sql_text import SQLText
+from cryptomarket.errors import DatabaseConnectionCoroutineError
 from cryptomarket.type.db import Database
 
 log = logging.getLogger(__name__)
@@ -164,8 +165,10 @@ class DatabaseConnection(Database):
         """
 
         if self.is_async:
-            raise ValueError("Cannot get sync session from async engine")
-        session: AsyncSession | Session = self.session_factory()
+            raise DatabaseConnectionCoroutineError(
+                "Cannot get sync session from async engine"
+            )
+        session: Session = self.session_factory()
         try:
             log_t = "[%s.%s]: Sync session open!" % (
                 self.__class__.__name__,
@@ -205,7 +208,7 @@ class DatabaseConnection(Database):
         if not self.is_async:
             raise ValueError("Cannot get async session from sync engine")
 
-        session = self.session_factory()
+        session: AsyncSession = self.session_factory()
         try:
             log.info(
                 str(

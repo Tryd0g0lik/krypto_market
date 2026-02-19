@@ -22,19 +22,35 @@ class SettingsProps(Protocol):
     ALLOWED_ORIGINS: list[str] = []
     ALLOWED_METHODS: list[str] = []
     ALLOWED_HEADERS: list[str] = []
+    CURRENCY_FOR_CHOOSING = []
+    SSE_MAX_CONNECTION: int = 5000
+    SSE_MAX_PER_IP: int = 50
+    DERIBIT_MAX_QUANTITY_WORKERS = 10
+    DERIBIT_MAX_CONCURRENT = 40
+    DERIBIT_QUEUE_SIZE = 5000
+    CACHE_AUTHENTICATION_DATA_LIVE = 97200
 
     def get_allowed_hosts(self, allowed_hosts: str) -> list[str]:
         """
         The function is for the securite connection to the allowed hosts
         """
+
         pass
 
+    def set_database_url_external(self, url: str) -> None:
+        """Set up the new url to the connection_database"""
+        self.__SQLALCHEMY_DATABASE_URL = url
+
     @property
-    def GET_DATABASE_URL_EXTERNAL(self) -> str:
+    def get_database_url_external(self) -> str:
         """The async path to the connection_database postgresql"""
-        pass
+        # POSTGRES
+        return self.__SQLALCHEMY_DATABASE_URL
+
+    def set_database_url_sqlite(self, url: str) -> None:
+        self.__SQLITE_DB_PATH = url
 
     @property
     def get_database_url_sqlite(self) -> str:
         """The async path to the connection_database sqlite"""
-        pass
+        return self.__SQLITE_DB_PATH

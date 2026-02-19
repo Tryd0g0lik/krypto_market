@@ -5,13 +5,16 @@ cryptomarket/tasks/queues/task_account_user.py
 import asyncio
 import json
 import logging
+import re
 from contextvars import ContextVar
 from datetime import datetime
 
+from pycparser.c_ast import While
+
+from cryptomarket.project.enums import RadisKeysEnum
 from cryptomarket.project.functions import (
     str_to_json,
-    string_to_seconds,
-    wrapper_delayed_task,
+    update_person_manual,
 )
 from cryptomarket.type import DeribitClient, Person
 
@@ -29,18 +32,18 @@ async def task_account(*args, **kwargs) -> bool:
     dataVar = ContextVar("data_srt", default="")
     dataVar_token = None
     # ===============================
-    # ---- RECEIVE THE REBIT CLIENT
+    # ---- RECEIVE THE REBIT CLIENT FOR CONNECTION
     # ===============================
-    _deque_coroutines = manager._deque_coroutines
+    _deque_coroutines = manager.deque_coroutines
+    sleep_worker = await _deque_coroutines.get()
+    worker_coroutine = sleep_worker()
 
-    coroutine = _deque_coroutines.popleft()
-    client: DeribitClient = await list(coroutine.values())[0]
     # ===============================
-    # ---- QUEUE OF KEYS
+    # ---- COMMON QUEUE OF KEYS (THEY FROM THE USER META DATA (str/json)
     # ===============================
     queue_keys = manager.queue  # list of keys
     person_manager = manager.person_manager
-    # sse_manager = manager.sse_manager
+
     context_redis_connection = (
         manager.rate_limit.context_redis_connection
     )  # coroutine of the redis asynccontextmanager
@@ -49,83 +52,185 @@ async def task_account(*args, **kwargs) -> bool:
     # ---- CACHE - RECEIVE THE USER DATA (classic a user data)
     # ===============================
 
-    try:
-        size = queue_keys.qsize()
-        if size is not None and size == 0:
+    size = queue_keys.qsize()
+    if size is not None and size == 0:
+        return False
+
+    while queue_keys.qsize() > 0:
+        try:
+            async with context_redis_connection() as redis:
+                key_of_queue = await queue_keys.get()
+
+                data_str: str = await redis.get(key_of_queue)
+                dataVar_token = dataVar.set(data_str)
+                dataVar.set(data_str)
+
+        except Exception as e:
+            log.error("%s RedisError => %s" % (log_t, e.args[0] if e.args else str(e)))
             return False
-        async with context_redis_connection() as redis:
-            key_of_queue = await queue_keys.get()
 
-            data_str: str = await redis.get(key_of_queue)
-            dataVar_token = dataVar.set(data_str)
-            dataVar.set(data_str)
+        async with lock:
+            # ===============================
+            # ---- STR TO JSON
+            # ===============================
+            data_str = dataVar.get()
+            user_meta_json = str_to_json(data_str)
+            del data_str
+            dataVar.reset(dataVar_token)
+            user_id = user_meta_json.get("user_id")
+            person_dict = person_manager.person_dict
+            if not person_dict.__has__(user_id):
+                return False
+            # ===============================
+            # ---- PERSON RECEIVE
+            # ===============================
+            person: Person = person_dict.get(user_id)
+            person.last_activity = datetime.now().timestamp()
+            try:
+                # ===============================
+                # RESPONSE / MASSAGE / LOOP / THREADING.THREAD
+                # ===============================
+                client = await worker_coroutine()
+                person_manager.client = (
+                    client if person.client is None else person.client
+                )
+                async with person_manager.ws_json() as ws:
+                    try:
+                        while person.active:
+                            request_id = user_meta_json.get("index")
+                            method = user_meta_json.get("method")
+                            # ===============================
+                            # ---- PERSON CREATE DATA FOR PERSON's QUERY
+                            # ===============================
+                            # data_json = person_manager.get_subaccount_data(request_id, person.access_token)
+                            regex_key_deribit_person = r"^([\w_:]+)$"
+                            data_json = {
+                                "jsonrpc": "2.0",
+                                "id": request_id,
+                            }
+                            data_json["method"] = method
+                            data_json["params"] = {}
+                            tickers = user_meta_json.get("tickers")
+                            data_json["params"].__setitem__("index_name", tickers)
+                            data_json.__setitem__("method", method)
+                            user_meta_json.__setitem__("request_data", data_json)
+                            # ----
+                            auth_data = await update_person_manual(
+                                person, **{"user_meta_json": user_meta_json}
+                            )
+                            await asyncio.wait_for(ws.send_json(auth_data), 7)
+                            msg_data = await person_manager.safe_receive_json(ws)
+                            if (
+                                "error" not in msg_data.keys()
+                                and person.access_token is None
+                            ):
+                                person.access_token = msg_data["result"]["access_token"]
+                                person.refresh_token = msg_data["result"][
+                                    "refresh_token"
+                                ]
+                                person.expires_in = msg_data["result"]["expires_in"]
+                                person.scope = msg_data["result"]["scope"]
+                                person.token_type = msg_data["result"]["token_type"]
+                                continue
+                            else:
 
-    except Exception as e:
-        log.error("%s RedisError => %s" % (log_t, e.args[0] if e.args else str(e)))
-        return False
-    # lock_ = asyncio.Lock()
+                                person.access_token = None
+                                person.refresh_token = None
 
-    # async with lock_:
-    # ===============================
-    # ---- STR TO JSON
-    # ===============================
-    data_str = dataVar.get()
-    user_meta_json = str_to_json(data_str)
-    del data_str
-    dataVar.reset(dataVar_token)
-    user_id = user_meta_json.get("user_id")
-    person_dict = person_manager.person_dict
-    if not person_dict.__has__(user_id):
-        return False
-    # ===============================
-    # ---- PERSON RECEIVE
-    # ===============================
-    person: Person = person_dict.get(user_id)
-    person.last_activity = datetime.now().timestamp()
+                            # ===============================
+                            # ---- SEND DATA IN THE USE QUEUE
+                            # ===============================
+                            if (
+                                msg_data is not None
+                                and "error" not in msg_data
+                                and len(msg_data) > 0
+                            ):
+                                result_kwargs_new: dict = {**msg_data}
+                                result_kwargs_new.__setitem__(
+                                    "user_meta", user_meta_json
+                                )
+                                # ----
+                                person.email = msg_data["result"][0]["email"]
+                                person.username = msg_data["result"][0]["email"]
+                                person.is_password = msg_data["result"][0][
+                                    "is_password"
+                                ]
+                                person.system_name = msg_data["result"][0][
+                                    "system_name"
+                                ]
 
-    request_id = user_meta_json.get("index")
-    method = user_meta_json.get("method")
-    # ===============================
-    # ---- PERSON CREATE DATA FOR QUERY
-    # ===============================
-    data_json = person.get_subaccount_data(request_id)
-    data_json["params"] = {}
-    tickers = user_meta_json.get("tickers")
-    data_json["params"].__setitem__("index_name", tickers)
-    data_json.__setitem__("method", method)
-    if method == "public/get_tradingview_chart_data":
-        ticker: str | None = tickers.split("_")[0]
-        currency_atr: list | None = (
-            person.SUPPORTED_CURRENCIES.get(ticker.upper())
-            if ticker is not None
-            else "SOL"
-        )
-        data_json["params"].__setitem__("currency", str(ticker.upper()))
-        data_json["params"].__setitem__("instrument_name", currency_atr[0])
-        data_json["params"].__setitem__("start_timestamp", currency_atr[0])
-        # Dates to seconds
-        dates = json.loads(user_meta_json.get("dates"))
-        date_k = (dates.keys())[0]
-        date_v = (dates.values())[0]
-        data_json["params"].__setitem__(
-            "end_timestamp", float(date_k) if date_k is not None else 0.0
-        )
-        data_json["params"].__setitem__(
-            "resolution", float(date_v) if date_v is not None else 0.0
-        )
-    del dataVar
-    person.client = client if person.client is None else person.client
-    try:
-        # ===============================
-        # RESPONSE / MASSAGE / LOOP / THREADING.THREAD
-        # ===============================
-        ws_json = person.ws_json
-        user_meta_json.__setitem__("request_data", data_json)
+                                # ============= 2/2 ==================
+                                # ---- CACHE - RECEIVE THE USER DATA (classic a user data)
+                                # ===============================
+                                try:
+                                    deribit_person_key = (
+                                        RadisKeysEnum.DERIBIT_PERSON_RESULT.value
+                                        % person.person_id
+                                    )
+                                    if (
+                                        re.search(
+                                            regex_key_deribit_person, deribit_person_key
+                                        )
+                                        is None
+                                    ):
+                                        log.error("Key is not true. ERROR")
+                                        return False
+                                    serialize_ = {
+                                        k: v
+                                        for k, v in person.__dict__.items()
+                                        if not k.startswith("_") and "token" not in k
+                                    }
+                                    async with context_redis_connection() as redis:
+                                        result_cache = await redis.get("deribit:person")
+                                        data_for_cache = {}
+                                        if result_cache is None:
+                                            # This we not found the key "deribit:person"
+                                            data_for_cache = {
+                                                deribit_person_key: serialize_
+                                            }
+                                        else:
+                                            # This we found the key "deribit:person"
+                                            data_for_cache: dict = json.loads(
+                                                result_cache
+                                            )
+                                            check_unique_list = [
+                                                k
+                                                for k, v in data_for_cache.items()
+                                                if k == deribit_person_key
+                                            ]
+                                            if check_unique_list[0] is not None:
+                                                data_for_cache[deribit_person_key] = (
+                                                    serialize_
+                                                )
+                                            else:
+                                                data_for_cache.__setitem__(
+                                                    deribit_person_key, serialize_
+                                                )
 
-        wrapper_delayed = wrapper_delayed_task(callback_=None, asynccallback_=ws_json)
-        await wrapper_delayed([], **user_meta_json)
-        return True
-    except Exception as e:
-        log.error("%s Error => %s" % (log_t, e.args[0] if e.args else str(e)))
-        person.active = False
-        return False
+                                        await redis.setex(
+                                            "deribit:person",
+                                            27 * 60 * 60,
+                                            json.dumps(data_for_cache),
+                                        )
+                                except Exception as e:
+                                    log.error(
+                                        "%s RedisError => %s"
+                                        % (log_t, e.args[0] if e.args else str(e))
+                                    )
+                                    return False
+                                return True
+
+                    except Exception as e:
+                        log.error(
+                            "%s ERROR => %s" % (log_t, e.args[0] if e.args else str(e))
+                        )
+                        return False
+                    finally:
+                        person.refresh_token = None
+                        person.access_token = None
+                        # manager.person_manager.person_dict.__setitem__(person.person_id, person)
+
+            except Exception as e:
+                log.error("%s Error => %s" % (log_t, e.args[0] if e.args else str(e)))
+                person.active = False
+    return None

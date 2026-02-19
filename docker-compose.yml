@@ -1,6 +1,200 @@
 services:
+    # =====================
+    # PostgreSQL Database
+    # =====================
+    db:
+        container_name: ${COMPOSE_PROJECT_NAME:-fastapi}_postgres_data
+        image: postgres
+        env_file: ./.env
+        environment:
+            - POSTGRES_USER=${POSTGRES_DB_USER}
+            - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+            - POSTGRES_DB=${POSTGRES_DB}
+        healthcheck:
+            test: [ 'CMD-SHELL', 'pg_isready -d ${POSTGRES_DB} -U ${POSTGRES_USER}' ]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+        restart: unless-stopped
+        ports:
+            - "5432:5432"
+        networks:
+            - backend
+        volumes:
+            - postgres_data:/var/lib/postgresql/18/data
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+    # =====================
+    # FastAPI Application
+    # =====================
+    backend:
+        container_name: ${COMPOSE_PROJECT_NAME:-fastapi}_static
+        healthcheck:
+            test: [ "CMD", "curl", "-f", "http://0.0.0.0:8000/" ]
+            interval: 30s
+            timeout: 10s
+            retries: 3
+        build:
+            dockerfile: ./Dockerfile
+            context: .
+        env_file: ./.env
+        environment:
+            DATABASE_HOST: db
+            DATABASE_PORT: 5432
+            REDIS_HOST: redis
+            REDIS_PORT: 6380
+        volumes:
+            - ./:/app
+            - static_volume:/www/src/cryptomarket
+            - medis_volume:/www/src/media
+        command:
+            - bash
+            - -c
+            - |
+                alembic upgrade head
+                uvicorn main:app --host 0.0.0.0 --port 8003 --reload
+        ports:
+            - "${API_PORT:-8000}:8000"
+        depends_on:
+            db:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+        restart: unless-stopped
+        networks:
+            - backend
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+    # =====================
+    # Celery Worker
+    # =====================
+    celery_worker:
+        container_name: ${COMPOSE_PROJECT_NAME:-fastapi}_celery_worker
+        build:
+            context: .
+            dockerfile: ./Dockerfile  # Тот же Dockerfile, что и для backend
+        env_file: ./.env
+        command:
+            - sh
+            - -c
+            - "celery -A project.celery worker --loglevel=info"
+
+        volumes:
+            - .:/www/src
+        depends_on:
+            db:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            backend:
+                condition: service_started
+        restart: unless-stopped
+        networks:
+            - backend
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+    # =====================
+    # Celery Beat (Scheduler)
+    # =====================
+    celery_beat:
+        container_name: ${COMPOSE_PROJECT_NAME:-fastapi}_celery_beat
+        build:
+            context: .
+            dockerfile: ./Dockerfile
+        env_file: ./.env
+        command:
+            - sh
+            - -c
+            - "celery -A project.celery beat --loglevel=info"
+        volumes:
+            - .:/www/src
+        depends_on:
+            db:
+                condition: service_healthy
+            redis:
+                condition: service_healthy
+            celery_worker:
+                condition: service_started
+        restart: unless-stopped
+    # =====================
+    # Flower (Celery Monitoring)
+    # =====================
+    flower:
+        container_name: ${COMPOSE_PROJECT_NAME:-fastapi}_flower
+        image: mher/flower
+        env_file: .env
+        environment:
+            CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6380/0
+            CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6380/0
+            FLOWER_PORT: 5555
+            FLOWER_BASIC_AUTH: ${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-admin}
+        ports:
+            - "${FLOWER_PORT:-5555}:5555"
+        depends_on:
+            redis:
+                condition: service_healthy
+            celery_worker:
+                condition: service_started
+        restart: unless-stopped
+        networks:
+            - backend
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+    # =====================
+    # Nginx (Reverse Proxy)
+    # =====================
+    nginx:
+        container_name: ${COMPOSE_PROJECT_NAME:-fastapi}_nginx
+        build:
+            context: ./nginx
+            dockerfile: Dockerfile
+        depends_on:
+            api:
+                condition: service_healthy
+            backend:
+                condition: service_started
+            db:
+                condition: service_healthy
+        volumes:
+            - volume_static:/www/src/collectstatic
+        restart: on-failure
+        ports:
+            - "80:80"
+        networks:
+            - backend
+    adminer:
+        container_name: ${COMPOSE_PROJECT_NAME:-fastapi}_adminer
+        image: adminer:4.8.1
+        ports:
+            - "${ADMINER_PORT:-8080}:8080"
+        depends_on:
+            db:
+                condition: service_healthy
+        restart: unless-stopped
+        networks:
+            - backend
+        logging:
+            driver: "json-file"
+            options:
+                max-size: "10m"
+                max-file: "3"
+    # =====================
+    # Redis Cache
+    # =====================
     redis:
-        container_name: redis_bc24
+        container_name: ${COMPOSE_PROJECT_NAME:-fastapi}_redis_data
         image: redis:7.2-alpine
         healthcheck:
             test: ["CMD", "redis-cli", "ping"]
@@ -10,6 +204,20 @@ services:
 
         command: redis-server --bind 0.0.0.0
         volumes:
-            - redis_data:/data
+            - redis_data:${COMPOSE_PROJECT_NAME:-fastapi}_redis_data
         ports:
-            - "6380:6379"
+            - "6380:6380"
+volumes:
+    postgres_data:
+        name: /var/lib/postgresql/18/data
+    redis_data:
+        name: ${COMPOSE_PROJECT_NAME:-fastapi}_redis_data
+    static_volume:
+        name: www/src/cryptomarket
+    medis_volume:
+        name: www/src/media
+
+networks:
+  backend:
+    name: ${COMPOSE_PROJECT_NAME:-fastapi}_backend
+    driver: bridge

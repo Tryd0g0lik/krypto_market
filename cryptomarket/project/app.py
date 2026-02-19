@@ -13,14 +13,11 @@ from cryptomarket.api.v1.api_users import router_v1
 from cryptomarket.api.v2.api_sse import router_v2
 from cryptomarket.database.handler_create_db import checkOrCreateTables
 from cryptomarket.deribit_client import DeribitManage
-from cryptomarket.project.middleware.middleware_basic import DeribitMiddleware
+from cryptomarket.project.functions import run_asyncio_debug
 from cryptomarket.project.settings.core import DEBUG, settings
 
-# from cryptomarket.tasks.queues.task_connection_maintenance import (
-#     connection_maintenance_task,
-# )
-
 manager = DeribitManage()
+
 
 log = logging.getLogger(__name__)
 
@@ -34,7 +31,11 @@ async def lifespan(app: FastAPI):
     # Auto updated
     def run_new_loop():
         loop = asyncio.new_event_loop()
+        # loop.set_debug(True)
+        # loop.slow_callback_duration = 0.08
+        run_asyncio_debug(loop)
         asyncio.set_event_loop(loop)
+
         loop.run_until_complete(manager.start_worker(limitations=10))
 
     Thread(target=run_new_loop, daemon=True).start()
@@ -52,6 +53,9 @@ def app_cryptomarket():
     # ===============================
     def run_asyncio_in_thread():
         loop = asyncio.new_event_loop()
+        run_asyncio_debug(loop)
+        # loop.set_debug(True)
+        # loop.slow_callback_duration = 0.08
         try:
             asyncio.set_event_loop(loop)
             setting = settings()
@@ -70,7 +74,7 @@ def app_cryptomarket():
     try:
         threading_ = threading.Thread(target=run_asyncio_in_thread)
         threading_.start()
-        threading_.join(timeout=30)
+        # threading_.join(timeout=30)
     except Exception as e:
         log.error(
             "[%s]: Error => %s"
@@ -90,11 +94,6 @@ def app_cryptomarket():
         the payments between roles the OWNER & MASTER""",
         lifespan=lifespan,
     )
-    # ===============================
-    # ---- MIDDLEWARE ZERO
-    # ===============================
-    # middleware = DeribitMiddleware(manager)
-    # app_.middleware("http")(middleware)
 
     # ===============================
     # ---- CORS MIDDLEWARE

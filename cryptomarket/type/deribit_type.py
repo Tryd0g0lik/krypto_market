@@ -4,10 +4,10 @@ cryptomarket/type/deribit_type.py
 
 import asyncio
 from collections import deque
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
 from datetime import datetime
-from typing import Any, Protocol, TypedDict
+from typing import Any, Protocol, Set, TypedDict
 
 from aiohttp import client_ws
 from aiohttp.client_ws import ClientWebSocketResponse
@@ -193,6 +193,7 @@ class Person:
     """
 
     SUPPORTED_CURRENCIES = {}
+    encrypt_manager: "EncryptManagerBase"
 
     def __init__(
         self,
@@ -205,16 +206,19 @@ class Person:
         self.__access_token: str | None = None
         self.expires_in: int | None = None
         self.__refresh_token: str | None = None
-        self.last_activity: float = last_activity
-        self.ws: client_ws.ClientWebSocketResponse | None = None
+        self.last_activity: float = last_activity  # last time when
+        # self.timeinterval_query: int | float = 0.0
+        self.last_data_query: dict = {}
+        self.ws: ClientWebSocketResponse | None = None
         self.active: bool = True
-        self.key_of_queue: str | None = None
-        self.__client_secret_encrypt: bytes | None = None
+        self.__deribit_client_secret_encrypt: bytes | None = None
         self.__key_encrypt: bytes | None = None
+        self.key_of_queue: str | None = None
         self.scope: str | None = None
         self.token_type: str | None = None
-        self.msg: dict | None = None
+        # self.msg: dict | None = None
         self.client: DeribitClient | None = None
+        self.log_t = f"{self.__class__.__name__}.%s"
 
     @asynccontextmanager
     async def ws_send(self, client: DeribitClient):
@@ -238,10 +242,14 @@ class Person:
 
     @property
     def client_secret_encrypt(self) -> str | None:
-        pass
+        return self.__deribit_client_secret_encrypt
+
+    @property
+    def key_encrypt(self) -> bytes:
+        return self.__key_encrypt
 
     @client_secret_encrypt.setter
-    async def client_secret_encrypt(self, client_secret: str) -> None:
+    def client_secret_encrypt(self, client_secret: str) -> None:
         """
         Async
         :param client_secret:
@@ -268,7 +276,7 @@ class Person:
         pass
 
     @staticmethod
-    def _get_autantication_data(
+    def get_autantication_data(
         client_id: int | str, client_secret_key: str, index: int | None = None
     ) -> dict:
         """
@@ -300,5 +308,72 @@ class Person:
         Безопасное получение JSON с защитой от конкурентного доступа.
 
         ВАЖНО: В системе должен быть только ОДИН получатель сообщений на WebSocket!
+        """
+        pass
+
+
+class EncryptManagerBase:
+    """
+    Used to the 'cryptomarket.project.encrypt_manager.EncryptManager' and more
+    """
+
+    def __init__(
+        self,
+    ) -> None:
+        pass
+
+    async def str_to_encrypt(self, plaintext: str, *args) -> dict[str, str]:
+        """
+        :param plaintext: (str) Clean text for encryption.
+        :return: asynccontext: Example '{key: encrypted}' or \
+            by type '{< key_generated_Fernet >: <decrypt_text >}'
+        :return args: This data for recording the 'encrypt_key' to the cache server
+        """
+        pass
+
+    def descrypt_to_str(self, encrypted_dict: dict[bytes, bytes]) -> str:
+        """
+        :param encrypted_dict: (dict[bytes, bytes]) Encrypted dict. Example '{key: encrypted}' or\
+            by type '{< bytes_key_generated_Fernet >: <bytes_decrypt_text >}'.
+        :return: str
+        """
+        pass
+
+
+# =========================
+# ---- SSE MANAGER
+# =========================
+class ServerSSEManager:
+    _connections: dict[str, Set[asyncio.Queue]] = {}
+    lock: asyncio.Lock = asyncio.Lock()
+
+    def __init__(self, *args):
+        self.log_t = f"[{self.__class__.__name__}.%s]:"
+        self._connections.update({title: set() for title in args if args is not None})
+
+    async def subscribe(self, key_of_queue: str):
+        """Here we create a new queue for subscribe"""
+        pass
+
+    async def unsubscribe(self, ticker: str, queue: asyncio.Queue):
+        pass
+
+    async def broadcast(self, data: dict):
+        # async def broadcast(self, user_id: str, ticker: str, data: dict):
+        """
+        Here we broadcast a message to all subscribers by ticker. Template: 'queue.put(json.dumps({user_id: data}))'
+        :param user_id: (str) Client ID This is the index for the deribit's api key
+        :param ticker: (str) The attribute that the user subscribed to and the response will be sent by SSE.
+        """
+        pass
+
+    @contextmanager
+    def _extract_ticker_from_message(self, *args: list[str], **kwargs: dict):
+        """
+        This is the simple function. It don't have the close session - by default.
+        :param data: (dict)
+        :param args: (list[str]) Example "['connection', ]"
+        :param kwargs: (dict[str, Set[asyncio.Queue]] ) Example "{'eth_usd': < set() >}"
+        :return:
         """
         pass

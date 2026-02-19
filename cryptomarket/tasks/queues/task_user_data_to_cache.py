@@ -6,7 +6,7 @@ import asyncio
 import json
 import logging
 
-from cryptomarket.project.sse_manager import setting
+from cryptomarket.project.functions import set_record
 
 log = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ async def task_caching_user_data(
             (task_caching_user_data.__name__,),
         )
     try:
-        await get_record(*args, **kwargs)
+        await set_record(*args, **kwargs)
     except asyncio.TimeoutError as e:
         log.error(
             "%s TimeoutError => %s"
@@ -54,31 +54,4 @@ async def task_caching_user_data(
         log.error(
             "%s TypeError => %s"
             % (task_caching_user_data.__name__, e.args[0] if e.args else str(e))
-        )
-
-
-async def get_record(
-    *args,
-    **kwargs,
-) -> None:
-    from cryptomarket.deribit_client import DeribitLimited
-
-    deribit_limited = DeribitLimited()
-    context_redis_connection = deribit_limited.context_redis_connection
-
-    try:
-
-        async with context_redis_connection() as redis_client:
-            result_ = await asyncio.wait_for(
-                redis_client.setex(
-                    args[0],
-                    setting.CACHE_AUTHENTICATION_DATA_LIVE,
-                    json.dumps(kwargs),
-                ),
-                10,
-            )
-            return result_
-    except Exception as e:
-        log.error(
-            "%s ERROR => %s" % (get_record.__name__, e.args[0] if e.args else str(e))
         )

@@ -4,8 +4,9 @@ cryptomarket/api/v1/api_users.py
 
 from fastapi import APIRouter, Request, Response, openapi, status
 
-from cryptomarket.api.v1.api_get_index_price import get_index_price_child
+from cryptomarket.deribit_client.deribit_currency import CryptoCurrency
 
+crypto_currency = CryptoCurrency()
 router_v1 = APIRouter(
     prefix="/market",
     tags=["market"],
@@ -15,14 +16,12 @@ router_v1 = APIRouter(
         500: {"description": "Internal server error"},
     },
 )
+# {'btc_usd': set(), 'connection': set(), 'eth_usd': set(), 'sse_connection:XcQ7xuV:20260217163132': {<Queue at 0x21450622330 maxsize=5000>, <Queue at 0x21450625260 maxsize=5000 _getters[1]>}}
 
 
 @router_v1.get(
-    "/get_index_price",
+    "/{user_id}/create_order/{ticker}",
     description="""
-                We receive data (the type CreateAccountProp for account registration) through \
-                AccountCreationMiddleware. There, the data is sent to the cache and then processed \
-                in turn/queue via the StripCreationQueue.
 
 
                 **Required parameters of Headers**
@@ -36,12 +35,28 @@ router_v1 = APIRouter(
     summary="Create a new Stripe's account",
     status_code=status.HTTP_200_OK,
 )
-async def get_index_price(request: Request):
-    """Create a new Stripe's account
-    :param headers.user_id: (str|int)ю Required. This is the user index from app. FOr test, you can inter any number.
-    :param tickers: (str) Required. This is the on title or some titles for monitoring.
-        Example: One it is "btc_usd" or some "btc_usd%&eth_usd&ada_usdc&algo_usdc"
-
+async def create_order(request: Request):
     """
-    response = await get_index_price_child(request)
+    Добавляем пользователя в список и пользователь должен получаеть данные каждую минуту
+    """
+    response = await crypto_currency.create_order(request)
+    # task_celery_postman_currency()
+    return response
+
+
+@router_v1.get("/{user_id}/cancel_order/{ticker}")
+async def cancel_order(request: Request):
+    response = await crypto_currency.cancel_order(request)
+    return response
+
+
+@router_v1.get("/{user_id}/get_order/{ticker}")
+async def cancel_order(request: Request):
+    response = await crypto_currency.get_order(request)
+    return response
+
+
+@router_v1.get("/{user_id}/cancel_all_orders")
+async def cancel_all_orders(request: Request):
+    response = crypto_currency.cancel_all_orders(request)
     return response

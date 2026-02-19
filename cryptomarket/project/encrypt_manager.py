@@ -6,8 +6,11 @@ https://cryptography.io/en/latest/fernet/
 
 from cryptography.fernet import Fernet
 
+from cryptomarket.errors import EncryptTypeError
+from cryptomarket.type.deribit_type import EncryptManagerBase
 
-class EncryptManager:
+
+class EncryptManager(EncryptManagerBase):
     """
     TODO: создать шифр
         Каждый пользователь имеет индивидуальный ключ
@@ -16,6 +19,7 @@ class EncryptManager:
     def __init__(
         self,
     ) -> None:
+        super().__init__()
         self.log_t = "[AESEncrypt.%s]: "
 
     async def str_to_encrypt(self, plaintext: str, *args) -> dict[str, str]:
@@ -26,14 +30,14 @@ class EncryptManager:
         :return args: This data for recording the 'encrypt_key' to the cache server
         """
         if plaintext is None:
-            raise ValueError(
-                "%s ERROR => The 'plaintext' is required the variable!",
-                (self.log_t % self.str_to_encrypt.__name__),
+            raise EncryptTypeError(
+                "%s ERROR => The 'plaintext' is required the variable!"
+                % (self.log_t % self.str_to_encrypt.__name__),
             )
         if not isinstance(plaintext, str | bytes):
-            raise TypeError(
-                "%s TypeError => Check a type for the 'plaintext'!",
-                (self.log_t % self.str_to_encrypt.__name__),
+            raise EncryptTypeError(
+                "%s TypeError the 'plaintext'!"
+                % (self.log_t % self.str_to_encrypt.__name__)
             )
 
         encrypt_key_b = Fernet.generate_key()
@@ -53,10 +57,11 @@ class EncryptManager:
         """
         # Check of type on the  'encrypted_dict' var.
         if not isinstance(encrypted_dict, dict):
-            raise TypeError(
-                "%s TypeError => Check a type for the 'encrypted_dict'!",
-                (self.log_t % self.descrypt_to_str.__name__),
+            raise EncryptTypeError(
+                "%s TypeError the 'encrypted_dict'!"
+                % (self.log_t % self.descrypt_to_str.__name__),
             )
+
         key_list = list(encrypted_dict.keys())
         value_list = list(encrypted_dict.values())
         # Check of type per a key & value from the  'encrypted_dict' dictionary.
@@ -66,9 +71,10 @@ class EncryptManager:
             or not isinstance(key_list[0], bytes)
             or not isinstance(value_list[0], bytes)
         ):
-            raise TypeError(
-                "%s TypeError => Check a type for the key and value from the 'encrypted_dict'!",
-                (self.log_t % self.descrypt_to_str.__name__),
+            raise EncryptTypeError(
+                """%s TypeError => Check a type for the key and value from\
+             the 'encrypted_dict'!"""
+                % (self.log_t % self.descrypt_to_str.__name__)
             )
 
         cipher = Fernet(key_list[0])

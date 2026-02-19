@@ -1,0 +1,12 @@
+.flake8
+.dockerignore
+*.yaml
+.pylintrc
+Dockerfile
+nginx
+*.md
+.editorconfig
+.browserslistrc
+*test*
+frondend
+project
