@@ -20,8 +20,6 @@ services:
             - "5432:5432"
         networks:
             - backend
-        volumes:
-            - postgres_data:/var/lib/postgresql/18/data
         logging:
             driver: "json-file"
             options:
@@ -207,12 +205,8 @@ services:
         ports:
             - "6380:6380"
 volumes:
-    postgres_data:
-        name: /var/lib/postgresql/18/data
     redis_data:
-        name: ${COMPOSE_PROJECT_NAME:-fastapi}_redis_data
     volume_static:
-        name: www/src/collectstatic
     volume_media:
 
 networks:
