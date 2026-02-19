@@ -2,6 +2,7 @@
 FROM python:3.13
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PIP_CACHE_DIR=/var/cache/pip
 LABEL maintainer="work80@mail.ru"
 LABEL description="FastAPI block for crypto market"
 RUN mkdir /www && \

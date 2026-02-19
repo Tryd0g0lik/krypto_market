@@ -1,3 +1,4 @@
+[![CryptoMarket](https://github.com/Tryd0g0lik/krypto_market/actions/workflows/main.yml/badge.svg?branch=dev)](https://github.com/Tryd0g0lik/krypto_market/actions/workflows/main.yml)
 
 Note: Публикация файлов не нарушило условий задания 
 ## APP CryptoMarket
