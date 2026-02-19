@@ -47,6 +47,7 @@ services:
             DATABASE_PORT: 5432
             REDIS_HOST: redis
             REDIS_PORT: 6380
+            PYTHONPATH: /www/src
         volumes:
             - ./:/app
             - volume_static:/www/src/collectstatic

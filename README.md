@@ -96,3 +96,79 @@ DEBUG
 start_worker и _process_queue_worker имеют свой поток  и создают список корутинов. Следят , чтоб список был полный. 
 
 Корутины это клиент для соединения с внешним сервером deribit/ 
+
+
+## Tree
+```text
+root
+├── .github
+│   |   └──workflows
+│   |       └──main.yml
+├── __tests__
+│   |   ├──fixtures
+│   |   |   └──.py
+│   |   ├──test_database_connections
+│   |   |   └──.py
+│   |   ├──test_derbit_clients
+│   |   |   └──.py
+│   |   └──test_midllware
+│   |       └──.py
+├── alembic
+├── cryptomarket
+    api
+    database
+    deribit_client
+    errors
+    models
+      persons
+      schemes
+      __init__.py
+      model_abstract.py
+      model_base.py
+    project
+      settings
+        __init__.py
+        core.py
+        settings_env.py
+      __init__.py
+      app.py
+      celery_.py
+      celeryconfig.py
+      encrypt_manager.py
+      enums.py
+      functions.py
+      signals.py
+      sse_manager.py
+      task_registeration.py
+    tasks
+    type
+    __init__.py
+    cryptomarket_db.sqlit3
+    main.py
+  img
+  nginx
+    .dockerignore
+    default.conf
+    Dockerfile
+  .coverage
+  .dockerignore
+  .editorconfig
+  .env
+  .flake8
+  .gitignore
+  .pre-commit-config.yaml
+  .pylintrc
+  alembic.ini
+  celerybeat-schedule
+  docker-compose.yml
+  Dockerfile
+  log_putout.log
+  logs.py
+  poetry.lock
+  pull.exp
+  pull.sh
+  pyproject.toml
+  pytest.ini
+  README.md
+
+```

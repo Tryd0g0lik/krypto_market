@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-project_dir = str(Path(__file__).parent.parent)
+project_dir = str(Path(__file__).parent.parent.absolute())
 if project_dir not in sys.path:
     sys.path.insert(0, project_dir)
     print(f"Added {project_dir} to sys.path")
@@ -47,7 +47,7 @@ except ImportError as e:
 setting = settings()
 
 
-BASE_DIR = Path(__file__).parent.parent
+BASE_DIR = Path(__file__).parent.parent.absolute()
 
 sys.path.insert(0, str(BASE_DIR))
 
