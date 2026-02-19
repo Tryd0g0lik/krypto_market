@@ -13,8 +13,8 @@ class SettingsProps(Protocol):
     PROJECT_VERSION: str = "0.1.0"
     DEFAULT_LANGUAGE: str = "en"
     POSTGRES_PORT: str = "8000"
-    POSTGRES_DB: str = "postgres"
-    POSTGRES_PASSWORD: str = "postgres"
+    POSTGRES_DB: str
+    POSTGRES_PASSWORD: str
     POSTGRES_USER: str = "postgres"
     POSTGRES_HOST: str = "127.0.0.1"
     __SQLITE_DB_PATH: str = "cryptomarket_db.sqlit3"

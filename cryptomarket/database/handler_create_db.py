@@ -33,9 +33,10 @@ async def handler_restart_create_tables(
     """
     await db.create_table()
     # Checking a connection_database - whose type already exists.
-
+    is_postgresqltype = db.is_postgresqltype
+    is_sqlitetype = db.is_sqlitetype
     # Check connection_database postgres
-    if db.is_postgresqltype and restart_quantity < max_restart:
+    if is_postgresqltype and restart_quantity < max_restart:
         restart_quantity += 1
         dbtable_bool = await db.is_postgres_exists_async(
             db.engine, settings.POSTGRES_DB, settings
@@ -48,7 +49,7 @@ async def handler_restart_create_tables(
             )
             return False
         return True
-    elif db.is_sqlitetype and restart_quantity < max_restart:
+    elif is_sqlitetype and restart_quantity < max_restart:
         restart_quantity += 1
         dbtable_bool = db.is_sqlite_exists
         if not dbtable_bool:
@@ -151,9 +152,10 @@ async def checkOrCreateTables(settings: SettingsProps, max_restart=3) -> None:
         log.error(log_t)
         from sqlalchemy import create_engine, text
 
-        settings.set_database_url_sqlite(
-            os.path.join(BASE_DIR, "%s_db.sqlite3" % settings.POSTGRES_DB)
-        )
+        # sqlite_path = os.path.join(BASE_DIR, f"{settings.POSTGRES_DB}.sqlite3")
+        # settings.set_database_url_sqlite(
+        #     sqlite_path
+        # )
 
         try:
             # НЕ РАБЬОЧЕЕю Вставить текст SQL и создать модель базы данных
