@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).parent.parent.parent
 
-DEBUG = True if os.getenv("DEBUG", "True") == "True" else False
+DEBUG = True if os.getenv("DEBUG", "False") == "True" else False
 
 
 # ================ SETTINGS =================
