@@ -208,7 +208,7 @@ services:
             - "6380:6380"
 volumes:
     postgres_data:
-        name: /var/lib/postgresql/18/data
+        name: ${COMPOSE_PROJECT_NAME:-fastapi}_postgres_data
     redis_data:
         name: ${COMPOSE_PROJECT_NAME:-fastapi}_redis_data
     volume_static:
