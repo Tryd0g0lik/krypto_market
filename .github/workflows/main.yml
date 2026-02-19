@@ -68,7 +68,7 @@ jobs:
             - name: Wait for PostgreSQL
               run: |
                   for i in {1..10}; do
-                    if pg_isready -h localhost -p 5432 -U ${{ secrets.POSTGRES_USER }}; then
+                    if pg_isready -h ${{env.POSTGRES_DB_HOST}} -p ${{env.POSTGRES_DB_PORT}} -U ${{ secrets.POSTGRES_USER }}; then
                       echo "PostgreSQL is ready"
                       exit 0
                     fi
@@ -78,7 +78,7 @@ jobs:
                   exit 1
             - name: Set up database URL
               run: |
-                    echo "DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/${{ secrets.POSTGRES_DB }}" >> $GITHUB_ENV
+                    echo "DATABASE_URL=postgresql://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@${{env.POSTGRES_DB_HOST}}:${{env.POSTGRES_DB_PORT}}/test_d" >> $GITHUB_ENV
 
             -   name: Run Alembic migrations (upgrade)
                 env:
