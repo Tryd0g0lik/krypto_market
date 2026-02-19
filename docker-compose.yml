@@ -214,7 +214,6 @@ volumes:
     volume_static:
         name: www/src/collectstatic
     volume_media:
-        name: www/src/media
 
 networks:
   backend:
