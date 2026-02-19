@@ -188,3 +188,12 @@ POSTGRES_HOST=db
 
 COMPOSE_PROJECT_NAME=cryptomarket
 ```
+
+## Celery worker & beat
+||||
+|:----|:----|:----|
+|[![celery worker](./img/celery_cache.png)](./img/celery_cache.png)||[![celery worker](./img/celery_deribit.png)](./img/celery_deribit.png)|
+
+### Testing 
+![test](./img/test_console.png)
+

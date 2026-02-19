@@ -5,9 +5,6 @@ broker_url = < Look to the 'cryptomarket/project/settings/settings_env.py' >
 result_backend = < Look to the 'cryptomarket/project/settings/settings_env.py' >
 """
 
-from celery.worker.control import pool_grow
-
-from cryptomarket.database.connection import log
 from cryptomarket.project.settings.settings_env import REDIS_MASTER_NAME, REDIS_PASSWORD
 
 task_serializer = "json"
