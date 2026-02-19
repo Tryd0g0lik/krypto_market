@@ -201,7 +201,7 @@ services:
 
         command: redis-server --bind 0.0.0.0
         volumes:
-            - redis_data:${COMPOSE_PROJECT_NAME:-fastapi}_redis_data
+            - redis_data:/data
         ports:
             - "6380:6380"
 volumes:
