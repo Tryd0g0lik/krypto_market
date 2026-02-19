@@ -2,6 +2,7 @@
 alembic/env.py
 """
 
+import logging
 import sys
 from logging.config import fileConfig
 from pathlib import Path
@@ -11,8 +12,37 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
-from cryptomarket.models.model_base import target_metadata
-from cryptomarket.project.settings.core import settings
+
+project_dir = str(Path(__file__).parent.parent)
+if project_dir not in sys.path:
+    sys.path.insert(0, project_dir)
+    print(f"Added {project_dir} to sys.path")
+    logging.log(0, f"Added {project_dir} to sys.path")
+
+www_src = "/www/src"
+if www_src not in sys.path:
+    sys.path.insert(0, www_src)
+    print(f"Added {www_src} to sys.path")
+    logging.log(0, f"Added {www_src} to sys.path")
+
+
+try:
+    from cryptomarket.models.model_base import target_metadata
+
+    print("Successfully imported target_metadata")
+    logging.log(0, "Successfully imported target_metadata")
+    from cryptomarket.project.settings.core import settings
+except ImportError as e:
+    print(f"Import error: {e}")
+    logging.log(0, f"Import error: {e}")
+    print(f"Current sys.path: {sys.path}")
+    logging.log(0, f"Current sys.path: {sys.path}")
+
+    # Пробуем альтернативный импорт
+    import cryptomarket
+
+    print(f"cryptomarket module found at: {cryptomarket.__file__}")
+    raise
 
 setting = settings()
 
@@ -29,6 +59,7 @@ sys.path.insert(0, str(BASE_DIR))
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

@@ -1,3 +1,6 @@
+# If you want to look the log files,
+# Mean , run the command
+# >> docker inspect --format='{{.LogPath}}' <container_name_or_id> (in your  console/cmd )
 services:
     # =====================
     # PostgreSQL Database
