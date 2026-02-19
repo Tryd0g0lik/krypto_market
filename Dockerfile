@@ -13,10 +13,10 @@ RUN python -m pip install --upgrade "pip>=25.0"
 
 COPY ./requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-RUN mkdir "cryptomarket" && \
-    mkdir "alembic" && \
-    mkdir "collectstatic" && \
-    mkdir "media"
+RUN mkdir cryptomarket && \
+    mkdir alembic && \
+    mkdir collectstatic && \
+    mkdir media
 COPY alembic /www/src/alembic
 COPY alembic.ini /www/src
 COPY logs.py /www/src
