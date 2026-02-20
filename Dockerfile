@@ -17,10 +17,10 @@ RUN apt-get update && apt-get install -y \
 RUN pip config set global.trusted-host "pypi.org files.pythonhosted.org"
 RUN python -m pip install --upgrade "pip>=25.0"
 
-COPY ./requirements.txt .
-COPY ./requirements-base.txt .
-COPY ./requirements-db.txt .
-COPY ./requirements-redis.txt .
+COPY ./requirements.txt /www/src/
+COPY ./requirements-base.txt /www/src/
+COPY ./requirements-db.txt /www/src/
+COPY ./requirements-redis.txt /www/src/
 RUN --mount=type=cache,target=/var/cache/pip \
     pip install --no-cache-dir -r requirements.txt
 

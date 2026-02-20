@@ -31,7 +31,7 @@ services:
     # =====================
     # FastAPI Application
     # =====================
-    backend:
+    api:
         container_name: ${COMPOSE_PROJECT_NAME:-fastapi}_static
         healthcheck:
             test: [ "CMD", "curl", "-f", "http://0.0.0.0:8000/" ]
@@ -160,7 +160,7 @@ services:
                 condition: service_healthy
             redis:
                 condition: service_healthy
-            backend:
+            api:
                 condition: service_started
         restart: unless-stopped
         networks:
@@ -229,7 +229,7 @@ services:
             context: ./nginx
             dockerfile: Dockerfile
         depends_on:
-            backend:
+            api:
                 condition: service_started
             db:
                 condition: service_healthy
