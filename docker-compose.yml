@@ -80,7 +80,7 @@ services:
                     except Exception as e:
                         logging.log(0, f'Docker-file: Connection failed: {e}')
                         exit(1)
-                "
+                "; do
                 echo "Creating schema 'crypto' if not exists..."
                 until -c "
                     import psycopg2
@@ -98,7 +98,7 @@ services:
                     cur.close()
                     conn.close()
                     logging.log(0, 'Docker-file: Schema crypto created')
-                "
+                "; do
                 echo "Running migrations..."
                 alembic downgrade base
                 rm -f alembic/versions/*.py
