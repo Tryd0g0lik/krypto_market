@@ -43,10 +43,13 @@ services:
             context: .
         env_file: ./.env
         environment:
+            POSTGRES_USER: ${POSTGRES_USER}
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+            POSTGRES_DB: ${POSTGRES_DB}
             DATABASE_HOST: db
-            DATABASE_PORT: 5432
+            DATABASE_PORT: ${POSTGRES_PORT}
             REDIS_HOST: redis
-            REDIS_PORT: 6380
+            REDIS_PORT: ${REDIS_PORT}
             PYTHONPATH: /www/src
         volumes:
             - ./:/www/src
@@ -56,9 +59,20 @@ services:
             - bash
             - -c
             - |
+                set -e
                 echo "Waiting for database"
+                MAX_RETRIES=30
+                RETRY_COUNT=0
                 until PGPASSWORD=$POSTGRES_PASSWORD psql -h db -U $POSTGRES_USER -d $POSTGRES_DB -c '\q' 2>/dev/null; do
-                  sleep 2
+                    RETRY_COUNT=$((RETRY_COUNT + 1))
+                    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+                        echo "Failed to connect to PostgreSQL after $MAX_RETRIES attempts"
+                        echo "Last error:"
+                        PGPASSWORD=$POSTGRES_PASSWORD psql -h db -U $POSTGRES_USER -d $POSTGRES_DB -c '\q' 2>&1 || true
+                        exit 1
+                    fi
+                    echo "⏳ Waiting for PostgreSQL to be ready... (retry in 2s)"
+                    sleep 2
                 done
                 echo "Creating schema 'crypto' if not exists..."
                 PGPASSWORD=$POSTGRES_PASSWORD psql -h db -U $POSTGRES_USER -d $POSTGRES_DB -c "CREATE SCHEMA IF NOT EXISTS crypto;"
