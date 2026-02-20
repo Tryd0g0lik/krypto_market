@@ -12,6 +12,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
+from cryptomarket.project.settings.core import DEBUG, settings
 from cryptomarket.project.settings.settings_env import PROJECT_MODE_
 
 project_dir = str(Path(__file__).parent.parent.absolute())
@@ -32,7 +33,7 @@ try:
 
     print("Successfully imported target_metadata")
     logging.log(0, "Successfully imported target_metadata")
-    from cryptomarket.project.settings.core import DEBUG, settings
+
 except ImportError as e:
     print(f"Import error: {e}")
     logging.log(0, f"Import error: {e}")
@@ -159,7 +160,7 @@ def run_migrations_online() -> None:
     """
     configuration = config.get_section(config.config_ini_section) or {}
     if not DEBUG and PROJECT_MODE_ == "production":
-        configuration["sqlalchemy.url"] = settings.get_database_url_external
+        configuration["sqlalchemy.url"] = setting.get_database_url_external
     else:
         configuration["sqlalchemy.url"] = get_url()
     # Получаем конфигурацию из alembic.ini for SQLite

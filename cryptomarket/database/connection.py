@@ -292,26 +292,52 @@ class DatabaseConnection(Database):
         from cryptomarket.models import Base
 
         try:
-            # engine: AsyncEngine = self.engine
+            engine: AsyncEngine = self.engine
             session: AsyncSession = self.session_factory()
             if not session:
                 self.init_engine()
+            if self.is_async:
 
-            async with self.asyncsession_scope() as conn:
-                try:
-                    if self.is_postgresqltype:
-                        await conn.execute(text("CREATE SCHEMA IF NOT EXISTS crypto"))
-                        await conn.commit()
-                        log.info("Schema 'crypto' ensured")
-                except Exception as e:
-                    log_t = "[%s.%s]: ERROR => %s" % (
-                        self.__class__.__name__,
-                        self.__create_all_async.__name__,
-                        e,
-                    )
-                    log.error(log_t)
-                    raise log_t
-                await conn.run_sync(Base.metadata.create_all)
+                async with engine.begin() as conn:
+                    try:
+                        if self.is_postgresqltype:
+                            await conn.execute(
+                                text("CREATE SCHEMA IF NOT EXISTS crypto")
+                            )
+                            await conn.commit()
+                            await conn.run_sync(Base.metadata.create_all)
+                            await conn.commit()
+                            log.info("Schema 'crypto' ensured")
+                    except Exception as e:
+                        log_t = "[%s.%s]: ERROR => %s" % (
+                            self.__class__.__name__,
+                            self.__create_all_async.__name__,
+                            e,
+                        )
+                        log.error(log_t)
+                        raise log_t
+            else:
+                with engine.begin() as conn:
+                    try:
+                        if self.is_postgresqltype:
+                            await conn.execute(
+                                text("CREATE SCHEMA IF NOT EXISTS crypto")
+                            )
+                            await conn.commit()
+                            await conn.run_sync(Base.metadata.create_all)
+                            await conn.commit()
+                            log.info("Schema 'crypto' ensured")
+                    except Exception as e:
+                        log_t = "[%s.%s]: ERROR => %s" % (
+                            self.__class__.__name__,
+                            self.__create_all_async.__name__,
+                            e,
+                        )
+                        log.error(log_t)
+                        raise log_t
+            # async with engine.begin() as conn:
+            #     await conn.run_sync(Base.metadata.create_all)
+            #     await conn.commit()
 
         except Exception as e:
             log_t = "[%s.%s]: ERROR => %s", (

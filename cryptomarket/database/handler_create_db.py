@@ -19,7 +19,10 @@ log = logging.getLogger(__name__)
 
 
 async def handler_restart_create_tables(
-    db: Database, max_restart: int, restart_quantity: int, settings: SettingsProps
+    db: DatabaseConnection,
+    max_restart: int,
+    restart_quantity: int,
+    settings: SettingsProps,
 ) -> bool:
     """
     This is child function for  the main function "checkOrCreateTables()".
@@ -69,8 +72,12 @@ async def handler_restart_create_tables(
         restart_quantity += 1
         await asyncio.sleep(3)
         try:
-            with db.engine.connection:
-                return True
+            if db.is_async:
+                async with db.asyncsession_scope():
+                    return True
+            else:
+                with db.session_scope():
+                    return True
         except Exception as e:
             await handler_restart_create_tables(
                 db, max_restart, restart_quantity, settings
