@@ -23,7 +23,7 @@ services:
             - "5432:5432"
         networks:
             backend:
-                - aliases:
+                aliases:
                     - db
                     - postgres
         logging:
@@ -195,6 +195,8 @@ services:
                 condition: service_healthy
             celery_worker:
                 condition: service_started
+        networks:
+            - backend
         restart: unless-stopped
     # =====================
     # Flower (Celery Monitoring)
@@ -243,7 +245,9 @@ services:
         ports:
             - "80:80"
         networks:
-            - backend
+            backend:
+                aliases:
+                    - nginx
     adminer:
         container_name: ${COMPOSE_PROJECT_NAME:-fastapi}_adminer
         image: adminer:4.8.1
@@ -277,6 +281,11 @@ services:
             - redis_data:/data
         ports:
             - "6380:6380"
+        networks:
+            backend:
+                aliases:
+                    - radis
+                    - cache
 volumes:
     redis_data:
     volume_static:
