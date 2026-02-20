@@ -81,8 +81,16 @@ services:
                         logging.log(0, f'Docker-file: Connection failed: {e}')
                         exit(1)
                 "; do
+                    RETRY_COUNT=$((RETRY_COUNT + 1))
+                        if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
+                            echo "Docker-file: Failed to connect to PostgreSQL after $MAX_RETRIES attempts"
+                            exit 1
+                        fi
+                        echo "Docker-file: Waiting for PostgreSQL... attempt $RETRY_COUNT/$MAX_RETRIES"
+                        sleep 2
+                    done
                 echo "Creating schema 'crypto' if not exists..."
-                until -c "
+                python -c "
                     import psycopg2
                     import os
                     import logging
