@@ -25,5 +25,6 @@ RUN --mount=type=cache,target=/var/cache/pip \
     pip install --no-cache-dir -r requirements.txt
 RUN mkdir -p cryptomarket alembic alembic/versions collectstatic media
 COPY ./alembic /www/src/alembic
+COPY ./alembic/versions /www/src/alembic/versions
 COPY ./alembic.ini /www/src
 COPY ./logs.py /www/src
