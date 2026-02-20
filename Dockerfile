@@ -24,4 +24,4 @@ COPY ./requirements-redis.txt .
 RUN --mount=type=cache,target=/var/cache/pip \
     pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY . /www/src/
