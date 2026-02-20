@@ -56,11 +56,25 @@ services:
             - bash
             - -c
             - |
+                echo "Waiting for database"
+                until PGPASSWORD=$POSTGRES_PASSWORD psql -h db -U $POSTGRES_USER -d $POSTGRES_DB -c '\q' 2>/dev/null; do
+                  sleep 2
+                done
+                echo "Creating schema 'crypto' if not exists..."
+                PGPASSWORD=$POSTGRES_PASSWORD psql -h db -U $POSTGRES_USER -d $POSTGRES_DB -c "CREATE SCHEMA IF NOT EXISTS crypto;"
+                echo "Running migrations..."
                 alembic downgrade base
-                rm alembic/versions/*.py
-                alembic revision --autogenerate
+                rm -f alembic/versions/*.py
+                alembic revision --autogenerate -m "init"
                 alembic upgrade head
+                echo "Starting application..."
                 python -m cryptomarket.main
+
+#                alembic downgrade base
+#                rm alembic/versions/*.py
+#                alembic revision --autogenerate
+#                alembic upgrade head
+#                python -m cryptomarket.main
         ports:
             - "8003:8003"
         depends_on:
