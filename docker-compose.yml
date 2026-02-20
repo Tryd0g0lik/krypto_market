@@ -22,7 +22,10 @@ services:
         ports:
             - "5432:5432"
         networks:
-            - backend
+            backend:
+                - aliases:
+                    - db
+                    - postgres
         logging:
             driver: "json-file"
             options:
