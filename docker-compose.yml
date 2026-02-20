@@ -56,6 +56,9 @@ services:
             - bash
             - -c
             - |
+                alembic downgrade base
+                rm alembic/versions/*.py
+                alembic revision --autogenerate
                 alembic upgrade head
                 python -m cryptomarket.main
         ports:

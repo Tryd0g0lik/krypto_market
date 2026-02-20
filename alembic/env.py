@@ -3,6 +3,7 @@ alembic/env.py
 """
 
 import logging
+import re
 import sys
 from logging.config import fileConfig
 from pathlib import Path
@@ -52,6 +53,22 @@ setting = settings()
 BASE_DIR = Path(__file__).parent.parent.absolute()
 
 sys.path.insert(0, str(BASE_DIR))
+
+
+def get_sync_url():
+    """Возвращает синхронный URL для PostgreSQL, убирая +asyncpg"""
+    async_url = setting.get_database_url_external
+    # Заменяем postgresql+asyncpg://... на postgresql://...
+    sync_url = re.sub(r"postgresql\+asyncpg", "postgresql", async_url)
+    keepalive_params = (
+        "?keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=5"
+    )
+    if "?" in sync_url:
+        # Если параметры уже есть, добавляем наши через '&'
+        sync_url = f"{sync_url}&{keepalive_params.lstrip('?')}"
+    else:
+        sync_url = f"{sync_url}{keepalive_params}"
+    return sync_url
 
 
 # Импортируем Base из вашего приложения
@@ -159,8 +176,9 @@ def run_migrations_online() -> None:
 
     """
     configuration = config.get_section(config.config_ini_section) or {}
+
     if not DEBUG and PROJECT_MODE_ == "production":
-        configuration["sqlalchemy.url"] = setting.get_database_url_external
+        configuration["sqlalchemy.url"] = get_sync_url()
     else:
         configuration["sqlalchemy.url"] = get_url()
     # Получаем конфигурацию из alembic.ini for SQLite
