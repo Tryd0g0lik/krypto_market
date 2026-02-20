@@ -94,7 +94,7 @@ services:
                         echo "Docker-file: PostgreSQL is ready!"
                         echo "Creating schema 'crypto' if not exists..."
                                                    
-                                           python -c "
+                python -c "
                 import psycopg2
                 import os
                 conn = psycopg2.connect(

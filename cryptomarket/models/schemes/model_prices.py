@@ -40,7 +40,7 @@ class PriceTicker(BaseModel):
         __tablename__ = "crypto_price_tickers"
         __table_args__ = __table_args__some
     else:
-        __tablename__ = "crypto.price_tickers"
+        __tablename__ = "price_tickers"
         __table_args__ = __table_args__some + ({"schema": "crypto"},)
 
     ticker: Mapped[str] = mapped_column(
