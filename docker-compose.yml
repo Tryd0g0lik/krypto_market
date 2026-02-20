@@ -49,7 +49,7 @@ services:
             POSTGRES_USER: ${POSTGRES_USER}
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
             POSTGRES_DB: ${POSTGRES_DB}
-            DATABASE_HOST: db
+            DATABASE_HOST: ${POSTGRES_HOST}
             DATABASE_PORT: ${POSTGRES_PORT}
             REDIS_HOST: redis
             REDIS_PORT: ${REDIS_PORT}
@@ -74,7 +74,7 @@ services:
                 import sys
                 try:
                     conn = psycopg2.connect(
-                    host='db',
+                    host=os.environ.get('DATABASE_HOST'),
                     user=os.environ.get('POSTGRES_USER'),
                     password=os.environ.get('POSTGRES_PASSWORD'),
                     dbname=os.environ.get('POSTGRES_DB')
