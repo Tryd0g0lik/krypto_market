@@ -63,19 +63,42 @@ services:
                 echo "Waiting for database"
                 MAX_RETRIES=30
                 RETRY_COUNT=0
-                until PGPASSWORD=$POSTGRES_PASSWORD psql -h db -U $POSTGRES_USER -d $POSTGRES_DB -c '\q' 2>/dev/null; do
-                    RETRY_COUNT=$((RETRY_COUNT + 1))
-                    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-                        echo "Failed to connect to PostgreSQL after $MAX_RETRIES attempts"
-                        echo "Last error:"
-                        PGPASSWORD=$POSTGRES_PASSWORD psql -h db -U $POSTGRES_USER -d $POSTGRES_DB -c '\q' 2>&1 || true
-                        exit 1
-                    fi
-                    echo "⏳ Waiting for PostgreSQL to be ready... (retry in 2s)"
-                    sleep 2
-                done
+                until python -c "
+                    import psycopg2
+                    import os
+                    import logging
+                    try:
+                        conn = psycopg2.connect(
+                            host='db',
+                            user=os.environ['POSTGRES_USER'],
+                            password=os.environ['POSTGRES_PASSWORD'],
+                            dbname=os.environ['POSTGRES_DB']
+                        )
+                        conn.close()
+                        logging.log(0, 'Docker-file: Connection successful')
+                        exit(0)
+                    except Exception as e:
+                        logging.log(0, f'Docker-file: Connection failed: {e}')
+                        exit(1)
+                "
                 echo "Creating schema 'crypto' if not exists..."
-                PGPASSWORD=$POSTGRES_PASSWORD psql -h db -U $POSTGRES_USER -d $POSTGRES_DB -c "CREATE SCHEMA IF NOT EXISTS crypto;"
+                until -c "
+                    import psycopg2
+                    import os
+                    import logging
+                    conn = psycopg2.connect(
+                        host='db',
+                        user=os.environ['POSTGRES_USER'],
+                        password=os.environ['POSTGRES_PASSWORD'],
+                        dbname=os.environ['POSTGRES_DB']
+                    )
+                    conn.autocommit=True
+                    cur = conn.cursor()
+                    cur.execute('CREATE SCHEMA IF NOT EXIST crypto')
+                    cur.close()
+                    conn.close()
+                    logging.log(0, 'Docker-file: Schema crypto created')
+                "
                 echo "Running migrations..."
                 alembic downgrade base
                 rm -f alembic/versions/*.py
