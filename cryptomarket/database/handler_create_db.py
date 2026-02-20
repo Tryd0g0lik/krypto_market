@@ -10,9 +10,8 @@ from sqlalchemy.exc import InvalidRequestError
 
 from cryptomarket.database.connection import DatabaseConnection
 from cryptomarket.database.sql_text import SQLText
-from cryptomarket.project.settings.core import BASE_DIR, DEBUG
+from cryptomarket.project.settings.core import DEBUG
 from cryptomarket.project.settings.settings_env import POSTGRES_DB_, PROJECT_MODE_
-from cryptomarket.type.db import Database
 from cryptomarket.type.settings_prop import SettingsProps
 
 log = logging.getLogger(__name__)
