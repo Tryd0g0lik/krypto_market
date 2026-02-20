@@ -49,7 +49,7 @@ services:
             POSTGRES_USER: ${POSTGRES_USER}
             POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
             POSTGRES_DB: ${POSTGRES_DB}
-            DATABASE_HOST: 'postgres'
+            DATABASE_HOST: ${POSTGRES_HOST}
             DATABASE_PORT: ${POSTGRES_PORT}
             REDIS_HOST: 'redis'
             REDIS_PORT: ${REDIS_PORT}
@@ -74,8 +74,8 @@ services:
                 import sys
                 try:
                     conn = psycopg2.connect(
-                    host='postgres',
-                    user=os.environ.get('POSTGRES_USER'),
+                    host=os.environ['DATABASE_HOST'],
+                    user=os.environ['POSTGRES_USER'],
                     password=os.environ.get('POSTGRES_PASSWORD'),
                     dbname=os.environ.get('POSTGRES_DB')
                     )
@@ -101,7 +101,7 @@ services:
                 import psycopg2
                 import os
                 conn = psycopg2.connect(
-                host='postgres',
+                host=os.environ['DATABASE_HOST'],
                 user=os.environ.get('POSTGRES_USER'),
                 password=os.environ.get('POSTGRES_PASSWORD'),
                 dbname=os.environ.get('POSTGRES_DB')
@@ -209,8 +209,8 @@ services:
         image: mher/flower
         env_file: .env
         environment:
-            CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:6380/0
-            CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:6380/0
+            CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-}@redis:${REDIS_PORT}/0
+            CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-}@redis:${REDIS_PORT}/0
             FLOWER_PORT: 5555
             FLOWER_BASIC_AUTH: ${FLOWER_USER:-admin}:${FLOWER_PASSWORD:-admin}
         ports:
