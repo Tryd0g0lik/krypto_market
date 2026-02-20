@@ -248,6 +248,7 @@ services:
             backend:
                 aliases:
                     - nginx
+                    - proxiserver
     adminer:
         container_name: ${COMPOSE_PROJECT_NAME:-fastapi}_adminer
         image: adminer:4.8.1
