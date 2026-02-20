@@ -34,7 +34,7 @@ services:
     api:
         container_name: ${COMPOSE_PROJECT_NAME:-fastapi}_static
         healthcheck:
-            test: [ "CMD", "curl", "-f", "http://0.0.0.0:8000/" ]
+            test: [ "CMD", "curl", "-f", "http://0.0.0.0:8003/health" ]
             interval: 30s
             timeout: 10s
             retries: 3
@@ -161,7 +161,7 @@ services:
             redis:
                 condition: service_healthy
             api:
-                condition: service_started
+                condition: service_healthy
         restart: unless-stopped
         networks:
             - backend
@@ -230,7 +230,7 @@ services:
             dockerfile: Dockerfile
         depends_on:
             api:
-                condition: service_started
+                condition: service_healthy
             db:
                 condition: service_healthy
         volumes:
