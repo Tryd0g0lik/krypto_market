@@ -136,7 +136,10 @@ services:
                 condition: service_healthy
         restart: unless-stopped
         networks:
-            - backend
+            backend:
+                aliases:
+                  - api
+                  - backend
         logging:
             driver: "json-file"
             options:
