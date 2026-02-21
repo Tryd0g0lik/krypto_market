@@ -20,11 +20,11 @@ jobs:
             DEBUG: False
         services:
             postgres:
-                image: postgres:14
-#                env:
-#                    POSTGRES_USER: ${{  env.POSTGRES_USER  }}
-#                    POSTGRES_PASSWORD: ${{  env.POSTGRES_PASSWORD  }}
-#                    POSTGRES_DB: test_d
+                image: postgres:15
+                env:
+                    POSTGRES_USER: ${{  env.POSTGRES_USER  }}
+                    POSTGRES_PASSWORD: ${{  env.POSTGRES_PASSWORD  }}
+                    POSTGRES_DB: test_d
                 options: >-
                     --health-cmd pg_isready
                     --health-interval 10s
