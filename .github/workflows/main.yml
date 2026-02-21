@@ -73,7 +73,7 @@ jobs:
             -   name: Run Alembic migrations (upgrade)
                 env:
                     DATABASE_URL: ${{ env.DATABASE_URL }}
-                    DEBUG: "False"
+                    DEBUG: False
                     SECRET_KEY: ${{ secrets.SECRET_KEY }}
                 run: |
                         alembic upgrade head
@@ -82,7 +82,7 @@ jobs:
             - name: Generate new migration (if needed)
               env:
                     DATABASE_URL: ${{ env.DATABASE_URL }}
-                    DEBUG: "False"
+                    DEBUG: False
                     SECRET_KEY: ${{ secrets.SECRET_KEY }}
               run: |
                      alembic check || true
