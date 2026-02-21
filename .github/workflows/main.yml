@@ -78,8 +78,6 @@ jobs:
                     echo "POSTGRES_HOST=localhost" >> $GITHUB_ENV
                     echo "POSTGRES_PORT=${{ env.POSTGRES_DB_PORT }}" >> $GITHUB_ENV
             -   name: Create schema
-                env:
-
                 run: |
                     POSTGRES_PASSWORD=${{  env.POSTGRES_PASSWORD  }} psql -h localhost -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB_PORT }} -c "CREATE SCHEMA IF NOT EXISTS crypto;"
   
