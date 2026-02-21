@@ -79,7 +79,7 @@ jobs:
                     echo "POSTGRES_PORT=${{ env.POSTGRES_DB_PORT }}" >> $GITHUB_ENV
             -   name: Create schema
                 run: |
-                    PGPASSWORD=${{  env.POSTGRES_PASSWORD  }} psql -h ${{env.POSTGRES_DB_HOST}} -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB_PORT }} -c "CREATE SCHEMA IF NOT EXISTS crypto;"
+                    PGPASSWORD=${{  env.POSTGRES_PASSWORD  }} psql -h ${{env.POSTGRES_DB_HOST}} -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} -c "CREATE SCHEMA IF NOT EXISTS crypto;"
   
 
             -   name: Run Alembic migrations (upgrade)
