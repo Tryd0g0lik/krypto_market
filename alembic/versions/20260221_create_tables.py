@@ -27,7 +27,7 @@ def upgrade() -> None:
     # PersonModel - таблица person
     op.create_table(
         "person",
-        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("id", sa.Integer(), primary_key=True, nullable=False),
         sa.Column("index_app", sa.String(length=50), nullable=False),
         sa.Column(
             "person_role", sa.String(length=25), nullable=False, server_default="person"
@@ -56,7 +56,7 @@ def upgrade() -> None:
     # PriceTicker - таблица price_tickers
     op.create_table(
         "price_tickers",
-        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("id", sa.Integer(), nullable=False, primary_key=True),
         sa.Column("ticker", sa.String(length=10), nullable=False),
         sa.Column("instrument_name", sa.String(length=15), nullable=False),
         sa.Column("price", sa.Float(), nullable=True),
@@ -92,12 +92,12 @@ def upgrade() -> None:
         "ix_price_tickers_ticker", "price_tickers", ["ticker"], schema="crypto"
     )
 
-    # ===== 3. TABLITCY S VNESHNIMI CLIUCHAMI =====
+    # ===== 3. ТАБЛИЦЫ С ВНЕШНИМИ CLЮЧАМИ =====
 
     # PersonPricesModel - tablitca person_prices
     op.create_table(
         "person_prices",
-        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("id", sa.Integer(), primary_key=True, nullable=False),
         sa.Column("currency", sa.String(length=20), nullable=False),
         sa.Column("person_id", sa.Integer(), nullable=True),
         sa.Column("price_ticker_id", sa.Integer(), nullable=True),

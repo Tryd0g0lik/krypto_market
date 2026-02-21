@@ -197,3 +197,13 @@ COMPOSE_PROJECT_NAME=cryptomarket
 ### Testing 
 ![test](./img/test_console.png)
 
+
+----
+
+alembic ато генерация файла миграции работает с моделями в рандомном порядке. \
+Пришлось писать (файл миграции ) вручную с учетом последовательность где:
+ - первыми идут модели без FK
+ - после используются модели с FK.
+
+In line ForaignKey I didn't use the schema  
+

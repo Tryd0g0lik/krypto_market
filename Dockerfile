@@ -25,3 +25,4 @@ RUN --mount=type=cache,target=/var/cache/pip \
     pip install --no-cache-dir -r requirements.txt
 
 COPY . /www/src/
+COPY alembic/versions /www/src/alembic/versions

@@ -116,9 +116,7 @@ services:
                 
                 echo "Running migrations..."
                 alembic downgrade base
-                alembic revision --autogenerate -m "init"
                 alembic upgrade head
-                
                 echo "Starting application..."
                 python -m cryptomarket.main
 
