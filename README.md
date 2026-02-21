@@ -2,7 +2,8 @@
 
 Note: Публикация файлов не нарушило условий задания 
 ## APP CryptoMarket
- 
+
+### Коротко 
 
 
 [![project_model.drawio.svg](img/project_model.drawio.png)](img/project_model.drawio_max.png)
