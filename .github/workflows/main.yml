@@ -74,7 +74,7 @@ jobs:
                     echo "PROJECT_MODE=production" >> $GITHUB_ENV
                     echo "POSTGRES_USER=${{ env.POSTGRES_USER }}" >> $GITHUB_ENV
                     echo "POSTGRES_PASSWORD=${{  env.POSTGRES_PASSWORD  }}" >> $GITHUB_ENV
-                    echo "POSTGRES_DB=${{env.POSTGRES_DB}} " >> $GITHUB_ENV
+                    echo "POSTGRES_DB=${{env.POSTGRES_DB}}" >> $GITHUB_ENV
                     echo "POSTGRES_HOST=localhost" >> $GITHUB_ENV
                     echo "POSTGRES_PORT=${{ env.POSTGRES_DB_PORT }}" >> $GITHUB_ENV
             -   name: Create schema
