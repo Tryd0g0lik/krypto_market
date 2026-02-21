@@ -13,7 +13,7 @@ jobs:
             POSTGRES_USER: ${{ secrets.POSTGRES_USER_ }}
             POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD_ }}
             POSTGRES_DB_PORT: ${{ secrets.POSTGRES_DB_PORT }}
-            POSTGRES_DB_NAME: ${{ secrets.POSTGRES_DB }}
+            POSTGRES_DB_NAME: test_d
             POSTGRES_DB_HOST: ${{ secrets.POSTGRES_DB_HOST }}
             POSTGRES_DB: test_d
             DATABASE_URL: "postgresql://${{  secrets.POSTGRES_USER_  }}:${{ secrets.POSTGRES_PASSWORD_ }}@${{ secrets.POSTGRES_DB_HOST }}:${{ secrets.POSTGRES_DB_PORT }}/test_d"
