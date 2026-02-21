@@ -15,15 +15,16 @@ jobs:
             POSTGRES_DB_PORT: ${{ secrets.POSTGRES_DB_PORT }}
             POSTGRES_DB_NAME: ${{ secrets.POSTGRES_DB }}
             POSTGRES_DB_HOST: ${{ secrets.POSTGRES_DB_HOST }}
+            POSTGRES_DB: test_d
             DATABASE_URL: "postgresql://${{  secrets.POSTGRES_DB_USER }}:${{ secrets.POSTGRES_DB_PASSWORD }}@${{ secrets.POSTGRES_DB_HOST }}:${{ secrets.POSTGRES_DB_PORT }}/test_d"
             DEBUG: False
         services:
             postgres:
                 image: postgres:14
-                env:
-                    POSTGRES_USER: ${{  env.POSTGRES_USER  }}
-                    POSTGRES_PASSWORD: ${{  env.POSTGRES_PASSWORD  }}
-                    POSTGRES_DB: test_d
+#                env:
+#                    POSTGRES_USER: ${{  env.POSTGRES_USER  }}
+#                    POSTGRES_PASSWORD: ${{  env.POSTGRES_PASSWORD  }}
+#                    POSTGRES_DB: test_d
                 options: >-
                     --health-cmd pg_isready
                     --health-interval 10s
@@ -73,7 +74,7 @@ jobs:
                     echo "PROJECT_MODE=production" >> $GITHUB_ENV
                     echo "POSTGRES_USER=${{ env..POSTGRES_USER }}" >> $GITHUB_ENV
                     echo "POSTGRES_PASSWORD=${{  env.POSTGRES_PASSWORD  }}" >> $GITHUB_ENV
-                    echo "POSTGRES_DB=test_d " >> $GITHUB_ENV
+                    echo "POSTGRES_DB=${{env.POSTGRES_DB}} " >> $GITHUB_ENV
                     echo "POSTGRES_HOST=localhost" >> $GITHUB_ENV
                     echo "POSTGRES_PORT=${{ env.POSTGRES_DB_PORT }}" >> $GITHUB_ENV
             -   name: Create schema
