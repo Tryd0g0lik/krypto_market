@@ -155,7 +155,7 @@ services:
         command:
             - sh
             - -c
-            - "celery -A cryptomarket.project.celery worker --loglevel=info"
+            - "celery -A cryptomarket.project.celery_ worker --loglevel=info"
 
         volumes:
             - .:/www/src
@@ -186,7 +186,7 @@ services:
         command:
             - sh
             - -c
-            - "celery -A cryptomarket.project.celery beat --loglevel=info"
+            - "celery -A cryptomarket.project.celery_ beat --loglevel=info"
         volumes:
             - .:/www/src
         depends_on:
