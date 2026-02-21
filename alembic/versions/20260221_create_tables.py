@@ -20,7 +20,7 @@ depends_on = None
 
 def upgrade() -> None:
     # ===== 1. SOZDAEM SKHEMU DLIA POSTGRES =====
-    # op.execute("CREATE SCHEMA IF NOT EXISTS crypto")
+    op.execute("CREATE SCHEMA IF NOT EXISTS crypto")
 
     # ===== 2. TABLITCY BEZ VNESHNIKH CLIUCHEI` =====
 
