@@ -57,6 +57,7 @@ jobs:
                     key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt')  }}
                     restore-keys: |
                         ${{  runner.os  }}-pip-
+            
 
             -   name: Install backend dependencies
                 working-directory: .
@@ -65,24 +66,38 @@ jobs:
                     pip install -r requirements.txt
                     pip install pytest pytest-asyncio pytest-cov
 
-
-            - name: Set up database URL
-              run: |
-                    echo "DATABASE_URL=postgresql://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@${{env.POSTGRES_DB_HOST}}:${{env.POSTGRES_DB_PORT}}/test_d" >> $GITHUB_ENV
+            -   name: Set environment for PostgreSQL
+                run: | # Проверка
+                    echo "DEBUG=False" >> $GITHUB_ENV
+                    echo "PROJECT_MODE=production" >> $GITHUB_ENV
+                    echo "POSTGRES_USER=${{ secrets.POSTGRES_USER }}" >> $GITHUB_ENV
+                    echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> $GITHUB_ENV
+                    echo "POSTGRES_DB=${{ secrets.POSTGRES_DB }}" >> $GITHUB_ENV
+                    echo "POSTGRES_HOST=localhost" >> $GITHUB_ENV
+                    echo "POSTGRES_PORT=5432" >> $GITHUB_ENV
+            -   name: Create schema
+                run: |
+                    PGPASSWORD=${{ secrets.POSTGRES_PASSWORD }} psql -h localhost -U ${{ secrets.POSTGRES_USER }} -d ${{ secrets.POSTGRES_DB }} -c "CREATE SCHEMA IF NOT EXISTS crypto;"
+  
 
             -   name: Run Alembic migrations (upgrade)
                 env:
                     DATABASE_URL: ${{ env.DATABASE_URL }}
-                    DEBUG: False
+                    DEBUG: "False"
+                    PROJECT_MODE: "production"
                     SECRET_KEY: ${{ secrets.SECRET_KEY }}
                 run: |
                         alembic upgrade head
                         alembic current
+            -   name: Set up database URL
+                run: |
+                    echo "DATABASE_URL=postgresql://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@${{env.POSTGRES_DB_HOST}}:${{env.POSTGRES_DB_PORT}}/test_d" >> $GITHUB_ENV
 
             - name: Generate new migration (if needed)
               env:
                     DATABASE_URL: ${{ env.DATABASE_URL }}
-                    DEBUG: False
+                    DEBUG: "False"
+                    PROJECT_MODE: "production"
                     SECRET_KEY: ${{ secrets.SECRET_KEY }}
               run: |
                      alembic check || true
