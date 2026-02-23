@@ -544,10 +544,10 @@ async def luo_script_find_key(redis_client: Redis, key_str: str):
     local all_keys = {}
     local debug_info = {}
     local pattern = KEYS[1]
-    local iteration  = 1
-    table.insert(debug_info, '=== SCAN RESULT === \n')
+    local iteration = 1
+    table.insert(debug_info, '=== SCAN RESULT ===')
     repeat
-        table.insert(debug_info, '\nStart luo script. iteration : ' .. iteration  .. '\nwhith cursor: ' .. cursor)
+        table.insert(debug_info, 'Start luo script. iteration : ' .. iteration  .. 'whith cursor: ' .. cursor)
         local result = redis.call('SCAN', cursor, 'MATCH', pattern, 'COUNT', 500)
         cursor = result[1]
         if #result[2] > 0 then
@@ -555,12 +555,12 @@ async def luo_script_find_key(redis_client: Redis, key_str: str):
                 table.insert(all_keys, key)
                 table.insert(debug_info, ' Found key: ' .. key)
             end
-            iteration  = iteration  + 1
-            table.insert(debug_info, '\nRedis SCAN got result. Cursor:' .. result[1] .. ' \n Keys:' .. #result[2])
+            iteration = iteration  + 1
+            table.insert(debug_info, 'Redis SCAN got result. Cursor:' .. result[1] .. 'Keys:' .. #result[2])
         end
     until cursor == '0'
-    table.insert(debug_info, '\nRedis SCAN complete. Total keys found: ' .. #all_keys)
-    return  cjson.encode({keys = all_keys, debug = debug_info})
+    table.insert(debug_info, 'Redis SCAN complete. Total keys found: ' .. #all_keys)
+    return cjson.encode({keys = all_keys, debug = debug_info})
     """
 
     result = await asyncio.wait_for(redis_client.eval(script, 1, key_str), 7)
