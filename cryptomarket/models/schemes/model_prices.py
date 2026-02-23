@@ -14,7 +14,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
-    UniqueConstraint,
+    UniqueConstraint, BigInteger,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
@@ -59,7 +59,7 @@ class PriceTicker(BaseModel):
         nullable=True,
     )
     timestamp: Mapped[int] = mapped_column(
-        Integer,
+        BigInteger,
         nullable=False,
         doc="""The timestamp (milliseconds since the Unix epoch)
     Example: 1536569522277. Required

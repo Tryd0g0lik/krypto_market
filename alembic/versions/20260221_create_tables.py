@@ -60,7 +60,7 @@ def upgrade() -> None:
         sa.Column("ticker", sa.String(length=10), nullable=False),
         sa.Column("instrument_name", sa.String(length=15), nullable=False),
         sa.Column("price", sa.Float(), nullable=True),
-        sa.Column("timestamp", sa.Integer(), nullable=False),
+        sa.Column("timestamp", sa.BigInteger(), nullable=False),
         sa.Column("stats_value", sa.Float(), nullable=False),
         sa.Column("stats_low", sa.Float(), nullable=False),
         sa.Column("stats_high", sa.Float(), nullable=False),
