@@ -23,7 +23,7 @@ COPY ./requirements.txt /www/src/
 COPY ./requirements-base.txt /www/src/
 COPY ./requirements-db.txt /www/src/
 COPY ./requirements-redis.txt /www/src/
-RUN --mount=type=cache, target=/var/cache/pip \
+RUN --mount=type=cache,target=/var/cache/pip \
     pip install --no-cache-dir -r requirements.txt
 
 COPY . /www/src/

@@ -155,7 +155,6 @@ services:
                     cpus: "1.0"
                 reservations:
                     memory: 512M
-
     # =====================
     # Celery Worker
     # =====================
@@ -172,7 +171,6 @@ services:
             - sh
             - -c
             - "celery -A cryptomarket.project.celery_ worker --loglevel=info"
-
         volumes:
             - .:/www/src
         depends_on:
