@@ -77,7 +77,6 @@ async def func(*args):
                         SUPPORTED_CURRENCIES.get(header_currency)[0],
                     )
                     await ws.send_json(request_data)
-                    log.warning("DEBUG CELERY  TASK3")
                     # ===============================
                     # WSS RESPONSE FROM THE EXTERNAL SERVER.
                     # ===============================
@@ -88,7 +87,6 @@ async def func(*args):
                          Request data is: {json.dumps(request_data)}.\n"""
                         )
                         continue
-                    log.warning("DEBUG CELERY  TASK4")
                     if "errror" in response_data:
                         log.error(
                             f"""\n We get error from external deribit server!\
@@ -97,7 +95,6 @@ async def func(*args):
                           & Response data is: {json.dumps(response_data)}.\n """
                         )
                         continue
-                    log.warning("DEBUG CELERY  TASK5")
                     result = response_data.get("result")
                     # ----
                     async with lock:
