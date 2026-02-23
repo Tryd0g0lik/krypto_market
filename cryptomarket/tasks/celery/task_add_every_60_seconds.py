@@ -31,7 +31,6 @@ async def func(*args):
 
     try:
         [manager, workers, connection_db, task_register] = args
-        log.warning("DEBUG CELERY TASK START ...")
         currency_dict: str | None = await get_record(
             RadisKeysEnum.DERIBIT_CURRENCY.value
         )
@@ -41,8 +40,6 @@ async def func(*args):
         currency_dict: dict = json.loads(currency_dict)
         person_manager = manager.person_manager
         SUPPORTED_CURRENCIES = person_manager.SUPPORTED_CURRENCIES
-
-        log.warning(f"DEBUG CELERY TASK 'currency_dict': {currency_dict}")
         full_list = {k: v for k, v in currency_dict.items() if len(v) > 0}
         if len(full_list) == 0:
             return False
@@ -59,12 +56,10 @@ async def func(*args):
         client: DeribitClient = workers.get_clients()
         task_register.register(client)
         person_manager.client = client
-
-        log.warning("DEBUG CELERY  TASK0")
         async with person_manager.ws_json() as ws:
             while len(full_list) > 0:
                 async with semaphore:
-                    log.warning("DEBUG CELERY  TASK1")
+
                     k, v = full_list.popitem()
                     header_currency = (k.split("_"))[0].upper()
                     if header_currency not in SUPPORTED_CURRENCIES:
@@ -185,7 +180,6 @@ async def func(*args):
     except Exception as e:
         log.error(f"CELERY ERROR => {e.args[0] if e.args else str(e)}")
         return False
-
 
 
 #

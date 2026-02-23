@@ -322,7 +322,7 @@ async def event_generator(
                         pass
                     timeout_lest += timeout
                 else:
-                   pass
+                    pass
             except Exception as e:
                 log.warning(
                     f"[event_generator]: Redis luo script failed, Result: {str(result)} Error: {e.args[0] if e.args else str(e)}"
@@ -337,7 +337,7 @@ async def event_generator(
                     # for mess in queue.get_nowait():
                     message_str = queue.get_nowait()
                     yield f'event: message: "index_app": "{user_id}", "message": {message_str}\n\n'
-                except Exception as e:
+                except Exception:
                     message_str = await asyncio.wait_for(queue.get(), 7)
                     yield f'event: message: "index_app": "{user_id}", "message": {message_str}\n\n'
             except (asyncio.TimeoutError, asyncio.QueueEmpty):
@@ -475,7 +475,12 @@ async def set_record(
     context_redis_connection = deribit_limited.context_redis_connection
 
     try:
-
+        log.warning(
+            "---------------------------------------------------------------------------\n"
+        )
+        log.warning(
+            f"DEBUG 'currency_dict' 'args': {args[0]} & kwargs: {json.dumps(kwargs)}\n"
+        )
         async with context_redis_connection() as redis_client:
             result_ = await asyncio.wait_for(
                 redis_client.setex(

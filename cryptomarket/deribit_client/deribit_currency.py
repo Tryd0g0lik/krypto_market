@@ -242,7 +242,7 @@ class CryptoCurrency:
         # ---- CACHE SERVER
         # ===============================
         await set_record(
-            RadisKeysEnum.DERIBIT_CURRENCY.value.strip(), {**self.currency_dict}
+            RadisKeysEnum.DERIBIT_CURRENCY.value.strip(), **self.currency_dict
         )
         # async with context_redis_connection() as redis:
         #     await redis.setex(
