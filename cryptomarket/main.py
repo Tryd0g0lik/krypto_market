@@ -14,8 +14,6 @@ async def main() -> None:
         "cryptomarket.project.app:app",
         host=APP_HOST_,
         port=int(APP_PORT_),
-        workers=2,
-        limit_max_requests=1000,
         reload=True,
         reload_dirs=["cryptomarket"],
     )

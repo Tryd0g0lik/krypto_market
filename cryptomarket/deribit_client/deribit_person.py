@@ -319,12 +319,6 @@ class PersonManager:
                             await ws.close()
                             await session.close()
         except Exception as e:
-
-            log.info(
-                "DEBUG WS 2 ERROR %s.%s  ",
-                self.__class__.__name__,
-                self.ws_json.__name__,
-            )
             log_err = "[%s]: ERROR => %s" % (
                 self.log_t % self.ws_json.__name__,
                 e.args[0] if e.args else str(e),

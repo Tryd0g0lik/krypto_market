@@ -76,3 +76,4 @@ acme.json
 *.sqlit3
 poetry.lock
 !.github
+celerybeat-*

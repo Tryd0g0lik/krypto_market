@@ -30,7 +30,6 @@ async def func(*args, **kwargs):
     [manager, workers, connection_db, task_register, rate_limit] = args
     task_register: TaskRegistery
     rate_limit: DeribitLimited
-    tracemalloc.start()
     async with rate_limit.context_redis_connection() as redis:
         try:
             async with rate_limit.semaphore:
@@ -248,8 +247,7 @@ async def func(*args, **kwargs):
                             pass
         except Exception as e:
             log.error(f"""ERROR => '{e.args[0] if e.args else str(e)}'""")
-        finally:
-            get_memory_size(tracemalloc)
+
         return None
 
 

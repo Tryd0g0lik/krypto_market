@@ -135,7 +135,7 @@ async def checkOrCreateTables(settings: SettingsProps, max_restart=3) -> None:
             )
         elif not DEBUG and PROJECT_MODE_ == "production":
             db_url = settings.get_database_url_external
-            log.info(f"Using PostgreSQL for production: {db_url}")
+            log.info(f"Using PostgreSQL for production: db_url")
             db = DatabaseConnection(db_url)
 
         else:

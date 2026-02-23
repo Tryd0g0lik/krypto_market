@@ -5,7 +5,6 @@ cryptomarket/tasks/celery/task_add_every_60_seconds.py
 import asyncio
 import json
 import logging
-import tracemalloc
 from datetime import datetime
 
 from sqlalchemy.dialects.postgresql import insert
@@ -29,7 +28,7 @@ log.setLevel(logging.INFO)
 
 
 async def func(*args):
-    tracemalloc.start()
+
     try:
         [manager, workers, connection_db, task_register] = args
         log.warning("DEBUG CELERY TASK START ...")
@@ -186,8 +185,7 @@ async def func(*args):
     except Exception as e:
         log.error(f"CELERY ERROR => {e.args[0] if e.args else str(e)}")
         return False
-    finally:
-        get_memory_size(tracemalloc)
+
 
 
 #

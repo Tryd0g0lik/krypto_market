@@ -37,7 +37,7 @@ router_v2 = APIRouter(
     summary="SSE Crypto exchange rate monitoring",
 )
 async def sse_monitoring(request: Request) -> StreamingResponse:
-    tracemalloc.start()
+
     response = await sse_monitoring_child(request)
-    get_memory_size(tracemalloc)
+
     return response

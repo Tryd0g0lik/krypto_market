@@ -306,7 +306,6 @@ async def event_generator(
 
                 async with rate_limit.context_redis_connection() as redis_client:
                     result = await luo_script_find_key(redis_client, "sse_connection:*")
-                    log.warning("DEBUG SSE CONNECTION RESULT OF CACHE: %s", str(result))
                 result = json.loads(result)
                 result_dict = {}
                 if list(result.keys())[0] is not None and timeout_lest <= 0:
@@ -320,12 +319,10 @@ async def event_generator(
                             result_dict = json.loads(result_str)
                         await sse_manager.broadcast(result_dict)
                     else:
-                        log.warning("DEBUG SSE CONNECTION NOT RESULT OF CACHE")
-                    timeout_lest += timedelta(seconds=timeout)
+                        pass
+                    timeout_lest += timeout
                 else:
-                    log.warning(
-                        "DEBUG SSE CONNECTION RESULT: %s",
-                    )
+                   pass
             except Exception as e:
                 log.warning(
                     f"[event_generator]: Redis luo script failed, Result: {str(result)} Error: {e.args[0] if e.args else str(e)}"
@@ -341,9 +338,6 @@ async def event_generator(
                     message_str = queue.get_nowait()
                     yield f'event: message: "index_app": "{user_id}", "message": {message_str}\n\n'
                 except Exception as e:
-                    log.warning(
-                        f"[event_generator]: event: message: Error: {e.args[0] if e.args else str(e)}"
-                    )
                     message_str = await asyncio.wait_for(queue.get(), 7)
                     yield f'event: message: "index_app": "{user_id}", "message": {message_str}\n\n'
             except (asyncio.TimeoutError, asyncio.QueueEmpty):
@@ -362,7 +356,6 @@ async def event_generator(
     except asyncio.CancelledError:
         pass
     except Exception as e:
-        log.info("DEBUG 2 BEFORE __setitem__ ")
         error_event = {}
         error_event.__setitem__("event", "error")
         error_event.__setitem__("detail", {})
@@ -552,9 +545,9 @@ async def luo_script_find_key(redis_client: Redis, key_str: str):
     local debug_info = {}
     local pattern = KEYS[1]
     local iteration  = 1
-    table.insert(debug_info, '=== SCAN RESULT ===')
+    table.insert(debug_info, '=== SCAN RESULT === \n')
     repeat
-        table.insert(debug_info, 'Start luo script. iteration : ' .. iteration  .. 'whith cursor: ' .. cursor)
+        table.insert(debug_info, '\nStart luo script. iteration : ' .. iteration  .. '\nwhith cursor: ' .. cursor)
         local result = redis.call('SCAN', cursor, 'MATCH', pattern, 'COUNT', 500)
         cursor = result[1]
         if #result[2] > 0 then
@@ -563,10 +556,10 @@ async def luo_script_find_key(redis_client: Redis, key_str: str):
                 table.insert(debug_info, ' Found key: ' .. key)
             end
             iteration  = iteration  + 1
-            table.insert(debug_info, 'Redis SCAN got result. Cursor:' .. result[1] .. ' & Keys:' .. #result[2])
+            table.insert(debug_info, '\nRedis SCAN got result. Cursor:' .. result[1] .. ' \n Keys:' .. #result[2])
         end
     until cursor == '0'
-    table.insert(debug_info, 'Redis SCAN complete. Total keys found: ' .. #all_keys)
+    table.insert(debug_info, '\nRedis SCAN complete. Total keys found: ' .. #all_keys)
     return  cjson.encode({keys = all_keys, debug = debug_info})
     """
 

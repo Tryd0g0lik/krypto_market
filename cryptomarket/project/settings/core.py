@@ -204,10 +204,15 @@ class Settings(SettingsProps):
             hosts.insert(0, f"{self.APP_HOST}")
             hosts += [
                 "db",
+                "postgres",
                 "backend",
+                "api",
                 "nginx",
-                "celery",
+                "celery_beat",
+                "celery_worker",
+                "proxiserver",
                 "redis",
+                "cache",
                 "[::1]",
             ]
 

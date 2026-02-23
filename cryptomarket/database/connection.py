@@ -292,8 +292,8 @@ class DatabaseConnection(Database):
         from cryptomarket.models import Base
 
         try:
-            engine: AsyncEngine = self.engine
-            session: AsyncSession = self.session_factory()
+            engine: AsyncEngine|create_engine = self.engine
+            session: AsyncSession|Session = self.session_factory()
             if not session:
                 self.init_engine()
             if self.is_async:
@@ -316,6 +316,10 @@ class DatabaseConnection(Database):
                         )
                         log.error(log_t)
                         raise log_t
+                    # finally:
+                    #     await conn.close()
+                    #     await session.close()
+
             else:
                 with engine.begin() as conn:
                     try:
@@ -335,6 +339,9 @@ class DatabaseConnection(Database):
                         )
                         log.error(log_t)
                         raise log_t
+                    # finally:
+                    #     await conn.close()
+                    #     await session.close()
             # async with engine.begin() as conn:
             #     await conn.run_sync(Base.metadata.create_all)
             #     await conn.commit()
