@@ -10,3 +10,15 @@ nginx
 *test*
 frondend
 project
+__pycache__
+*.pyc
+.git
+.env
+alembic/versions/*.py
+!alembic/**/__init__.py
+**/__pycache__
+**/*.pyc
+.venv
+.pytest_cache
+.coverage
+htmlcov

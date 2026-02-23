@@ -31,6 +31,10 @@ services:
             options:
                 max-size: "10m"
                 max-file: "3"
+        deploy:
+            resources:
+                limits:
+                    memory: 1G
     # =====================
     # FastAPI Application
     # =====================
@@ -54,6 +58,7 @@ services:
             REDIS_HOST: 'redis'
             REDIS_PORT: 6379
             PYTHONPATH: /www/src
+            WEB_CONCURRENCY: 2
         volumes:
             - ./:/www/src
             - volume_static:/www/src/collectstatic
@@ -143,6 +148,13 @@ services:
             options:
                 max-size: "10m"
                 max-file: "3"
+        deploy:
+            resources:
+                limits:
+                    memory: 512M
+                    cpus: "1.0"
+                reservations:
+                    memory: 256M
     # =====================
     # Celery Worker
     # =====================
@@ -177,6 +189,11 @@ services:
             options:
                 max-size: "10m"
                 max-file: "3"
+        deploy:
+            resources:
+                limits:
+                    memory: 256M
+                    cpus: "0.5"
     # =====================
     # Celery Beat (Scheduler)
     # =====================
@@ -205,6 +222,11 @@ services:
         networks:
             - backend
         restart: unless-stopped
+        deploy:
+            resources:
+                limits:
+                    memory: 256M
+                    cpus: "0.2"
     # =====================
     # Flower (Celery Monitoring)
     # =====================
@@ -257,6 +279,11 @@ services:
                 aliases:
                     - nginx
                     - proxiserver
+        deploy:
+            resources:
+                limits:
+                    memory: 215M
+                    cpus: "0.5"
     adminer:
         container_name: ${COMPOSE_PROJECT_NAME:-fastapi}_adminer
         image: adminer:4.8.1
@@ -295,6 +322,11 @@ services:
                 aliases:
                     - radis
                     - cache
+        deploy:
+            resources:
+                limits:
+                    memory: 512M
+                    cpus: "0.2"
 volumes:
     redis_data:
     volume_static:

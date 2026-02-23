@@ -4,8 +4,10 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/www/src
 ENV PIP_CACHE_DIR=/var/cache/pip
+ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so.2
+ENV MALLOC_CONF=background_thread:true,dirty_decay_ms:1000,muzzy_decay_ms:1000
 LABEL maintainer="work80@mail.ru"
-LABEL description="FastAPI block for crypto market"
+LABEL description="FastAPI block for the crypto market it's web project."
 RUN mkdir /www && \
     mkdir /www/src
 WORKDIR /www/src
@@ -22,7 +24,10 @@ COPY ./requirements-base.txt /www/src/
 COPY ./requirements-db.txt /www/src/
 COPY ./requirements-redis.txt /www/src/
 RUN --mount=type=cache,target=/var/cache/pip \
-    pip install --no-cache-dir -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt \
+
+
+
 
 COPY . /www/src/
 COPY alembic/versions /www/src/alembic/versions

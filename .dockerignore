@@ -14,3 +14,14 @@ nginx
 /__tests__
 *-dependencies.txt
 *.sqlite3
+*.pyc
+.git
+.env
+alembic/versions/*.py
+!alembic/**/__init__.py
+**/__pycache__
+**/*.pyc
+.venv
+.pytest_cache
+.coverage
+htmlcov
