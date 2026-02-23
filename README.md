@@ -208,3 +208,6 @@ alembic ато генерация файла миграции работает �
 
 In line ForaignKey I didn't use the schema  
 
+----
+
+Жёсткие лимиты в uvicorn и docker-compose.*
