@@ -5,6 +5,7 @@ cryptomarket/tasks/celery/task_send_every_60_seconds.py
 import asyncio
 import json
 import logging
+import tracemalloc
 
 from sqlalchemy import and_, desc, or_, select, update
 
@@ -13,7 +14,11 @@ from cryptomarket.errors import DatabaseConnectionCoroutineError
 from cryptomarket.models import PriceTicker
 from cryptomarket.project import celery_deribit
 from cryptomarket.project.enums import RadisKeysEnum
-from cryptomarket.project.functions import luo_script_find_key, run_asyncio_debug
+from cryptomarket.project.functions import (
+    get_memory_size,
+    luo_script_find_key,
+    run_asyncio_debug,
+)
 from cryptomarket.project.task_registeration import TaskRegistery
 
 lock = asyncio.Lock()
@@ -25,7 +30,7 @@ async def func(*args, **kwargs):
     [manager, workers, connection_db, task_register, rate_limit] = args
     task_register: TaskRegistery
     rate_limit: DeribitLimited
-
+    tracemalloc.start()
     async with rate_limit.context_redis_connection() as redis:
         try:
             async with rate_limit.semaphore:
@@ -243,6 +248,8 @@ async def func(*args, **kwargs):
                             pass
         except Exception as e:
             log.error(f"""ERROR => '{e.args[0] if e.args else str(e)}'""")
+        finally:
+            get_memory_size(tracemalloc)
         return None
 
 

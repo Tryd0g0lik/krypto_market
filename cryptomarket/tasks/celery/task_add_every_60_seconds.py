@@ -5,6 +5,7 @@ cryptomarket/tasks/celery/task_add_every_60_seconds.py
 import asyncio
 import json
 import logging
+import tracemalloc
 from datetime import datetime
 
 from sqlalchemy.dialects.postgresql import insert
@@ -14,7 +15,11 @@ from cryptomarket.errors import DatabaseConnectionCoroutineError
 from cryptomarket.models import PriceTicker
 from cryptomarket.project import TaskRegisteryType, celery_deribit
 from cryptomarket.project.enums import RadisKeysEnum
-from cryptomarket.project.functions import get_record, run_asyncio_debug
+from cryptomarket.project.functions import (
+    get_memory_size,
+    get_record,
+    run_asyncio_debug,
+)
 from cryptomarket.type import DeribitClient
 
 semaphore = asyncio.Semaphore(40)
@@ -24,6 +29,7 @@ log.setLevel(logging.INFO)
 
 
 async def func(*args):
+    tracemalloc.start()
     try:
         [manager, workers, connection_db, task_register] = args
         log.warning("DEBUG CELERY TASK START ...")
@@ -180,6 +186,8 @@ async def func(*args):
     except Exception as e:
         log.error(f"CELERY ERROR => {e.args[0] if e.args else str(e)}")
         return False
+    finally:
+        get_memory_size(tracemalloc)
 
 
 #
