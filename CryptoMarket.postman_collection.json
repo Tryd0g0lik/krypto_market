@@ -43,14 +43,11 @@
               }
             ],
             "url": {
-              "raw": "http://{{url_removed}}:8003/api/v2/sse/connection?timer=60",
-              "protocol": "http",
+              "raw": "{{url_remote}}/v2/sse/connection?timer=60",
               "host": [
-                "{{url_removed}}"
+                "{{url_remote}}"
               ],
-              "port": "8003",
               "path": [
-                "api",
                 "v2",
                 "sse",
                 "connection"
@@ -243,14 +240,11 @@
               }
             ],
             "url": {
-              "raw": "http://{{url_removed}}:8003/api/v1/market/{{x_user_id}}/create_order/{{ticker}}",
-              "protocol": "http",
+              "raw": "{{url_remote}}/v1/market/{{x_user_id}}/create_order/{{ticker}}",
               "host": [
-                "{{url_removed}}"
+                "{{url_remote}}"
               ],
-              "port": "8003",
               "path": [
-                "api",
                 "v1",
                 "market",
                 "{{x_user_id}}",
@@ -550,17 +544,11 @@
               }
             ],
             "url": {
-              "raw": "http://127.0.0.1:8003/api/v1/market/{{x_user_id}}/cancel_order/{{ticker}}",
-              "protocol": "http",
+              "raw": "{{url_remote}}/v1/market/{{x_user_id}}/cancel_order/{{ticker}}",
               "host": [
-                "127",
-                "0",
-                "0",
-                "1"
+                "{{url_remote}}"
               ],
-              "port": "8003",
               "path": [
-                "api",
                 "v1",
                 "market",
                 "{{x_user_id}}",
@@ -725,14 +713,11 @@
               }
             ],
             "url": {
-              "raw": "http://{{url_removed}}:8003/api/v1/market/{{x_user_id}}/get_order/{{ticker}}?start_date=2026-02-24_0:0:0&end_date=2026-02-24_0:0:0",
-              "protocol": "http",
+              "raw": "{{url_remote}}/v1/market/{{x_user_id}}/get_order/{{ticker}}?start_date=2026-02-24_0:0:0&end_date=2026-02-24_0:0:0",
               "host": [
-                "{{url_removed}}"
+                "{{url_remote}}"
               ],
-              "port": "8003",
               "path": [
-                "api",
                 "v1",
                 "market",
                 "{{x_user_id}}",
