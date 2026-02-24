@@ -26,7 +26,7 @@ setting = settings()
 
 
 # ==============================
-# ---- DERIBIT MENEGE
+# ---- DERIBIT MENAGE
 # ==============================
 class DeribitManage(DeribitManageType):
     _deque_postman = deque(maxlen=setting.DERIBIT_QUEUE_SIZE)

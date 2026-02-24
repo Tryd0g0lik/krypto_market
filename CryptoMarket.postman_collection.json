@@ -1,0 +1,987 @@
+{
+  "info": {
+    "_postman_id": "29ec9555-2d2d-4359-bd1f-a6e96db29bd4",
+    "name": "CryptoMarket",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "25957669"
+  },
+  "item": [
+    {
+      "name": "sse",
+      "item": [
+        {
+          "name": "sse_V2",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "type": "text",
+                "disabled": true
+              },
+              {
+                "key": "X-Client-Id",
+                "value": "{{x_client_Id}}",
+                "description": "Индекс от Дерибита для работы с образхом который имеет личной, взамен ананиму.",
+                "type": "text"
+              },
+              {
+                "key": "X-Secret-key",
+                "value": "{{x_secret_key}}",
+                "description": "Требуется секретный ключ четной записи Deribit для работы с образхом который имеет личной, взамен ананиму.",
+                "type": "text"
+              },
+              {
+                "key": "X-User-id",
+                "value": "{{x_user_id}}",
+                "description": "Требуется пользовательский индекс из приложения. К ниму привязка данных и послеующих запросов.. Тип строка или цифра.",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url_removed}}:8003/api/v2/sse/connection?timer=60",
+              "protocol": "http",
+              "host": [
+                "{{url_removed}}"
+              ],
+              "port": "8003",
+              "path": [
+                "api",
+                "v2",
+                "sse",
+                "connection"
+              ],
+              "query": [
+                {
+                  "key": "tickers",
+                  "value": "\"btc_usd, eth_usd\"",
+                  "description": "Mnitoring elements",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "timer",
+                  "value": "60",
+                  "description": "В секундах указываем интервал времени для обносления данных с курсом валюты. По SSE два поступления, это данные с курсом и пустой пинг который поступает чаще 60 секунд. Данные беруться из базы данных. Пока база пустая, по SSE поступает пустой пинг."
+                }
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "sse_V2_200",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{access_token}}",
+                    "type": "text",
+                    "disabled": true
+                  },
+                  {
+                    "key": "X-Client-Id",
+                    "value": "{{x_client_Id}}",
+                    "description": "Index fron Deribit. Required",
+                    "type": "text"
+                  },
+                  {
+                    "key": "X-Secret-key",
+                    "value": "{{x_secret_key}}",
+                    "description": "Secret key for Deribit acount Required",
+                    "type": "text"
+                  },
+                  {
+                    "key": "X-User-id",
+                    "value": "{{x_user_id}}",
+                    "description": "User Index from app Required",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://127.0.0.1:8003/api/v2/sse/connection?timer=15",
+                  "protocol": "http",
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "port": "8003",
+                  "path": [
+                    "api",
+                    "v2",
+                    "sse",
+                    "connection"
+                  ],
+                  "query": [
+                    {
+                      "key": "tickers",
+                      "value": "\"btc_usd, eth_usd\"",
+                      "description": "Mnitoring elements",
+                      "type": "text",
+                      "disabled": true
+                    },
+                    {
+                      "key": "timer",
+                      "value": "15",
+                      "description": "TImer from seconds. Defaule 60 seconds/ You can regulate the time interval for provide information, self. Min time interval it's 0 seconds"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "",
+              "header": [
+                {
+                  "key": "date",
+                  "value": "Sat, 14 Feb 2026 09:41:39 GMT"
+                },
+                {
+                  "key": "server",
+                  "value": "uvicorn"
+                },
+                {
+                  "key": "cache-control",
+                  "value": "no-cache, no-transform"
+                },
+                {
+                  "key": "connection",
+                  "value": "keep-alive"
+                },
+                {
+                  "key": "x-accel-buffering",
+                  "value": "no"
+                },
+                {
+                  "key": "access-control-allow-origin",
+                  "value": "*"
+                },
+                {
+                  "key": "access-control-expose-headers",
+                  "value": "Content-Type"
+                },
+                {
+                  "key": "content-type",
+                  "value": "text/event-stream; charset=utf-8"
+                },
+                {
+                  "key": "access-control-allow-methods",
+                  "value": "HEAD,OPTIONS,TRACE,GET,PUT,DELETE,PATCH,POST"
+                },
+                {
+                  "key": "access-control-allow-headers",
+                  "value": "accept,accept-encoding,Authorization,content-type,dnt,origin,user-agent,x-csrftoken,x-requested-with,Accept-Language,Content-Language,X-Language,X-Request-ID,X-Client-Id,X-User-ID,X-Secret-key,access_token"
+                },
+                {
+                  "key": "transfer-encoding",
+                  "value": "chunked"
+                }
+              ],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "event: connected\n detail: {\"status\": \"waiting_for_exchange\", \"message\": \"Waiting for the exchange rate ...\", \"timestamp\": \"1314068.5579195\"} \n\nevent: keep_alive\ndetail: {\"status\": \"connected\", \"timestamp\": \"1314115.2897373\"}\n\nevent: keep_alive\ndetail: {\"status\": \"connected\", \"timestamp\": \"1314130.2992497\"}\n\n\n"
+            }
+          ]
+        }
+      ],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {},
+            "exec": [
+              ""
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {},
+            "exec": [
+              ""
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "http",
+      "item": [
+        {
+          "name": "v1_currency",
+          "protocolProfileBehavior": {
+            "protocolVersion": "http2",
+            "followRedirects": false
+          },
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "c78afe5b-e101-4c3a-863c-12a64767ff2c",
+                "description": "Если запрос поступит без данного ID, запрос получит ID под капотом.  Можно применить в логи , чтоб отслеживать маршрут запроса.",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url_removed}}:8003/api/v1/market/{{x_user_id}}/create_order/{{ticker}}",
+              "protocol": "http",
+              "host": [
+                "{{url_removed}}"
+              ],
+              "port": "8003",
+              "path": [
+                "api",
+                "v1",
+                "market",
+                "{{x_user_id}}",
+                "create_order",
+                "{{ticker}}"
+              ]
+            },
+            "description": "Маршрут получает \"_{{x_user_id}}_\" тот самый ( \"_X-User-id_\")который используем при подключении SSE.\n\nTicker:\n\n- \"_btc_usd_\"\n    \n- \"_**eth_usd**_\"\n    \n\nTicker доллжен присутствовать в списке вожможных \"_Settings.CURRENCY_FOR_CHOOSING_\". по маршруту \"_cryptomarket/project/settings/core.py_\". Иначе не пройдёт проверку."
+          },
+          "response": [
+            {
+              "name": "v1_history_200",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Request-ID",
+                    "value": "c78afe5b-e101-4c3a-863c-12a64767ff2c",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://127.0.0.1:8003/api/v1/market/{{x_user_id}}/create_order/btc_usd",
+                  "protocol": "http",
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "port": "8003",
+                  "path": [
+                    "api",
+                    "v1",
+                    "market",
+                    "{{x_user_id}}",
+                    "create_order",
+                    "btc_usd"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "",
+              "header": [
+                {
+                  "key": "date",
+                  "value": "Sat, 14 Feb 2026 09:37:38 GMT"
+                },
+                {
+                  "key": "server",
+                  "value": "uvicorn"
+                },
+                {
+                  "key": "content-length",
+                  "value": "0"
+                },
+                {
+                  "key": "access-control-allow-origin",
+                  "value": "*"
+                },
+                {
+                  "key": "access-control-allow-methods",
+                  "value": "HEAD,OPTIONS,TRACE,GET,PUT,DELETE,PATCH,POST"
+                },
+                {
+                  "key": "access-control-allow-headers",
+                  "value": "accept,accept-encoding,Authorization,content-type,dnt,origin,user-agent,x-csrftoken,x-requested-with,Accept-Language,Content-Language,X-Language,X-Request-ID,X-Client-Id,X-User-ID,X-Secret-key,access_token"
+                }
+              ],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\"detail\": \"Ticker was added before!\"}"
+            },
+            {
+              "name": "v1_currency_401",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Request-ID",
+                    "value": "c78afe5b-e101-4c3a-863c-12a64767ff2c",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://127.0.0.1:8003/api/v1/market/{{x_user_id}}/create_order/btc_usd",
+                  "protocol": "http",
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "port": "8003",
+                  "path": [
+                    "api",
+                    "v1",
+                    "market",
+                    "{{x_user_id}}",
+                    "create_order",
+                    "btc_usd"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "",
+              "header": [
+                {
+                  "key": "date",
+                  "value": "Sat, 14 Feb 2026 09:40:11 GMT"
+                },
+                {
+                  "key": "server",
+                  "value": "uvicorn"
+                },
+                {
+                  "key": "content-length",
+                  "value": "0"
+                },
+                {
+                  "key": "access-control-allow-origin",
+                  "value": "*"
+                },
+                {
+                  "key": "access-control-allow-methods",
+                  "value": "HEAD,OPTIONS,TRACE,GET,PUT,DELETE,PATCH,POST"
+                },
+                {
+                  "key": "access-control-allow-headers",
+                  "value": "accept,accept-encoding,Authorization,content-type,dnt,origin,user-agent,x-csrftoken,x-requested-with,Accept-Language,Content-Language,X-Language,X-Request-ID,X-Client-Id,X-User-ID,X-Secret-key,access_token"
+                }
+              ],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\"detail\": \"User not found!\"}"
+            },
+            {
+              "name": "v1_currency_201",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Request-ID",
+                    "value": "c78afe5b-e101-4c3a-863c-12a64767ff2c",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://127.0.0.1:8003/api/v1/market/{{x_user_id}}/create_order/btc_usd",
+                  "protocol": "http",
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "port": "8003",
+                  "path": [
+                    "api",
+                    "v1",
+                    "market",
+                    "{{x_user_id}}",
+                    "create_order",
+                    "btc_usd"
+                  ]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "",
+              "header": [
+                {
+                  "key": "date",
+                  "value": "Sat, 14 Feb 2026 09:41:53 GMT"
+                },
+                {
+                  "key": "server",
+                  "value": "uvicorn"
+                },
+                {
+                  "key": "content-length",
+                  "value": "0"
+                },
+                {
+                  "key": "access-control-allow-origin",
+                  "value": "*"
+                },
+                {
+                  "key": "access-control-allow-methods",
+                  "value": "HEAD,OPTIONS,TRACE,GET,PUT,DELETE,PATCH,POST"
+                },
+                {
+                  "key": "access-control-allow-headers",
+                  "value": "accept,accept-encoding,Authorization,content-type,dnt,origin,user-agent,x-csrftoken,x-requested-with,Accept-Language,Content-Language,X-Language,X-Request-ID,X-Client-Id,X-User-ID,X-Secret-key,access_token"
+                }
+              ],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\"detail\": \"Ticker was added (in queue for monitoring) successfully!\"}"
+            },
+            {
+              "name": "v1_currency_500",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Request-ID",
+                    "value": "c78afe5b-e101-4c3a-863c-12a64767ff2c",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://127.0.0.1:8003/api/v1/market/{{x_user_id}}/create_order/btc_usd",
+                  "protocol": "http",
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "port": "8003",
+                  "path": [
+                    "api",
+                    "v1",
+                    "market",
+                    "{{x_user_id}}",
+                    "create_order",
+                    "btc_usd"
+                  ]
+                }
+              },
+              "status": "Internal Server Error",
+              "code": 500,
+              "_postman_previewlanguage": "",
+              "header": [
+                {
+                  "key": "date",
+                  "value": "Sun, 15 Feb 2026 06:16:55 GMT"
+                },
+                {
+                  "key": "server",
+                  "value": "uvicorn"
+                },
+                {
+                  "key": "content-length",
+                  "value": "5214"
+                },
+                {
+                  "key": "content-type",
+                  "value": "text/plain; charset=utf-8"
+                }
+              ],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\"detail\": \"ERROR => ....\"}"
+            }
+          ]
+        },
+        {
+          "name": "v1_currency_cancel",
+          "protocolProfileBehavior": {
+            "protocolVersion": "http2",
+            "followRedirects": false
+          },
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "c78afe5b-e101-4c3a-863c-12a64767ff2c",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://127.0.0.1:8003/api/v1/market/{{x_user_id}}/cancel_order/{{ticker}}",
+              "protocol": "http",
+              "host": [
+                "127",
+                "0",
+                "0",
+                "1"
+              ],
+              "port": "8003",
+              "path": [
+                "api",
+                "v1",
+                "market",
+                "{{x_user_id}}",
+                "cancel_order",
+                "{{ticker}}"
+              ]
+            }
+          },
+          "response": [
+            {
+              "name": "v1_currency_500",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Request-ID",
+                    "value": "c78afe5b-e101-4c3a-863c-12a64767ff2c",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://127.0.0.1:8003/api/v1/market/{{x_user_id}}/create_order/btc_usd",
+                  "protocol": "http",
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "port": "8003",
+                  "path": [
+                    "api",
+                    "v1",
+                    "market",
+                    "{{x_user_id}}",
+                    "create_order",
+                    "btc_usd"
+                  ]
+                }
+              },
+              "status": "Internal Server Error",
+              "code": 500,
+              "_postman_previewlanguage": "",
+              "header": [
+                {
+                  "key": "date",
+                  "value": "Sun, 15 Feb 2026 06:16:55 GMT",
+                  "uuid": "a711c672-993f-451f-84c6-ae64207054ee"
+                },
+                {
+                  "key": "server",
+                  "value": "uvicorn",
+                  "uuid": "50d71f3e-5cea-4465-ae46-9c8c6e69bb99"
+                },
+                {
+                  "key": "content-length",
+                  "value": "5214",
+                  "uuid": "54cc817d-aa28-49e2-99ae-62d6abfd64f9"
+                },
+                {
+                  "key": "content-type",
+                  "value": "text/plain; charset=utf-8",
+                  "uuid": "787af853-bf8a-4a17-8a29-b5cec886646c"
+                }
+              ],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\"detail\": \"ERROR => ....\"}"
+            },
+            {
+              "name": "v1_currency_cancel_200",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Request-ID",
+                    "value": "c78afe5b-e101-4c3a-863c-12a64767ff2c",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://127.0.0.1:8003/api/v1/market/{{x_user_id}}/cancel_order/{{ticker}}",
+                  "protocol": "http",
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "port": "8003",
+                  "path": [
+                    "api",
+                    "v1",
+                    "market",
+                    "{{x_user_id}}",
+                    "cancel_order",
+                    "{{ticker}}"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "",
+              "header": [
+                {
+                  "key": "date",
+                  "value": "Sun, 15 Feb 2026 09:58:35 GMT"
+                },
+                {
+                  "key": "server",
+                  "value": "uvicorn"
+                },
+                {
+                  "key": "content-length",
+                  "value": "0"
+                },
+                {
+                  "key": "access-control-allow-origin",
+                  "value": "*"
+                },
+                {
+                  "key": "access-control-allow-methods",
+                  "value": "HEAD,OPTIONS,TRACE,GET,PUT,DELETE,PATCH,POST"
+                },
+                {
+                  "key": "access-control-allow-headers",
+                  "value": "accept,accept-encoding,Authorization,content-type,dnt,origin,user-agent,x-csrftoken,x-requested-with,Accept-Language,Content-Language,X-Language,X-Request-ID,X-Client-Id,X-User-ID,X-Secret-key,access_token"
+                }
+              ],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\"detail\": f\"Order per ticker: {ticker} cancel was successfully!\"}"
+            }
+          ]
+        },
+        {
+          "name": "v1_currency_filter",
+          "protocolProfileBehavior": {
+            "protocolVersion": "http2",
+            "followRedirects": false
+          },
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Request-ID",
+                "value": "c78afe5b-e101-4c3a-863c-12a64767ff2c",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "http://{{url_removed}}:8003/api/v1/market/{{x_user_id}}/get_order/{{ticker}}?start_date=2026-02-24_0:0:0&end_date=2026-02-24_0:0:0",
+              "protocol": "http",
+              "host": [
+                "{{url_removed}}"
+              ],
+              "port": "8003",
+              "path": [
+                "api",
+                "v1",
+                "market",
+                "{{x_user_id}}",
+                "get_order",
+                "{{ticker}}"
+              ],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2026-02-24_0:0:0",
+                  "description": "Менньше чем \"end_date\"."
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-02-24_0:0:0"
+                }
+              ]
+            },
+            "description": "Дата должна иметь шаблон %Y-%m-%d_%H:%M:%S. Например: \"_2026-02-24_0:0:0_\" или \"_2026-02-24_02:14:28_\"."
+          },
+          "response": [
+            {
+              "name": "v1_currency_401",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Request-ID",
+                    "value": "c78afe5b-e101-4c3a-863c-12a64767ff2c",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://127.0.0.1:8003/api/v1/market/{{x_user_id}}/create_order/btc_usd",
+                  "protocol": "http",
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "port": "8003",
+                  "path": [
+                    "api",
+                    "v1",
+                    "market",
+                    "{{x_user_id}}",
+                    "create_order",
+                    "btc_usd"
+                  ]
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "",
+              "header": [
+                {
+                  "key": "date",
+                  "value": "Sat, 14 Feb 2026 09:40:11 GMT",
+                  "uuid": "fcf5bcb4-c094-4060-bc17-d77cf8606c9d"
+                },
+                {
+                  "key": "server",
+                  "value": "uvicorn",
+                  "uuid": "c9df225f-b26c-4782-abe0-009f93138b49"
+                },
+                {
+                  "key": "content-length",
+                  "value": "0",
+                  "uuid": "08b5973f-00ba-4bf2-8469-50fa02dac301"
+                },
+                {
+                  "key": "access-control-allow-origin",
+                  "value": "*",
+                  "uuid": "b6bc9b8d-d691-4113-b66e-f600f6c58302"
+                },
+                {
+                  "key": "access-control-allow-methods",
+                  "value": "HEAD,OPTIONS,TRACE,GET,PUT,DELETE,PATCH,POST",
+                  "uuid": "35f69352-6ef6-4dad-a913-7ab0a4d85556"
+                },
+                {
+                  "key": "access-control-allow-headers",
+                  "value": "accept,accept-encoding,Authorization,content-type,dnt,origin,user-agent,x-csrftoken,x-requested-with,Accept-Language,Content-Language,X-Language,X-Request-ID,X-Client-Id,X-User-ID,X-Secret-key,access_token",
+                  "uuid": "59c9e6f6-f15d-469f-91ef-19e3b1e0cf9f"
+                }
+              ],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\"detail\": \"User not found!\"}"
+            },
+            {
+              "name": "v1_currency_500",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Request-ID",
+                    "value": "c78afe5b-e101-4c3a-863c-12a64767ff2c",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://127.0.0.1:8003/api/v1/market/{{x_user_id}}/create_order/btc_usd",
+                  "protocol": "http",
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "port": "8003",
+                  "path": [
+                    "api",
+                    "v1",
+                    "market",
+                    "{{x_user_id}}",
+                    "create_order",
+                    "btc_usd"
+                  ]
+                }
+              },
+              "status": "Internal Server Error",
+              "code": 500,
+              "_postman_previewlanguage": "",
+              "header": [
+                {
+                  "key": "date",
+                  "value": "Sun, 15 Feb 2026 06:16:55 GMT",
+                  "uuid": "f3e13c10-65d5-4a18-a8cf-ed06bcca6fb3"
+                },
+                {
+                  "key": "server",
+                  "value": "uvicorn",
+                  "uuid": "3d35de8e-6f7b-467d-81ec-86d8c214685e"
+                },
+                {
+                  "key": "content-length",
+                  "value": "5214",
+                  "uuid": "95b03207-79b0-48cf-8a99-b5469574702e"
+                },
+                {
+                  "key": "content-type",
+                  "value": "text/plain; charset=utf-8",
+                  "uuid": "aaaa5ddc-78e6-45d2-9fd6-83db10d7a437"
+                }
+              ],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\"detail\": \"ERROR => ....\"}"
+            },
+            {
+              "name": "v1_currency_filter_200",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-Request-ID",
+                    "value": "c78afe5b-e101-4c3a-863c-12a64767ff2c",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "http://127.0.0.1:8003/api/v1/market/{{x_user_id}}/get_order/eth_usd?start_date=2026-02-16_0:0:0&end_date=2026-02-18_0:0:0",
+                  "protocol": "http",
+                  "host": [
+                    "127",
+                    "0",
+                    "0",
+                    "1"
+                  ],
+                  "port": "8003",
+                  "path": [
+                    "api",
+                    "v1",
+                    "market",
+                    "{{x_user_id}}",
+                    "get_order",
+                    "eth_usd"
+                  ],
+                  "query": [
+                    {
+                      "key": "start_date",
+                      "value": "2026-02-16_0:0:0"
+                    },
+                    {
+                      "key": "end_date",
+                      "value": "2026-02-18_0:0:0"
+                    }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "date",
+                  "value": "Wed, 18 Feb 2026 11:04:18 GMT"
+                },
+                {
+                  "key": "server",
+                  "value": "uvicorn"
+                },
+                {
+                  "key": "content-length",
+                  "value": "0"
+                },
+                {
+                  "key": "access-control-allow-origin",
+                  "value": "*"
+                },
+                {
+                  "key": "access-control-allow-methods",
+                  "value": "HEAD,OPTIONS,TRACE,GET,PUT,DELETE,PATCH,POST"
+                },
+                {
+                  "key": "access-control-allow-headers",
+                  "value": "accept,accept-encoding,Authorization,content-type,dnt,origin,user-agent,x-csrftoken,x-requested-with,Accept-Language,Content-Language,X-Language,X-Request-ID,X-Client-Id,X-User-ID,X-Secret-key,access_token"
+                },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "description": "",
+                  "type": "text"
+                }
+              ],
+              "cookie": [
+                {
+                  "expires": "Invalid Date",
+                  "domain": "",
+                  "path": ""
+                }
+              ],
+              "body": "{\"detail\": \r\n    {\r\n        \"user_id\": \"XcQ7xuV\",\r\n         \"request_id\": \"c78afe5b-e101-4c3a-863c-12a64767ff2c\",\r\n          \"mapped_key\": \"sse_connection:XcQ7xuV:20260218180415\",\r\n           \"tickers\": \"eth_usd\", \r\n        \"message\": {\r\n            \"2026-02-16 04:24:43\": {\"price\": null, \"best_bid_price\": 1956.45, \"last_price\": 1957.7, \"timestamp\": 1771190684273, \"best_bid_amount\": 1400, \"id\": 201, \"stats_value\": 39837.994687, \"stats_price_change\": -6.1977, \"best_ask_price\": 1956.5, \"stats_low\": 1930.15, \"best_ask_amount\": 18445, \"instrument_name\": \"ETH-PERPETUAL\", \"stats_high\": 2101.55, \"index_price\": 1956.5, \"ticker\": \"eth_usd\", \"settlement_price\": 2090.93, \"min_price\": 1917.45, \"delivery_price\": 1956.5, \"max_price\": 1995.8, \"stats_volume_usd\": 80728959.0, \"open_interest\": 2288371584, \"mark_price\": 1956.63}, \r\n            \"2026-02-16 04:25:28\": {\"price\": null, \"best_bid_price\": 1956.8, \"last_price\": 1957.7, \"timestamp\": 1771190728583, \"best_bid_amount\": 17365, \"id\": 202, \"stats_value\": 39829.450546, \"stats_price_change\": -6.0672, \"best_ask_price\": 1956.85, \"stats_low\": 1930.15, \"best_ask_amount\": 1880, \"instrument_name\": \"ETH-PERPETUAL\", \"stats_high\": 2101.55, \"index_price\": 1956.74, \"ticker\": \"eth_usd\", \"settlement_price\": 2090.93, \"min_price\": 1917.7, \"delivery_price\": 1956.74, \"max_price\": 1996.0, \"stats_volume_usd\": 80711134.0, \"open_interest\": 2288371584, \"mark_price\": 1956.85},\r\n             \"2026-02-16 04:26:13\": {\"price\": null, \"best_bid_price\": 1956.5, \"last_price\": 1957.7, \"timestamp\": 1771190775013, \"best_bid_amount\": 1330, \"id\": 203, \"stats_value\": 39829.450546, \"stats_price_change\": -6.0672, \"best_ask_price\": 1956.55, \"stats_low\": 1930.15, \"best_ask_amount\": 14122, \"instrument_name\": \"ETH-PERPETUAL\", \"stats_high\": 2101.55, \"index_price\": 1956.19, \"ticker\": \"eth_usd\", \"settlement_price\": 2090.93, \"min_price\": 1917.3, \"delivery_price\": 1956.19, \"max_price\": 1995.6, \"stats_volume_usd\": 80711134.0, \"open_interest\": 2288371584, \"mark_price\": 1956.44\r\n             }\r\n        }\r\n    }\r\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

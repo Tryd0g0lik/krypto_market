@@ -56,30 +56,22 @@ async def get_index_price_child(
     setting = settings()
     serialize_json = {}
     regex_date = r"^(\d{1,4}-\d{1,2}-\d{1,2}_\d{1,4}:\d{1,2}:\d{1,2})$"
-    # renge_time = r"^(\d+.?\d{0,2})$"
     person_manager = manager.person_manager
-    response = Response(
-        status_code=status.HTTP_200_OK,
-    )
+    response = Response(status_code=status.HTTP_200_OK, media_type="application/json")
     headers_request_id = request.headers.get("X-Request-ID")
     ticker = request.path_params.get("ticker")
     user_id = request.path_params.get("user_id")
     start_date = request.query_params.get("start_date")
     end_date = request.query_params.get("end_date")
-    timer = request.query_params.get("timer")
-
     p: Person = person_manager.person_dict.get(user_id)
-    # user_interval: int = (
-    #     (int(timer) if re.search(renge_time, str(timer)) else 0.0)
-    #     if timer is not None and timer >= 0
-    #     else 0.0
-    # )
+
     if ticker not in setting.CURRENCY_FOR_CHOOSING:
         # ===============================
         # ---- RESPONSE HTTP
         # ==============================
         response.content = json.dumps({"detail": "Ticker not found!"})
         response.status_code = status.HTTP_404_NOT_FOUND
+
         return response
 
     try:

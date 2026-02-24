@@ -21,25 +21,21 @@ class PersonPricesModel(BaseModel):
         __tablename__ = "crypto_person_prices"
     else:
         __tablename__ = "person_prices"
-        __table_args__ = {"schema": "crypto"}
+        __table_args__ = ({"schema": "crypto"},)
 
     currency: Mapped[str] = mapped_column(
         String(20),
     )
     person_id = mapped_column(
         ForeignKey(
-            ("crypto_person.id" if connection_db.is_sqlitetype else "crypto.person.id"),
+            ("crypto_person.id" if DEBUG else "crypto.person.id"),
             name="fk_person_prices_person_id",
         ),
         comment="Reference to the person database.",
     )
     price_ticker_id = mapped_column(
         ForeignKey(
-            (
-                "crypto_price_tickers.id"
-                if connection_db.is_sqlitetype
-                else "crypto.price_tickers.id"
-            ),
+            ("crypto_price_tickers.id" if DEBUG else "crypto.price_tickers.id"),
             name="fk_person_prices_price_ticker_id",
         ),
         comment="Reference to the price ticker database.",

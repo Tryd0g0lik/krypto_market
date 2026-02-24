@@ -31,8 +31,6 @@ async def lifespan(app: FastAPI):
     # Auto updated
     def run_new_loop():
         loop = asyncio.new_event_loop()
-        # loop.set_debug(True)
-        # loop.slow_callback_duration = 0.08
         run_asyncio_debug(loop)
         asyncio.set_event_loop(loop)
 

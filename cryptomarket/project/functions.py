@@ -26,6 +26,37 @@ log = logging.getLogger(__name__)
 
 
 # ===============================
+# ---- RAM 'tracemalloc'
+# ===============================
+def get_memory_size(tracemalloc):
+    import linecache
+
+    log.info("=== MEMORY SNAPSHOT FROM sse_monitoring ===")
+    snapshot = tracemalloc.take_snapshot()
+    statistics = snapshot.statistics("lineno")[:30]
+    [print(stat) for stat in statistics]
+    [log.info(f"DEBUG RAM {stat}") for stat in statistics]
+    statistics = [stat for stat in statistics if "None" not in str(stat)]
+    log.info("-------------------")
+    for index, stat in enumerate(statistics[:10], 1):
+        frame = stat.traceback[0]
+        filename = frame.filename
+        lineno = frame.lineno
+        line = linecache.getline(filename, lineno).strip()
+        log.info(f"DEBUG RAM #{index}: {filename}:{lineno}: {line}")
+        log.info(f"DEBUG RAM size={stat.size / 1024:.1f} KB, count={stat.count}")
+    log.info("-------------------")
+    other = statistics[10:]
+    if other:
+        size = sum(stat.size for stat in other)
+        count = sum(stat.count for stat in other)
+        log.info(
+            f"... and {len(other)} others: size={size / 1024:.1f} KB, count={count}"
+        )
+    log.info("--------- END ----------")
+
+
+# ===============================
 # ---- ASНNCIO DEBUG
 # ===============================
 def run_asyncio_debug(loop, maxtimesize=0.08):
@@ -275,7 +306,6 @@ async def event_generator(
 
                 async with rate_limit.context_redis_connection() as redis_client:
                     result = await luo_script_find_key(redis_client, "sse_connection:*")
-                    log.warning("DEBUG SSE CONNECTION RESULT OF CACHE: %s", str(result))
                 result = json.loads(result)
                 result_dict = {}
                 if list(result.keys())[0] is not None and timeout_lest <= 0:
@@ -289,12 +319,10 @@ async def event_generator(
                             result_dict = json.loads(result_str)
                         await sse_manager.broadcast(result_dict)
                     else:
-                        log.warning("DEBUG SSE CONNECTION NOT RESULT OF CACHE")
-                    timeout_lest += timedelta(seconds=timeout)
+                        pass
+                    timeout_lest += timeout
                 else:
-                    log.warning(
-                        "DEBUG SSE CONNECTION RESULT: %s",
-                    )
+                    pass
             except Exception as e:
                 log.warning(
                     f"[event_generator]: Redis luo script failed, Result: {str(result)} Error: {e.args[0] if e.args else str(e)}"
@@ -309,10 +337,7 @@ async def event_generator(
                     # for mess in queue.get_nowait():
                     message_str = queue.get_nowait()
                     yield f'event: message: "index_app": "{user_id}", "message": {message_str}\n\n'
-                except Exception as e:
-                    log.warning(
-                        f"[event_generator]: event: message: Error: {e.args[0] if e.args else str(e)}"
-                    )
+                except Exception:
                     message_str = await asyncio.wait_for(queue.get(), 7)
                     yield f'event: message: "index_app": "{user_id}", "message": {message_str}\n\n'
             except (asyncio.TimeoutError, asyncio.QueueEmpty):
@@ -331,7 +356,6 @@ async def event_generator(
     except asyncio.CancelledError:
         pass
     except Exception as e:
-        log.info("DEBUG 2 BEFORE __setitem__ ")
         error_event = {}
         error_event.__setitem__("event", "error")
         error_event.__setitem__("detail", {})
@@ -451,7 +475,12 @@ async def set_record(
     context_redis_connection = deribit_limited.context_redis_connection
 
     try:
-
+        log.warning(
+            "---------------------------------------------------------------------------\n"
+        )
+        log.warning(
+            f"DEBUG 'currency_dict' 'args': {args[0]} & kwargs: {json.dumps(kwargs)}\n"
+        )
         async with context_redis_connection() as redis_client:
             result_ = await asyncio.wait_for(
                 redis_client.setex(
@@ -520,7 +549,7 @@ async def luo_script_find_key(redis_client: Redis, key_str: str):
     local all_keys = {}
     local debug_info = {}
     local pattern = KEYS[1]
-    local iteration  = 1
+    local iteration = 1
     table.insert(debug_info, '=== SCAN RESULT ===')
     repeat
         table.insert(debug_info, 'Start luo script. iteration : ' .. iteration  .. 'whith cursor: ' .. cursor)
@@ -531,12 +560,12 @@ async def luo_script_find_key(redis_client: Redis, key_str: str):
                 table.insert(all_keys, key)
                 table.insert(debug_info, ' Found key: ' .. key)
             end
-            iteration  = iteration  + 1
-            table.insert(debug_info, 'Redis SCAN got result. Cursor:' .. result[1] .. ' & Keys:' .. #result[2])
+            iteration = iteration  + 1
+            table.insert(debug_info, 'Redis SCAN got result. Cursor:' .. result[1] .. 'Keys:' .. #result[2])
         end
     until cursor == '0'
     table.insert(debug_info, 'Redis SCAN complete. Total keys found: ' .. #all_keys)
-    return  cjson.encode({keys = all_keys, debug = debug_info})
+    return cjson.encode({keys = all_keys, debug = debug_info})
     """
 
     result = await asyncio.wait_for(redis_client.eval(script, 1, key_str), 7)

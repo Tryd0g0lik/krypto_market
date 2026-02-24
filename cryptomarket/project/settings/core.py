@@ -25,7 +25,7 @@ log = logging.getLogger(__name__)
 
 BASE_DIR = Path(__file__).parent.parent.parent
 
-DEBUG = True
+DEBUG = True if os.getenv("DEBUG", "False") == "True" else False
 
 
 # ================ SETTINGS =================
@@ -107,7 +107,7 @@ class Settings(SettingsProps):
         )
     )
     __SQLALCHEMY_DATABASE_URL: str | None = (
-        f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}{POSTGRES_PORT if POSTGRES_PORT else ""}/{POSTGRES_DB}".replace(
+        f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT if POSTGRES_PORT else ''}/{POSTGRES_DB}".replace(
             "\\", "/"
         )
     )
@@ -204,10 +204,15 @@ class Settings(SettingsProps):
             hosts.insert(0, f"{self.APP_HOST}")
             hosts += [
                 "db",
+                "postgres",
                 "backend",
+                "api",
                 "nginx",
-                "celery",
+                "celery_beat",
+                "celery_worker",
+                "proxiserver",
                 "redis",
+                "cache",
                 "[::1]",
             ]
 

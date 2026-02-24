@@ -287,12 +287,64 @@ class DatabaseConnection(Database):
         Here we have getting the ASYNC connection on connection_database and creating all tables.
         :return: None
         """
+        from sqlalchemy import text
+
         from cryptomarket.models import Base
 
         try:
-            engine: AsyncEngine = self.engine
-            async with engine.begin() as conn:
-                await conn.run_sync(Base.metadata.create_all)
+            engine: AsyncEngine | create_engine = self.engine
+            session: AsyncSession | Session = self.session_factory()
+            if not session:
+                self.init_engine()
+            if self.is_async:
+
+                async with engine.begin() as conn:
+                    try:
+                        if self.is_postgresqltype:
+                            await conn.execute(
+                                text("CREATE SCHEMA IF NOT EXISTS crypto")
+                            )
+                            await conn.commit()
+                            await conn.run_sync(Base.metadata.create_all)
+                            await conn.commit()
+                            log.info("Schema 'crypto' ensured")
+                    except Exception as e:
+                        log_t = "[%s.%s]: ERROR => %s" % (
+                            self.__class__.__name__,
+                            self.__create_all_async.__name__,
+                            e,
+                        )
+                        log.error(log_t)
+                        raise log_t
+                    # finally:
+                    #     await conn.close()
+                    #     await session.close()
+
+            else:
+                with engine.begin() as conn:
+                    try:
+                        if self.is_postgresqltype:
+                            await conn.execute(
+                                text("CREATE SCHEMA IF NOT EXISTS crypto")
+                            )
+                            await conn.commit()
+                            await conn.run_sync(Base.metadata.create_all)
+                            await conn.commit()
+                            log.info("Schema 'crypto' ensured")
+                    except Exception as e:
+                        log_t = "[%s.%s]: ERROR => %s" % (
+                            self.__class__.__name__,
+                            self.__create_all_async.__name__,
+                            e,
+                        )
+                        log.error(log_t)
+                        raise log_t
+                    # finally:
+                    #     await conn.close()
+                    #     await session.close()
+            # async with engine.begin() as conn:
+            #     await conn.run_sync(Base.metadata.create_all)
+            #     await conn.commit()
 
         except Exception as e:
             log_t = "[%s.%s]: ERROR => %s", (

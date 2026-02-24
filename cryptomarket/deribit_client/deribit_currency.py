@@ -71,7 +71,7 @@ class CryptoCurrency:
     currency_dict = CurrencyDictionary(maxsize=setting.DERIBIT_QUEUE_SIZE)
 
     def __init__(self):
-        self.response = Response()
+        self.response = Response(media_type="application/json")
 
     async def create_order(self, request: Request):
         from cryptomarket.project.app import manager
@@ -242,7 +242,7 @@ class CryptoCurrency:
         # ---- CACHE SERVER
         # ===============================
         await set_record(
-            RadisKeysEnum.DERIBIT_CURRENCY.value.strip(), {**self.currency_dict}
+            RadisKeysEnum.DERIBIT_CURRENCY.value.strip(), **self.currency_dict
         )
         # async with context_redis_connection() as redis:
         #     await redis.setex(

@@ -2,8 +2,6 @@
 cryptomarket/errors/person_errors.py
 """
 
-from poetry.console.commands import self
-
 from cryptomarket.errors.deribit_errors import DeribitError
 
 

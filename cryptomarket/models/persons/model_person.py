@@ -38,7 +38,7 @@ class PersonModel(BaseModel):
         __tablename__ = "crypto_person"
         __table_args__ = __table_args_some
     else:
-        __tablename__ = "crypto.person"
+        __tablename__ = "person"
         __table_args__ = __table_args_some + ({"schema": "crypto"},)
     index_app: Mapped[str] = mapped_column(
         "index_app",

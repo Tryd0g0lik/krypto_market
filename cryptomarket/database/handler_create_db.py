@@ -10,16 +10,18 @@ from sqlalchemy.exc import InvalidRequestError
 
 from cryptomarket.database.connection import DatabaseConnection
 from cryptomarket.database.sql_text import SQLText
-from cryptomarket.project.settings.core import BASE_DIR, DEBUG
+from cryptomarket.project.settings.core import DEBUG
 from cryptomarket.project.settings.settings_env import POSTGRES_DB_, PROJECT_MODE_
-from cryptomarket.type.db import Database
 from cryptomarket.type.settings_prop import SettingsProps
 
 log = logging.getLogger(__name__)
 
 
 async def handler_restart_create_tables(
-    db: Database, max_restart: int, restart_quantity: int, settings: SettingsProps
+    db: DatabaseConnection,
+    max_restart: int,
+    restart_quantity: int,
+    settings: SettingsProps,
 ) -> bool:
     """
     This is child function for  the main function "checkOrCreateTables()".
@@ -33,9 +35,10 @@ async def handler_restart_create_tables(
     """
     await db.create_table()
     # Checking a connection_database - whose type already exists.
-
+    is_postgresqltype = db.is_postgresqltype
+    is_sqlitetype = db.is_sqlitetype
     # Check connection_database postgres
-    if db.is_postgresqltype and restart_quantity < max_restart:
+    if is_postgresqltype and restart_quantity < max_restart:
         restart_quantity += 1
         dbtable_bool = await db.is_postgres_exists_async(
             db.engine, settings.POSTGRES_DB, settings
@@ -48,7 +51,7 @@ async def handler_restart_create_tables(
             )
             return False
         return True
-    elif db.is_sqlitetype and restart_quantity < max_restart:
+    elif is_sqlitetype and restart_quantity < max_restart:
         restart_quantity += 1
         dbtable_bool = db.is_sqlite_exists
         if not dbtable_bool:
@@ -68,8 +71,12 @@ async def handler_restart_create_tables(
         restart_quantity += 1
         await asyncio.sleep(3)
         try:
-            with db.engine.connection:
-                return True
+            if db.is_async:
+                async with db.asyncsession_scope():
+                    return True
+            else:
+                with db.session_scope():
+                    return True
         except Exception as e:
             await handler_restart_create_tables(
                 db, max_restart, restart_quantity, settings
@@ -126,11 +133,17 @@ async def checkOrCreateTables(settings: SettingsProps, max_restart=3) -> None:
             settings.ALLOWED_ORIGINS = settings.get_allowed_hosts(
                 "http://127.0.0.1:8000, http://localhost:8000"
             )
+        elif not DEBUG and PROJECT_MODE_ == "production":
+            db_url = settings.get_database_url_external
+            log.info(f"Using PostgreSQL for production: db_url")
+            db = DatabaseConnection(db_url)
+
         else:
             # SOME
             settings.ALLOWED_ORIGINS = settings.get_allowed_hosts(
                 "http://127.0.0.1:8000, http://localhost:8000"
             )
+
         restart_calculator = 0
         await handler_restart_create_tables(
             db, max_restart, restart_calculator, settings
@@ -151,9 +164,10 @@ async def checkOrCreateTables(settings: SettingsProps, max_restart=3) -> None:
         log.error(log_t)
         from sqlalchemy import create_engine, text
 
-        settings.set_database_url_sqlite(
-            os.path.join(BASE_DIR, "%s_db.sqlite3" % settings.POSTGRES_DB)
-        )
+        # sqlite_path = os.path.join(BASE_DIR, f"{settings.POSTGRES_DB}.sqlite3")
+        # settings.set_database_url_sqlite(
+        #     sqlite_path
+        # )
 
         try:
             # НЕ РАБЬОЧЕЕю Вставить текст SQL и создать модель базы данных

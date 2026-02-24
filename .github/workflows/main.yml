@@ -1,0 +1,144 @@
+name: CryptoMarket
+
+on:
+    push:
+        branches: [dev]
+    pull_request:
+        branches: [ main ]
+jobs:
+    test_backend:
+        name: Test Backend
+        runs-on: ubuntu-latest
+        env:
+            POSTGRES_USER: ${{ secrets.POSTGRES_USER_ }}
+            POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD_ }}
+            POSTGRES_DB_PORT: ${{ secrets.POSTGRES_DB_PORT }}
+            POSTGRES_DB_NAME: test_d
+            POSTGRES_DB_HOST: localhost
+            POSTGRES_DB: test_d
+            DATABASE_URL: "postgresql://${{  secrets.POSTGRES_USER_  }}:${{ secrets.POSTGRES_PASSWORD_ }}@localhost:${{ secrets.POSTGRES_DB_PORT }}/test_d"
+            DEBUG: False
+        services:
+            postgres:
+                image: postgres:15
+                env:
+                    POSTGRES_USER: ${{  env.POSTGRES_USER  }}
+                    POSTGRES_PASSWORD: ${{  env.POSTGRES_PASSWORD  }}
+                    POSTGRES_DB: test_d
+                options: >-
+                    --health-cmd pg_isready
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+
+                ports:
+                    - 5432:5432
+        strategy:
+            matrix:
+                python-version: [ 3.13 ]
+                fastapi-version: [ 0.126.0 ]
+        steps:
+            -   name: Checkout code
+                uses: actions/checkout@v6.0.0
+
+            -   name: Set up Python ${{  matrix.python-version  }}
+                uses: actions/setup-python@v6.1.0
+                with:
+                    python-version: ${{  matrix.python-version  }}
+                    cache: 'pip'
+
+            -   name: Install system dependencies
+                run: |
+                    sudo apt-get update
+                    sudo apt-get install -y postgresql-client
+
+            -   name: Cache pip packages
+                uses: actions/cache@v4.3.0
+                with:
+                    path: ~/.cache/pip
+                    key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt')  }}
+                    restore-keys: |
+                        ${{  runner.os  }}-pip-
+            
+
+            -   name: Install backend dependencies
+                working-directory: .
+                run: |
+                    python -m pip install --upgrade pip
+                    pip install -r requirements.txt
+                    pip install pytest pytest-asyncio pytest-cov
+
+            -   name: Set environment for PostgreSQL
+                run: | # Проверка
+                    echo "DEBUG=False" >> $GITHUB_ENV
+                    echo "PROJECT_MODE=production" >> $GITHUB_ENV
+                    echo "POSTGRES_USER=${{ env.POSTGRES_USER }}" >> $GITHUB_ENV
+                    echo "POSTGRES_PASSWORD=${{  env.POSTGRES_PASSWORD  }}" >> $GITHUB_ENV
+                    echo "POSTGRES_DB=${{env.POSTGRES_DB}}" >> $GITHUB_ENV
+                    echo "POSTGRES_HOST=localhost" >> $GITHUB_ENV
+                    echo "POSTGRES_PORT=${{ env.POSTGRES_DB_PORT }}" >> $GITHUB_ENV
+            -   name: Create schema
+                run: |
+                    PGPASSWORD=${{  env.POSTGRES_PASSWORD  }} psql -h ${{env.POSTGRES_DB_HOST}} -U ${{ env.POSTGRES_USER }} -d ${{ env.POSTGRES_DB }} -c "CREATE SCHEMA IF NOT EXISTS crypto;"
+  
+
+            -   name: Run Alembic migrations (upgrade)
+                env:
+                    DATABASE_URL: ${{ env.DATABASE_URL }}
+                    DEBUG: "False"
+                    PROJECT_MODE: "production"
+                run: |
+                        alembic upgrade head
+                        alembic current
+            -   name: Set up database URL
+                run: |
+                    echo "DATABASE_URL=postgresql://${{ env.POSTGRES_USER }}:${{ env.POSTGRES_PASSWORD }}@${{env.POSTGRES_DB_HOST}}:${{env.POSTGRES_DB_PORT}}/test_d" >> $GITHUB_ENV
+
+            - name: Generate new migration (if needed)
+              env:
+                    DATABASE_URL: ${{ env.DATABASE_URL }}
+                    DEBUG: "False"
+                    PROJECT_MODE: "production"
+              run: |
+                     alembic check || true
+
+
+            -   name: Run pre-commit hooks
+                working-directory: .
+                run: |
+                    pip install pre-commit
+                    pre-commit autoupdate
+                    echo "Files that need fixing:"
+                    pre-commit run --all-files --show-diff || true
+
+        needs: deploy_market
+
+    deploy_market:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                python-version: [ '3.13' ]
+        steps:
+            # cache remove
+            -   name: Clear GitHub Actions cache
+                run: rm -rf $HOME/.cache/actions
+
+    cicd_deploy:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                python-version: [ '3.13' ]
+        env:
+            DEPLOY_HOST: ${{  secrets.SSH_HOST  }}
+            DEPLOY_USER: ${{  secrets.SSH_USER  }}
+            DEPLOY_PASSWORD: ${{  secrets.SSH_PASSWORD  }}
+        needs: test_backend
+        steps:
+            -   name: Deploy to GitHub Pages
+                uses: appleboy/ssh-action@master
+                with:
+                    host: ${{  env.DEPLOY_HOST  }}
+                    username: ${{  env.DEPLOY_USER  }}
+                    password: ${{  env.DEPLOY_PASSWORD  }}
+                    script: |
+                        expect /home/denis/crypto/pull.exp

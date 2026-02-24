@@ -14,7 +14,11 @@ from cryptomarket.errors import DatabaseConnectionCoroutineError
 from cryptomarket.models import PriceTicker
 from cryptomarket.project import TaskRegisteryType, celery_deribit
 from cryptomarket.project.enums import RadisKeysEnum
-from cryptomarket.project.functions import get_record, run_asyncio_debug
+from cryptomarket.project.functions import (
+    get_memory_size,
+    get_record,
+    run_asyncio_debug,
+)
 from cryptomarket.type import DeribitClient
 
 semaphore = asyncio.Semaphore(40)
@@ -24,9 +28,9 @@ log.setLevel(logging.INFO)
 
 
 async def func(*args):
+
     try:
         [manager, workers, connection_db, task_register] = args
-        log.warning("DEBUG CELERY TASK START ...")
         currency_dict: str | None = await get_record(
             RadisKeysEnum.DERIBIT_CURRENCY.value
         )
@@ -36,8 +40,6 @@ async def func(*args):
         currency_dict: dict = json.loads(currency_dict)
         person_manager = manager.person_manager
         SUPPORTED_CURRENCIES = person_manager.SUPPORTED_CURRENCIES
-
-        log.warning(f"DEBUG CELERY TASK 'currency_dict': {currency_dict}")
         full_list = {k: v for k, v in currency_dict.items() if len(v) > 0}
         if len(full_list) == 0:
             return False
@@ -54,12 +56,10 @@ async def func(*args):
         client: DeribitClient = workers.get_clients()
         task_register.register(client)
         person_manager.client = client
-
-        log.warning("DEBUG CELERY  TASK0")
         async with person_manager.ws_json() as ws:
             while len(full_list) > 0:
                 async with semaphore:
-                    log.warning("DEBUG CELERY  TASK1")
+
                     k, v = full_list.popitem()
                     header_currency = (k.split("_"))[0].upper()
                     if header_currency not in SUPPORTED_CURRENCIES:
@@ -77,7 +77,6 @@ async def func(*args):
                         SUPPORTED_CURRENCIES.get(header_currency)[0],
                     )
                     await ws.send_json(request_data)
-                    log.warning("DEBUG CELERY  TASK3")
                     # ===============================
                     # WSS RESPONSE FROM THE EXTERNAL SERVER.
                     # ===============================
@@ -88,7 +87,6 @@ async def func(*args):
                          Request data is: {json.dumps(request_data)}.\n"""
                         )
                         continue
-                    log.warning("DEBUG CELERY  TASK4")
                     if "errror" in response_data:
                         log.error(
                             f"""\n We get error from external deribit server!\
@@ -97,7 +95,6 @@ async def func(*args):
                           & Response data is: {json.dumps(response_data)}.\n """
                         )
                         continue
-                    log.warning("DEBUG CELERY  TASK5")
                     result = response_data.get("result")
                     # ----
                     async with lock:
