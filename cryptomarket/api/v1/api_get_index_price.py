@@ -56,7 +56,6 @@ async def get_index_price_child(
     setting = settings()
     serialize_json = {}
     regex_date = r"^(\d{1,4}-\d{1,2}-\d{1,2}_\d{1,4}:\d{1,2}:\d{1,2})$"
-    # renge_time = r"^(\d+.?\d{0,2})$"
     person_manager = manager.person_manager
     response = Response(
         status_code=status.HTTP_200_OK,
