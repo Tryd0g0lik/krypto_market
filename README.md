@@ -314,7 +314,7 @@ expect eof
 
 # == pull.sh
 #!/bin/bash
-cd /home/denis/crypto || { echo "Directory not found"; exit 1; }
+cd /home/< user name >/crypto || { echo "Directory not found"; exit 1; }
 
 # Git pull с проверкой
 echo "Updating code from git..."
