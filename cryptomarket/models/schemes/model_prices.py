@@ -7,13 +7,13 @@ import re
 
 from markdown_it.rules_inline.backticks import regex
 from sqlalchemy import (
-    BigBigInteger,
     BigInteger,
     Boolean,
     CheckConstraint,
     Float,
     ForeignKey,
     Index,
+    Integer,
     String,
     UniqueConstraint,
 )
@@ -60,7 +60,7 @@ class PriceTicker(BaseModel):
         nullable=True,
     )
     timestamp: Mapped[int] = mapped_column(
-        BigBigInteger,
+        BigInteger,
         nullable=False,
         doc="""The timestamp (milliseconds since the Unix epoch)
     Example: 1536569522277. Required
@@ -106,7 +106,7 @@ class PriceTicker(BaseModel):
         Required/
         """,
     )
-    best_bid_price: Mapped[Float] = mapped_column(
+    best_bid_price: Mapped[float] = mapped_column(
         Float,
         nullable=False,
         doc="""The current best bid price, null if there aren't any bids, Example: 3955.75 or null""",
@@ -117,26 +117,26 @@ class PriceTicker(BaseModel):
         nullable=True,
         doc="""It represents the requested order size of all best bids. Example: 30 or null.""",
     )
-    best_ask_price: Mapped[BigInteger] = mapped_column(
+    best_ask_price: Mapped[int] = mapped_column(
         BigInteger,
         nullable=True,
         doc="""The current best ask price, null if there aren't any asks, Example: 0 or null""",
     )
-    best_ask_amount: Mapped[BigInteger] = mapped_column(
+    best_ask_amount: Mapped[int] = mapped_column(
         BigInteger,
         nullable=True,
         doc="""It represents the requested order size of all best asks, Example: 30 or null.""",
     )
-    index_price: Mapped[Float] = mapped_column(
+    index_price: Mapped[float] = mapped_column(
         Float, nullable=True, doc="""Current index price, Example: 3955.75 or null"""
     )
-    min_price: Mapped[Float] = mapped_column(
+    min_price: Mapped[float] = mapped_column(
         Float,
         nullable=False,
         doc="""The minimum price for the future. Any sell orders you submit lower than this price will be\
          clamped to this minimum.Example: 3955.75 or null, Required.""",
     )
-    max_price: Mapped[Float] = mapped_column(
+    max_price: Mapped[float] = mapped_column(
         Float,
         nullable=False,
         doc="""The maximum price for the future. Any buy orders you submit higher than this price, will be clamped \
