@@ -99,7 +99,7 @@ def upgrade() -> None:
         "person_prices",
         sa.Column("id", sa.Integer(), primary_key=True, nullable=False),
         sa.Column("currency", sa.String(length=20), nullable=False),
-        sa.Column("person_id", sa.BigInteger(), nullable=True),
+        sa.Column("person_id", sa.Integer(), nullable=True),
         sa.Column("price_ticker_id", sa.BigInteger(), nullable=True),
         sa.Column("date_registered", sa.DateTime(), nullable=True),
         sa.Column("date_updated", sa.DateTime(), nullable=True),

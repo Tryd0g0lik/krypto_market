@@ -7,14 +7,15 @@ import re
 
 from markdown_it.rules_inline.backticks import regex
 from sqlalchemy import (
+    BigBigInteger,
+    BigInteger,
     Boolean,
     CheckConstraint,
     Float,
     ForeignKey,
     Index,
-    Integer,
     String,
-    UniqueConstraint, BigInteger,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
@@ -59,7 +60,7 @@ class PriceTicker(BaseModel):
         nullable=True,
     )
     timestamp: Mapped[int] = mapped_column(
-        BigInteger,
+        BigBigInteger,
         nullable=False,
         doc="""The timestamp (milliseconds since the Unix epoch)
     Example: 1536569522277. Required
@@ -97,7 +98,7 @@ class PriceTicker(BaseModel):
         doc="""The settlement price for the instrument. Only when state = closed""",
     )
     open_interest: Mapped[int] = mapped_column(
-        Integer,
+        BigInteger,
         nullable=False,
         doc="""
         The total amount of outstanding contracts in the corresponding amount units. For perpetual and inverse \
@@ -111,18 +112,18 @@ class PriceTicker(BaseModel):
         doc="""The current best bid price, null if there aren't any bids, Example: 3955.75 or null""",
     )
 
-    best_bid_amount: Mapped[Integer] = mapped_column(
-        Integer,
+    best_bid_amount: Mapped[BigInteger] = mapped_column(
+        BigInteger,
         nullable=True,
         doc="""It represents the requested order size of all best bids. Example: 30 or null.""",
     )
-    best_ask_price: Mapped[Integer] = mapped_column(
-        Integer,
+    best_ask_price: Mapped[BigInteger] = mapped_column(
+        BigInteger,
         nullable=True,
         doc="""The current best ask price, null if there aren't any asks, Example: 0 or null""",
     )
-    best_ask_amount: Mapped[Integer] = mapped_column(
-        Integer,
+    best_ask_amount: Mapped[BigInteger] = mapped_column(
+        BigInteger,
         nullable=True,
         doc="""It represents the requested order size of all best asks, Example: 30 or null.""",
     )
