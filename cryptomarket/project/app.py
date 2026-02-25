@@ -41,7 +41,6 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        # await connection_maintenance_task()
         pass
 
 
@@ -52,8 +51,6 @@ def app_cryptomarket():
     def run_asyncio_in_thread():
         loop = asyncio.new_event_loop()
         run_asyncio_debug(loop)
-        # loop.set_debug(True)
-        # loop.slow_callback_duration = 0.08
         try:
             asyncio.set_event_loop(loop)
             setting = settings()

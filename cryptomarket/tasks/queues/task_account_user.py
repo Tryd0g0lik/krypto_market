@@ -9,14 +9,13 @@ import re
 from contextvars import ContextVar
 from datetime import datetime
 
-from pycparser.c_ast import While
 
 from cryptomarket.project.enums import RadisKeysEnum
 from cryptomarket.project.functions import (
     str_to_json,
     update_person_manual,
 )
-from cryptomarket.type import DeribitClient, Person
+from cryptomarket.type import  Person
 
 log = logging.getLogger(__name__)
 lock = asyncio.Lock()

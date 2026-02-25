@@ -5,17 +5,13 @@ cryptomarket/tasks/celery/task_send_every_60_seconds.py
 import asyncio
 import json
 import logging
-import tracemalloc
-
-from sqlalchemy import and_, desc, or_, select, update
-
+from sqlalchemy import desc, select
 from cryptomarket.deribit_client import DeribitLimited
 from cryptomarket.errors import DatabaseConnectionCoroutineError
 from cryptomarket.models import PriceTicker
 from cryptomarket.project import celery_deribit
 from cryptomarket.project.enums import RadisKeysEnum
 from cryptomarket.project.functions import (
-    get_memory_size,
     luo_script_find_key,
     run_asyncio_debug,
 )

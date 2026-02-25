@@ -15,7 +15,6 @@ from cryptomarket.models import PriceTicker
 from cryptomarket.project import TaskRegisteryType, celery_deribit
 from cryptomarket.project.enums import RadisKeysEnum
 from cryptomarket.project.functions import (
-    get_memory_size,
     get_record,
     run_asyncio_debug,
 )

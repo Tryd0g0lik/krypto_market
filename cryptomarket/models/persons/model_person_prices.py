@@ -2,11 +2,10 @@
 cryptomarket/models/persons/model_person_prices.py
 """
 
-from sqlalchemy import Column, Float, ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from cryptomarket.models import BaseModel
-from cryptomarket.project.functions import connection_db
 from cryptomarket.project.settings.core import DEBUG, settings
 
 setting = settings()

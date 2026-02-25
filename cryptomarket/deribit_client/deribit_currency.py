@@ -7,7 +7,6 @@ from collections import UserDict
 from uuid import uuid4
 
 from fastapi import Request, Response, status
-from watchfiles import awatch
 
 from cryptomarket.api.v1.api_get_index_price import get_index_price_child
 from cryptomarket.errors import DeribitValueError

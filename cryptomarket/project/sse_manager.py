@@ -77,8 +77,6 @@ class ServerSSEManager:
             str(self._connections),
         )
         async with self.lock:
-            # check_subscribe = [k for k, v in self._connections.items() if k.startswith(mapped_key)]
-            # if check_subscribe[0] is None:
             if mapped_key not in self._connections:
                 await asyncio.wait_for(delete_key(mapped_key), 7)
                 log.warning(
@@ -94,8 +92,6 @@ class ServerSSEManager:
 
             message_data = json.dumps(user_message)
             dead_queues = []
-            # k = [k for k, v in self._connections.items()][0]
-            # k = check_subscribe[0]
             for queue in self._connections[mapped_key]:
                 try:
                     queue.put_nowait(message_data)

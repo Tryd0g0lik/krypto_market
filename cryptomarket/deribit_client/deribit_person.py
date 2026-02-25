@@ -1,19 +1,6 @@
 """
 cryptomarket/deribit_client/deribit_person.py
-TODO создать объект пользователя который получает данные при аутентификации
-    Note:: app требует регистрацию пользователя в Deribit, для получения получения сеуретных ключей.
-    Ключи вероятнго должны УЖЕ поступать с первым запросом и перехватываю в MIDDLEWARE
-    После MIDDLEWARE отправляются на аутентификацию и в отсете получает access_token, refresh_token и время жижни
-    - -
-    В данный момент Person:
-     - вступает в игру после получения access_token, refresh_token.
-     - хранить и передавать *_tokenб в данный мент нет куда.
-     От лица/аккаунта  пользователя далаем запросы с интервалом в минуту.
-    - -
-    Person чтоб платформа не:
-     - зависила от от пользователей,
-     - и не несла ответственности за действия пользователей
-Через сигнал в задаче
+
 """
 
 import asyncio
@@ -22,7 +9,7 @@ import logging
 import threading
 from collections import UserDict
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator
+from typing import AsyncGenerator
 
 from aiohttp import client_ws
 

@@ -175,34 +175,6 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
                     % (log_t, "WebSocket connection the end, but NOT is closed!")
                 )
 
-        # async def safe_receive_json(self, ws, timeout: float = 5.0):
-        #     """
-        #     Безопасное получение JSON с защитой от конкурентного доступа.
-        #
-        #     ВАЖНО: В системе должен быть только ОДИН получатель сообщений на WebSocket!
-        #     """
-        #     try:
-        #         # Используем wait_for с обработкой таймаута
-        #         msg = await ws.receive_json()
-        #
-        #         if msg.type == WSMsgType.TEXT:
-        #             return json.loads(msg.data)
-        #         elif msg.type == WSMsgType.ERROR:
-        #             log.error(f"WebSocket error: {msg.data}")
-        #             return None
-        #         elif msg.type == WSMsgType.CLOSED:
-        #             log.warning("WebSocket connection closed")
-        #             return None
-        #         else:
-        #             # Пинг/понг или бинарные сообщения
-        #             return None
-        #
-        #     except asyncio.TimeoutError:
-        #         return None
-        #     except Exception as e:
-        #         log.error(f"Error receiving message: {e}")
-        #         return None
-
     def __generate_workers(
         self,
         _heartbeat=30,
@@ -260,11 +232,7 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
                 client_ = self.DeribitClient()
                 self._clients.append(client_)
 
-        # return self._instance
 
-    # def __init__(self):
-    #     super().__init__()
-    #
     def get_clients(self) -> DeribitClient.initialize:
         """
         HEre we received the one coroutine for connection to the Deribit server.
@@ -272,19 +240,8 @@ class DeribitWebsocketPool(DeribitWebsocketPoolType):
         :return: DeribitClient.initialize (coroutine).
         10 clients is everything
         """
-        # i = self._current_index \
-        #     if self._current_index < setting.DERIBIT_MAX_QUANTITY_WORKERS \
-        #        and (self._current_index <= setting.DERIBIT_MAX_CONCURRENT)\
-        #     else setting.DERIBIT_MAX_CONCURRENT - 1
-        #
         if len(self._clients) == 0:
             print("PUSTO")
             self.__generate_workers()
 
-        # conn = self._clients.pop()
-        # del self._clients.workers[list(self._clients.workers.keys())[0]]
-
-        # Resent the cls._current_index
-        # self._current_index = (self._current_index + 1) % len(self._clients.get_active_task())
-        #
         return self._clients.pop()

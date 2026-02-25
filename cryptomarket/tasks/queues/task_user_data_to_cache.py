@@ -3,7 +3,6 @@ cryptomarket/tasks/queues/task_user_data_to_cache.py:1
 """
 
 import asyncio
-import json
 import logging
 
 from cryptomarket.project.functions import set_record

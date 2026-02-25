@@ -7,16 +7,10 @@ from collections import deque
 from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
 from datetime import datetime
-from typing import Any, Protocol, Set, TypedDict
-
-from aiohttp import client_ws
+from typing import Protocol, Set
 from aiohttp.client_ws import ClientWebSocketResponse
 from fastapi import Request
 from pydantic import BaseModel, Field
-from websockets import ClientConnection
-
-from cryptomarket.project.enums import ExternalAPIEnum
-
 
 # ----
 class OAuthAutenticationParamsType:

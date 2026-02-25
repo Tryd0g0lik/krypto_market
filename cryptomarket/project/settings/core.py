@@ -19,7 +19,7 @@ from cryptomarket.project.settings.settings_env import (
     PROJECT_MODE_,
 )
 from cryptomarket.type.settings_prop import SettingsProps
-from logs import configure_logging
+
 
 log = logging.getLogger(__name__)
 

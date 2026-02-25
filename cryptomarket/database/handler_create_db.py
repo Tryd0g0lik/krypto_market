@@ -4,7 +4,7 @@ cryptomarket/connection_database/handler_create_db.py
 
 import asyncio
 import logging
-import os
+
 
 from sqlalchemy.exc import InvalidRequestError
 

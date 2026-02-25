@@ -32,10 +32,6 @@ class DeribitManage(DeribitManageType):
     _deque_postman = deque(maxlen=setting.DERIBIT_QUEUE_SIZE)
     _deque_error = deque(maxlen=10000)  # Which have not passed caching
     deque_coroutines: asyncio.Queue = asyncio.Queue(40)
-    # deque_coroutines: deque = deque(
-    #     maxlen=500
-    # )  # Coroutine of workers / Look to the 'self.start_worker' & and the tasks.
-    # Tasks this are place where we can use the '_deque_coroutines'
 
     _sleep = 1  # second
 

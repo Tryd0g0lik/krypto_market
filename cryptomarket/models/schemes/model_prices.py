@@ -5,17 +5,12 @@ cryptomarket/models/schemes/model_prices.py:
 import logging
 import re
 
-from markdown_it.rules_inline.backticks import regex
 from sqlalchemy import (
     BigInteger,
-    Boolean,
     CheckConstraint,
     Float,
-    ForeignKey,
     Index,
-    Integer,
     String,
-    UniqueConstraint,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
@@ -28,10 +23,6 @@ log = logging.getLogger(__name__)
 
 class PriceTicker(BaseModel):
     __table_args__some = (
-        # UniqueConstraint(
-        #     "instrument_name",
-        #     name="instrument_name_unique",
-        # ),
         Index("ix_price_tickers_ticker", "ticker"),
         CheckConstraint("price >= 0", name="price_check"),
         CheckConstraint("timestamp >= 0", name="timestamp_check"),

@@ -20,7 +20,6 @@ class TaskRegistery(TaskRegisteryType):
     _workers = weakref.WeakSet()
 
     def __init__(self, max_size: int = 500):
-        # self.workers = weakref.WeakSet()
         super().__init__(max_size)
         self.task_names = {}
         self._max_size = max_size
