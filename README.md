@@ -1,6 +1,13 @@
 [![CryptoMarket](https://github.com/Tryd0g0lik/krypto_market/actions/workflows/main.yml/badge.svg?branch=dev)](https://github.com/Tryd0g0lik/krypto_market/actions/workflows/main.yml)
 
 Note: Публикация файлов не нарушило условий задания 
+Суть работы: 
+- Подключение к Deribit (crypto биржа).
+- Получение данных пользователя.
+- Подписка на  получение данных курса по ticker-у с временным интервалом.
+- Отмена подписки.
+- Получение данных с фильтром даты.
+
 ## APP CryptoMarket
 
 
