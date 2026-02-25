@@ -283,6 +283,14 @@ PROJECT_MODE=development
 ## Testing 
 ![test](./img/test_console.png)
 
+## Postman Test
+|v1_currency API||log Server|
+|:-----|:-----|:-----|
+|[![postman test](./img/postman_test.png)](./img/postman_test.png)||[![Postmane_test_server_log](img/Postmane_test_server_log.png)](img/Postmane_test_server_log.png)|
+|v1_currency_filter API|||
+|[![postman test](./img/Postmane_test_server_2.png)](./img/Postmane_test_server_2.png)||[![Postmane_test_server_log](img/Postmane_test_server_log_2.png)](img/Postmane_test_server_log_2.png)|
+|database at the time of testing|||
+|[![postman test](./img/Postman_test_db.png)](./img/Postman_test_db.png)|||
 
 ----
 ## Commands
