@@ -64,7 +64,7 @@ a для PostgreSQL добавлена схема "`crypto`" с таблицам
  - если "`True`" [работаем с](cryptomarket/database) PostgreSQL. "`PROJECT_MODE`" в режимах: "`testing`", "`development`", "`production`" - чтоб не грохнуть основную базу данных.
  - если "`False`" работаем SQLite.
 
-**Про патоки**
+**Про потоки**
 На этапе запуска движка создаётся упаковка из 10-ти корутинов.\
 Каждый корутин - client [для подключения к Deribit](cryptomarket/deribit_client/deribit_clients.py)./
 По мере необходимося вытаскиваем корутин и обращаеся к Deribit. \
